@@ -18,13 +18,20 @@ private struct MockRepositoryScreenDataProvider: RepositoryScreenDataProviding, 
     }
 }
 
+private struct MockDiffProvider: DiffProviding, Sendable {
+    func fetchDiff(in repositoryURL: URL, for path: String) async throws -> DiffDocument {
+        DiffDocument(filePath: path, lines: [])
+    }
+}
+
 private extension RepositoryScreenSnapshot {
     static var testSnapshot: RepositoryScreenSnapshot {
         RepositoryScreenSnapshot(
             changedFiles: [],
             commits: [],
             userProfile: GitUserProfile(name: "Test User", email: "test@example.com"),
-            primaryAction: .fetch
+            primaryAction: .fetch,
+            hasRemote: false
         )
     }
 }
@@ -37,7 +44,8 @@ final class RepositoryStoreViewModelTests: XCTestCase {
         )
         let sut = RepositoryStoreViewModel(
             inspector: inspector,
-            screenRepository: MockRepositoryScreenDataProvider(snapshot: .testSnapshot)
+            screenRepository: MockRepositoryScreenDataProvider(snapshot: .testSnapshot),
+            diffProvider: MockDiffProvider()
         )
 
         await sut.selectRepository(at: URL(fileURLWithPath: "/tmp/repo", isDirectory: true))
@@ -52,7 +60,8 @@ final class RepositoryStoreViewModelTests: XCTestCase {
         let inspector = MockRepositoryInspector(result: .failure(TestError.failed))
         let sut = RepositoryStoreViewModel(
             inspector: inspector,
-            screenRepository: MockRepositoryScreenDataProvider(snapshot: .testSnapshot)
+            screenRepository: MockRepositoryScreenDataProvider(snapshot: .testSnapshot),
+            diffProvider: MockDiffProvider()
         )
 
         await sut.selectRepository(at: URL(fileURLWithPath: "/tmp/repo", isDirectory: true))

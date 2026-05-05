@@ -6,7 +6,11 @@ struct CommitBox: View {
     @State private var isShowingProfile = false
 
     var body: some View {
-        VStack(spacing: 10) {
+        VStack(alignment: .leading, spacing: 10) {
+            Text("Commit")
+                .font(.system(size: 11, weight: .semibold))
+                .foregroundStyle(.secondary)
+
             HStack(alignment: .center, spacing: 10) {
                 Circle()
                     .fill(.quaternary)
@@ -42,13 +46,17 @@ struct CommitBox: View {
                 .frame(maxWidth: .infinity)
 
             Button {
+                Task {
+                    await viewModel.commitChanges()
+                }
             } label: {
-                Text(viewModel.commitButtonLabel)
+                Text(viewModel.isCommitting ? "Committing…" : "Commit changes")
                     .font(.system(size: 13, weight: .semibold))
                     .frame(maxWidth: .infinity)
             }
             .buttonStyle(.borderedProminent)
             .controlSize(.regular)
+            .disabled(!viewModel.canCommitChanges)
 
             VStack(alignment: .leading, spacing: 4) {
                 HStack {
@@ -69,7 +77,7 @@ struct CommitBox: View {
             .font(.system(size: 11))
         }
         .padding(12)
-        .background(.regularMaterial)
+        .background(.bar)
         .overlay(alignment: .top) {
             Divider()
         }

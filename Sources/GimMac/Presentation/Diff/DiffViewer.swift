@@ -1,40 +1,77 @@
 import SwiftUI
 
 struct DiffViewer: View {
-    private let lines: [DiffLine] = [
-        .context(9, "    settingAction: Selector"),
-        .context(10, ") -> NSMenu {"),
-        .context(11, "    let mainMenu = NSMenu()"),
-        .removed(12, "    "),
-        .added(12, "    let appMenuItem = NSMenuItem(title: \"GimMac\", action: nil, keyEquivalent: \"\")"),
-        .context(13, "    appMenuItem.submenu = buildAppMenu("),
-        .context(14, "        actionTarget: actionTarget,"),
-        .context(15, "        settingsAction: settingsAction"),
-        .context(18, "    )"),
-        .context(20, "    mainMenu.addItem(appMenuItem)"),
-        .removed(21, "    "),
-        .added(21, "    let fileMenuItem = NSMenuItem(title: \"File\", action: nil, keyEquivalent: \"\")"),
-        .context(22, "    fileMenuItem.submenu = buildFileMenu(actionTarget: actionTarget, placeholderAction: placeholderAction)"),
-        .context(24, "    mainMenu.addItem(fileMenuItem)"),
-        .removed(25, "    "),
-        .added(25, "    let editMenuItem = NSMenuItem(title: \"Edit\", action: nil, keyEquivalent: \"\")"),
-        .context(26, "    editMenuItem.submenu = buildEditMenu(actionTarget: actionTarget, placeholderAction: placeholderAction)")
-    ]
+    let viewModel: RepositoryStoreViewModel
+
+    private var lines: [DiffLine] {
+        viewModel.selectedDiffDocument.lines.map { line in
+            let kind: DiffKind
+            switch line.kind {
+            case .context:
+                kind = .context
+            case .added:
+                kind = .added
+            case .removed:
+                kind = .removed
+            }
+
+            return DiffLine(
+                kind: kind,
+                oldNumber: line.oldNumber,
+                newNumber: line.newNumber,
+                text: line.text
+            )
+        }
+    }
 
     var body: some View {
-        VStack(spacing: 0) {
-            DiffHeader()
+        VStack(alignment: .leading, spacing: 0) {
+            DiffHeader(
+                filePath: viewModel.selectedDiffDocument.filePath,
+                addedCount: viewModel.selectedDiffDocument.addedCount,
+                removedCount: viewModel.selectedDiffDocument.removedCount
+            )
 
-            ScrollView([.vertical, .horizontal]) {
-                LazyVStack(spacing: 0) {
-                    ForEach(lines) { line in
-                        DiffLineRow(line: line)
-                    }
+            if viewModel.isLoadingDiff {
+                VStack(alignment: .leading, spacing: 0) {
+                    ProgressView("Loading diff…")
+                        .padding(.top, 12)
+                        .padding(.horizontal, 12)
+                    Spacer(minLength: 0)
                 }
-                .font(.system(size: 12, design: .monospaced))
-                .padding(.vertical, 8)
+                    .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
+                    .background(Color(nsColor: .textBackgroundColor))
+            } else if lines.isEmpty {
+                VStack(alignment: .leading, spacing: 8) {
+                    HStack(spacing: 8) {
+                        Image(systemName: "doc.text.magnifyingglass")
+                            .font(.system(size: 16, weight: .light))
+                            .foregroundStyle(.tertiary)
+                        Text("No diff available")
+                            .font(.system(size: 13, weight: .medium))
+                            .foregroundStyle(.secondary)
+                    }
+                    .padding(.top, 12)
+                    .padding(.horizontal, 12)
+                    Spacer(minLength: 0)
+                }
+                .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
+                .background(Color(nsColor: .textBackgroundColor))
+            } else {
+                ScrollView([.vertical, .horizontal]) {
+                    LazyVStack(alignment: .leading, spacing: 0) {
+                        ForEach(lines) { line in
+                            DiffLineRow(line: line)
+                                .frame(maxWidth: .infinity, alignment: .leading)
+                        }
+                    }
+                    .font(.system(size: 12, design: .monospaced))
+                    .padding(.vertical, 8)
+                    .frame(maxWidth: .infinity, alignment: .topLeading)
+                }
+                .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
+                .background(Color(nsColor: .textBackgroundColor))
             }
-            .background(Color(nsColor: .textBackgroundColor))
         }
     }
 }

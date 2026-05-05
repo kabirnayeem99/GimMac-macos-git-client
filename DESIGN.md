@@ -69,7 +69,6 @@ Actions:
 - Clone repository
 - Add existing repository
 - Create new repository
-- Sign in to GitHub
 
 Empty state: shown on first launch or when all repositories are removed. Prompt the user to add or clone a repository.
 
@@ -147,7 +146,6 @@ Sections:
 - Commit signing
 - External editor
 - Theme
-- GitHub account
 
 ---
 
@@ -307,7 +305,7 @@ enum DiffLineKind {
 
 ## Security Design
 
-1. Store GitHub tokens only in Keychain. Never write to disk or log.
+1. Store credentials and secrets only in Keychain. Never write them to disk or log.
 2. Do not log tokens, remotes with embedded credentials, or auth headers.
 3. Do not execute Git commands through `/bin/sh -c`. Always use `Process` with an explicit arguments array.
 4. **Treat repository `.git/config` as untrusted input.** Specifically:
@@ -350,7 +348,7 @@ Problems:
 
 1. Target platform: macOS 14+ only.
 2. Product direction: native GitHub Desktop-like workflow, safe for possible public release.
-3. MVP: local Git first; GitHub login is V1.
+3. MVP: local Git only, with no hosted-platform-specific features.
 4. Staging: whole-file staging in MVP.
 5. Git binary: system/Homebrew Git in MVP.
 6. Signing: support both GPG and SSH signing through Git config.
@@ -366,5 +364,5 @@ Problems:
 2. Minimum macOS version (locked at 14.0 — reopen only if distribution data demands otherwise).
 3. Whether to use pure AppKit MVC or MVVM with Observation (locked to MVVM + Observation — reopen only if macOS target is lowered).
 4. Whether to include a simple commit history in MVP.
-5. Whether to support only GitHub remotes initially or any Git remote.
+5. Whether to add hosted-platform integrations after V1.
 6. Whether direct public release should use Sparkle auto-update.

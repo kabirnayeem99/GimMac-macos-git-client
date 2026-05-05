@@ -78,6 +78,7 @@ struct RepositoryScreenSnapshot: Equatable {
     let commits: [Commit]
     let userProfile: GitUserProfile
     let primaryAction: RepositoryPrimaryAction
+    let hasRemote: Bool
 }
 
 protocol RepositoryScreenDataProviding: Sendable {
@@ -111,6 +112,7 @@ final class LiveRepositoryScreenDataRepository: RepositoryScreenDataProviding, @
             async let userEmailTask = readConfig("user.email", in: repository.url)
             async let aheadBehindTask = readAheadBehind(in: repository.url)
             async let mergeInProgressTask = readMergeInProgress(in: repository.url)
+            async let hasRemoteTask = readHasRemote(in: repository.url)
 
             let changedFiles = (try? await changedFilesTask) ?? []
             let commits = (try? await commitsTask) ?? []
@@ -118,6 +120,7 @@ final class LiveRepositoryScreenDataRepository: RepositoryScreenDataProviding, @
             let userEmail = (try? await userEmailTask)?.trimmingCharacters(in: .whitespacesAndNewlines)
             let aheadBehind = (try? await aheadBehindTask) ?? (0, 0)
             let mergeInProgress = (try? await mergeInProgressTask) ?? false
+            let hasRemote = (try? await hasRemoteTask) ?? false
 
             let user = GitUserProfile(
                 name: userName?.isEmpty == false ? userName! : (commits.first?.authorName ?? "Unknown User"),
@@ -135,7 +138,8 @@ final class LiveRepositoryScreenDataRepository: RepositoryScreenDataProviding, @
                 changedFiles: changedFiles,
                 commits: commits,
                 userProfile: user,
-                primaryAction: primaryAction
+                primaryAction: primaryAction,
+                hasRemote: hasRemote
             )
         } catch {
             return .mock
@@ -164,6 +168,11 @@ final class LiveRepositoryScreenDataRepository: RepositoryScreenDataProviding, @
         } catch {
             return false
         }
+    }
+
+    private func readHasRemote(in repositoryURL: URL) async throws -> Bool {
+        let result = try await gitClient.run(["remote", "get-url", "origin"], in: repositoryURL, timeout: 5)
+        return !result.stdout.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
     }
 
     private func derivePrimaryAction(
@@ -217,7 +226,8 @@ private extension RepositoryScreenSnapshot {
                 )
             ],
             userProfile: GitUserProfile(name: "Naimul Kabir", email: "naimul@example.com"),
-            primaryAction: .push(1)
+            primaryAction: .push(1),
+            hasRemote: false
         )
     }
 }
@@ -227,6 +237,8 @@ private extension RepositoryScreenSnapshot {
 final class RepositoryStoreViewModel {
     private let inspector: RepositoryInspecting
     private let screenRepository: RepositoryScreenDataProviding
+    private let diffProvider: DiffProviding
+    private let commitProvider: CommitProviding
 
     private(set) var selectedRepository: Repository?
     private(set) var repositoryState = RepositoryState(currentBranch: nil, detachedHeadShortSHA: nil)
@@ -234,10 +246,14 @@ final class RepositoryStoreViewModel {
     private(set) var errorMessage: String?
 
     private(set) var primaryAction: RepositoryPrimaryAction = .fetch
+    private(set) var hasRemote = false
     private(set) var changedFiles: [ChangedFile] = []
     private(set) var commits: [Commit] = []
     private(set) var currentGitUser = GitUserProfile(name: "Unknown User", email: "unknown@example.com")
     private(set) var checkedChangedFilePaths: Set<String> = []
+    private(set) var selectedDiffDocument = DiffDocument.empty
+    private(set) var isLoadingDiff = false
+    private(set) var isCommitting = false
 
     var commitSummary = ""
     var commitDescription = ""
@@ -269,9 +285,16 @@ final class RepositoryStoreViewModel {
         selectedCommit?.summary ?? "No recent commit"
     }
 
-    init(inspector: RepositoryInspecting, screenRepository: RepositoryScreenDataProviding) {
+    init(
+        inspector: RepositoryInspecting,
+        screenRepository: RepositoryScreenDataProviding,
+        diffProvider: DiffProviding,
+        commitProvider: CommitProviding
+    ) {
         self.inspector = inspector
         self.screenRepository = screenRepository
+        self.diffProvider = diffProvider
+        self.commitProvider = commitProvider
     }
 
     func selectRepository(at url: URL) async {
@@ -293,6 +316,7 @@ final class RepositoryStoreViewModel {
     func refreshRepositoryScreenData() async {
         let snapshot = await screenRepository.loadSnapshot(for: selectedRepository)
         primaryAction = snapshot.primaryAction
+        hasRemote = snapshot.hasRemote
         changedFiles = snapshot.changedFiles
         commits = snapshot.commits
         currentGitUser = snapshot.userProfile
@@ -313,6 +337,8 @@ final class RepositoryStoreViewModel {
         if commitDescription.isEmpty {
             commitDescription = selectedCommit?.body ?? ""
         }
+
+        await loadDiffForSelectedFile()
     }
 
     func selectHistoryCommit(at index: Int) {
@@ -321,6 +347,9 @@ final class RepositoryStoreViewModel {
 
     func selectChangedFile(path: String) {
         selectedChangedFilePath = path
+        Task { [weak self] in
+            await self?.loadDiffForSelectedFile()
+        }
     }
 
     func isChangedFileChecked(path: String) -> Bool {
@@ -333,5 +362,82 @@ final class RepositoryStoreViewModel {
         } else {
             checkedChangedFilePaths.insert(path)
         }
+    }
+
+    var canCommitChanges: Bool {
+        !isCommitting &&
+        selectedRepository != nil &&
+        !checkedChangedFilePaths.isEmpty &&
+        !commitSummary.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+    }
+
+    func commitChanges() async {
+        guard canCommitChanges, let repository = selectedRepository else {
+            return
+        }
+
+        let summary = commitSummary.trimmingCharacters(in: .whitespacesAndNewlines)
+        let description = commitDescription.trimmingCharacters(in: .whitespacesAndNewlines)
+        let pathsToCommit = checkedChangedFilePaths.sorted()
+
+        isCommitting = true
+        errorMessage = nil
+        defer { isCommitting = false }
+
+        do {
+            try await commitProvider.commit(
+                in: repository.url,
+                paths: pathsToCommit,
+                summary: summary,
+                description: description.isEmpty ? nil : description
+            )
+
+            commitSummary = ""
+            commitDescription = ""
+            await refreshRepositoryScreenData()
+        } catch {
+            errorMessage = error.localizedDescription
+        }
+    }
+
+    private func loadDiffForSelectedFile() async {
+        guard let repository = selectedRepository, let path = selectedChangedFilePath else {
+            selectedDiffDocument = .empty
+            return
+        }
+
+        if let changedFile = changedFiles.first(where: { $0.path == path }),
+           changedFile.status == .untracked {
+            selectedDiffDocument = loadUntrackedFileDiff(repositoryURL: repository.url, path: path)
+            return
+        }
+
+        isLoadingDiff = true
+        defer { isLoadingDiff = false }
+
+        do {
+            selectedDiffDocument = try await diffProvider.fetchDiff(in: repository.url, for: path)
+        } catch {
+            selectedDiffDocument = DiffDocument(filePath: path, lines: [])
+        }
+    }
+
+    private func loadUntrackedFileDiff(repositoryURL: URL, path: String) -> DiffDocument {
+        let fileURL = repositoryURL.appendingPathComponent(path)
+        guard let content = try? String(contentsOf: fileURL, encoding: .utf8) else {
+            return DiffDocument(filePath: path, lines: [])
+        }
+
+        let lines = content.components(separatedBy: .newlines)
+        let diffLines = lines.enumerated().map { index, line in
+            DiffDocumentLine(
+                kind: .added,
+                oldNumber: nil,
+                newNumber: index + 1,
+                text: line
+            )
+        }
+
+        return DiffDocument(filePath: path, lines: diffLines)
     }
 }

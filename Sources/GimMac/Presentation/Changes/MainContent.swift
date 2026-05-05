@@ -3,7 +3,7 @@ import SwiftUI
 struct MainContent: View {
     var body: some View {
         ScrollView {
-            VStack(alignment: .leading, spacing: 22) {
+            VStack(alignment: .leading, spacing: 20) {
                 HeaderSection()
 
                 VStack(spacing: 0) {
@@ -37,20 +37,20 @@ struct MainContent: View {
                     )
                 }
                 .background(.regularMaterial)
-                .clipShape(RoundedRectangle(cornerRadius: 14, style: .continuous))
+                .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
                 .overlay {
-                    RoundedRectangle(cornerRadius: 14, style: .continuous)
+                    RoundedRectangle(cornerRadius: 12, style: .continuous)
                         .stroke(Color(NSColor.separatorColor), lineWidth: 1)
                 }
 
                 Spacer(minLength: 24)
             }
-            .padding(.horizontal, 72)
-            .padding(.top, 56)
+            .padding(.horizontal, 64)
+            .padding(.top, 44)
             .padding(.bottom, 32)
-            .frame(maxWidth: 900, alignment: .leading)
+            .frame(maxWidth: 860, alignment: .leading)
             .frame(maxWidth: .infinity)
         }
-        .background(Color(NSColor.windowBackgroundColor))
+        .background(Color(NSColor.textBackgroundColor))
     }
 }

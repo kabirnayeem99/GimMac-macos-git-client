@@ -64,9 +64,11 @@ struct ChangedFileRow: View {
         }
         .padding(.horizontal, 10)
         .frame(height: 36)
+        .frame(maxWidth: .infinity, alignment: .leading)
         .background(selected ? Color.accentColor : Color.clear)
         .foregroundStyle(selected ? .white : .primary)
         .clipShape(RoundedRectangle(cornerRadius: 7, style: .continuous))
+        .contentShape(RoundedRectangle(cornerRadius: 7, style: .continuous))
         .padding(.horizontal, 6)
         .padding(.vertical, 2)
     }

@@ -33,12 +33,14 @@ struct ChangedFilesColumn: View {
                         viewModel.toggleChangedFileChecked(path: file.path)
                     }
                 )
-                    .onTapGesture {
-                        viewModel.selectChangedFile(path: file.path)
-                    }
-                    .listRowInsets(EdgeInsets())
-                    .listRowSeparator(.hidden)
-                    .listRowBackground(Color.clear)
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .contentShape(Rectangle())
+                .onTapGesture {
+                    viewModel.selectChangedFile(path: file.path)
+                }
+                .listRowInsets(EdgeInsets())
+                .listRowSeparator(.hidden)
+                .listRowBackground(Color.clear)
             }
             .listStyle(.plain)
             .scrollContentBackground(.hidden)

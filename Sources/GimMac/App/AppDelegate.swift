@@ -82,7 +82,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
                     statusProvider: GitStatusProvider(client: gitClient),
                     historyProvider: GitHistoryProvider(client: gitClient),
                     gitClient: gitClient
-                )
+                ),
+                diffProvider: GitDiffProvider(client: gitClient),
+                commitProvider: GitCommitProvider(client: gitClient)
             )
         )
 

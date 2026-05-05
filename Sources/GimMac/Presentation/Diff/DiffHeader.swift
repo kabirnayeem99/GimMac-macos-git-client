@@ -1,12 +1,16 @@
 import SwiftUI
 
 struct DiffHeader: View {
+    let filePath: String
+    let addedCount: Int
+    let removedCount: Int
+
     var body: some View {
         HStack(spacing: 10) {
             Image(systemName: "doc.text")
                 .foregroundStyle(.secondary)
 
-            Text("Sources/GimMac/App/MainMenuFactory.swift")
+            Text(filePath.isEmpty ? "No file selected" : filePath)
                 .font(.system(size: 12, weight: .medium))
                 .foregroundStyle(.secondary)
                 .lineLimit(1)
@@ -14,10 +18,10 @@ struct DiffHeader: View {
             Spacer()
 
             HStack(spacing: 6) {
-                Text("+386")
+                Text("+\(addedCount)")
                     .foregroundStyle(.green)
 
-                Text("-144")
+                Text("-\(removedCount)")
                     .foregroundStyle(.red)
             }
             .font(.system(size: 11, weight: .semibold, design: .monospaced))

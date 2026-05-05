@@ -46,18 +46,36 @@ final class MainSplitViewController: NSViewController {
     }
 
     private func openRepositoryTapped() {
+        let panel = makeRepositoryOpenPanel()
+        presentRepositoryPanel(panel)
+    }
+
+    private func makeRepositoryOpenPanel() -> NSOpenPanel {
         let panel = NSOpenPanel()
+        panel.title = "Choose Repository"
+        panel.message = "Select a local Git repository."
+        panel.prompt = "Open Repository"
         panel.canChooseFiles = false
         panel.canChooseDirectories = true
+        panel.canCreateDirectories = false
         panel.allowsMultipleSelection = false
-        panel.prompt = "Open"
-        panel.message = "Select a local Git repository."
+        panel.resolvesAliases = true
+        panel.treatsFilePackagesAsDirectories = false
+        panel.showsTagField = false
+        panel.directoryURL = defaultRepositoryDirectoryURL()
+        return panel
+    }
 
-        guard let window = view.window else {
-            return
+    private func defaultRepositoryDirectoryURL() -> URL {
+        if let selectedRepository = viewModel.selectedRepository {
+            return selectedRepository.url.deletingLastPathComponent()
         }
 
-        panel.beginSheetModal(for: window) { [weak self] response in
+        return FileManager.default.homeDirectoryForCurrentUser
+    }
+
+    private func presentRepositoryPanel(_ panel: NSOpenPanel) {
+        let handleSelection: (NSApplication.ModalResponse) -> Void = { [weak self] response in
             guard response == .OK, let url = panel.url else {
                 return
             }
@@ -66,5 +84,12 @@ final class MainSplitViewController: NSViewController {
                 await self?.viewModel.selectRepository(at: url)
             }
         }
+
+        if let window = view.window {
+            panel.beginSheetModal(for: window, completionHandler: handleSelection)
+            return
+        }
+
+        handleSelection(panel.runModal())
     }
 }

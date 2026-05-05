@@ -8,9 +8,9 @@ struct SuggestionCard: View {
     var highlighted: Bool = false
 
     var body: some View {
-        HStack(alignment: .center, spacing: 18) {
+        HStack(alignment: .center, spacing: 14) {
             Image(systemName: highlighted ? "arrow.up.circle.fill" : "circle")
-                .font(.system(size: 18, weight: .medium))
+                .font(.system(size: 16, weight: .medium))
                 .foregroundStyle(highlighted ? AnyShapeStyle(.tint) : AnyShapeStyle(.tertiary))
                 .frame(width: 24)
 
@@ -28,6 +28,7 @@ struct SuggestionCard: View {
                     .font(.system(size: 11))
                     .foregroundStyle(.tertiary)
             }
+            .frame(maxWidth: .infinity, alignment: .leading)
 
             Spacer()
 
@@ -41,9 +42,9 @@ struct SuggestionCard: View {
                     .controlSize(.small)
             }
         }
-        .padding(.horizontal, 18)
-        .padding(.vertical, 14)
-        .background(highlighted ? Color.accentColor.opacity(0.08) : Color.clear)
+        .padding(.horizontal, 16)
+        .padding(.vertical, 12)
+        .background(highlighted ? Color.accentColor.opacity(0.1) : Color.clear)
         .overlay(alignment: .bottom) {
             Divider()
         }

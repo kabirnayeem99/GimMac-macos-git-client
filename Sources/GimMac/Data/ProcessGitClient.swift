@@ -7,16 +7,21 @@ protocol GitCommandRunning: Sendable {
 
 final class ProcessGitClient: GitClientProtocol, @unchecked Sendable {
     private let runner: GitCommandRunning
+    private let logger: GitCommandLogger
 
-    init(runner: GitCommandRunning = ProcessGitCommandRunner()) {
+    init(
+        runner: GitCommandRunning = ProcessGitCommandRunner(),
+        logger: GitCommandLogger = GitCommandLogger()
+    ) {
         self.runner = runner
+        self.logger = logger
     }
 
     func run(_ arguments: [String], in repositoryURL: URL, timeout: TimeInterval = 10) async throws -> GitCommandResult {
         let commandID = UUID()
 
         do {
-            return try await withThrowingTaskGroup(of: GitCommandResult.self) { group in
+            let result = try await withThrowingTaskGroup(of: GitCommandResult.self) { group in
                 group.addTask {
                     try await self.runner.execute(id: commandID, arguments: arguments, repositoryURL: repositoryURL)
                 }
@@ -35,13 +40,20 @@ final class ProcessGitClient: GitClientProtocol, @unchecked Sendable {
                 group.cancelAll()
                 return firstResult
             }
+            await logger.logSuccess(arguments: arguments, repositoryURL: repositoryURL, result: result)
+            return result
         } catch let error as GitAppError {
+            await logger.logFailure(arguments: arguments, repositoryURL: repositoryURL, error: error)
             throw error
         } catch is CancellationError {
             await runner.cancel(id: commandID)
-            throw GitAppError.cancelled(command: arguments)
+            let cancelled = GitAppError.cancelled(command: arguments)
+            await logger.logFailure(arguments: arguments, repositoryURL: repositoryURL, error: cancelled)
+            throw cancelled
         } catch {
-            throw GitAppErrorMapper.mapProcessError(command: arguments, error: error)
+            let mappedError = GitAppErrorMapper.mapProcessError(command: arguments, error: error)
+            await logger.logFailure(arguments: arguments, repositoryURL: repositoryURL, error: mappedError)
+            throw mappedError
         }
     }
 }

@@ -25,8 +25,13 @@ struct RepositoryScreen: View {
 
                         Divider()
 
-                        MainContent()
-                            .frame(maxWidth: .infinity, maxHeight: .infinity)
+                        if viewModel.changedFilesCount > 0 {
+                            DiffViewer(viewModel: viewModel)
+                                .frame(maxWidth: .infinity, maxHeight: .infinity)
+                        } else {
+                            MainContent()
+                                .frame(maxWidth: .infinity, maxHeight: .infinity)
+                        }
                     }
                 } else {
                     HistoryRepositoryScreen(

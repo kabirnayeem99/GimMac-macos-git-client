@@ -11,7 +11,7 @@ The following issues were found and resolved in this revision:
 - **Architecture locked:** "MVVM or MVC+service layer depending on screen complexity" was too vague. Now locked to MVVM + Observation.
 - **Ahead/behind fetch strategy documented:** These fields existed in RepositoryState with no explanation of how they are populated.
 - **Detached HEAD handling noted:** currentBranch: String? needed a stated display policy.
-- **Phase order fixed:** Phase 8 (Squash) was V1 scope but appeared before GitHub Auth. Phases now track MVP/V1 boundary.
+- **Phase order fixed:** Phase 8 (Advanced History Editing) is V1 scope and appears after MVP phases.
 - **Tags explicitly scoped out:** Not mentioned anywhere previously. Now explicitly deferred to Later.
 - **SwiftData conditional on macOS version clarified.**
 - **Testing strategy sketch added.**
@@ -71,9 +71,6 @@ If the target is later lowered to macOS 13, SwiftData must be replaced with SQLi
 
 Out of MVP:
 
-- GitHub login
-- Clone from GitHub account
-- Pull request creation
 - Hunk-level staging
 - Commit graph/history beyond a simple recent log
 - Tags (read-only display deferred to Later)
@@ -81,24 +78,21 @@ Out of MVP:
 
 ### V1
 
-1. GitHub OAuth login
-2. Repository publishing to GitHub
-3. Pull request creation link/deep integration
-4. Commit history graph
-5. Rebase/squash UI for last N commits
-6. Cherry-pick commits
-7. Amend last commit
-8. Stash list / create / pop / drop
-9. Submodule detection
-10. LFS detection and install guidance
-11. Better conflict resolution
-12. Notifications for push/pull/fetch status
-13. Keyboard shortcuts
+1. Commit history graph
+2. Rebase/squash UI for last N commits
+3. Cherry-pick commits
+4. Amend last commit
+5. Stash list / create / pop / drop
+6. Submodule detection
+7. LFS detection and install guidance
+8. Better conflict resolution
+9. Notifications for push/pull/fetch status
+10. Keyboard shortcuts
 
 ### Later
 
 1. Multi-platform Windows/Linux rewrite is out of scope unless the UI moves away from native Apple frameworks.
-2. Full GitHub Issues/Projects integration is out of scope for first version.
+2. Hosted-platform integrations are out of scope for first version.
 3. Built-in code editor is out of scope. Open external editor instead.
 4. Tags: read-only tag list and tag display in branch picker.
 5. Worktree support.
@@ -115,7 +109,6 @@ Out of MVP:
 - Git engine: Process-based Git CLI wrapper
 - Git binary: system Git / Homebrew Git first; no bundled Git in MVP
 - Networking: URLSession
-- GitHub API: REST first, GraphQL later only where useful
 - Persistence: SwiftData for app metadata (requires macOS 14+); fall back to SQLite if target is lowered
 - Secrets: Keychain
 - Logging: OSLog
@@ -196,14 +189,7 @@ View (AppKit NSViewController or SwiftUI View)
    - Force push with lease
    - Remote URL handling
 
-9. **GitHubService**
-   - OAuth
-   - User info
-   - Repository list
-   - Publish repo
-   - Pull request creation
-
-10. **PreferencesStore**
+9. **PreferencesStore**
     - Git path
     - Theme
     - External editor
@@ -392,18 +378,16 @@ final class MockGitClient: GitClientProtocol {
 - Force push: `git push --force-with-lease`, gated by typed confirmation.
 - Never default to raw `--force`.
 
-### Phase 8: GitHub Auth and API (V1 starts here)
+### Phase 8: Advanced History Editing (V1 starts here)
 
 This is not MVP. Add after local Git is stable.
 
-- OAuth device flow or browser-based OAuth.
-- Store token in Keychain.
-- List GitHub repositories.
-- Clone using HTTPS first.
-- Add SSH clone support.
-- Create pull request via GitHub API or open browser with prefilled compare URL.
+- Rebase/squash UI for last N commits.
+- Cherry-pick and amend flows.
+- Stash management.
+- Always create a backup ref before destructive history edits.
 
-### Phase 9: Squash / Combine Commits (V1)
+### Phase 9: Quality and UX (V1)
 
 - For combining last N commits, safest implementation:
   - `git reset --soft HEAD~N`
@@ -491,7 +475,7 @@ git config --global commit.gpgsign true
 1. Diff rendering performance on large files.
 2. Hunk-level staging complexity.
 3. Merge conflict UX.
-4. Auth/token edge cases.
+4. Configuration edge cases.
 5. GPG/pinentry failures.
 6. Sandboxing restrictions if distributed through Mac App Store.
 7. Legal/trademark risk if marketed as a clone.
@@ -521,7 +505,7 @@ git config --global commit.gpgsign true
 2. Minimum macOS version: 14.0 (Sonnet).
 3. Architecture: MVVM with Observation framework.
 4. Product direction: native GitHub Desktop-like workflow, safe for possible public release.
-5. MVP: local Git first; GitHub login is V1.
+5. MVP: local Git only with no hosted-platform-specific features.
 6. Staging: whole-file staging in MVP; hunk-level in V1.
 7. Git binary: system/Homebrew Git in MVP; no bundled Git.
 8. Signing: support both GPG and SSH signing through Git config.
@@ -534,5 +518,5 @@ git config --global commit.gpgsign true
 
 1. App name.
 2. Whether to include a simple commit history in MVP.
-3. Whether to support only GitHub remotes initially or any Git remote.
+3. Whether to add hosted-platform integrations after V1.
 4. Whether direct public release should use Sparkle auto-update.
