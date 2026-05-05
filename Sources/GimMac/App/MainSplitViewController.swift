@@ -1,9 +1,9 @@
 import AppKit
+import Observation
 
 @MainActor
 final class MainSplitViewController: NSSplitViewController {
     private let viewModel: RepositoryStoreViewModel
-    private var observationTask: Task<Void, Never>?
 
     private let repositoryButton = NSButton(title: "Open Repository", target: nil, action: nil)
     private let branchLabel = NSTextField(labelWithString: "No repository selected")
@@ -96,21 +96,29 @@ final class MainSplitViewController: NSSplitViewController {
     }
 
     private func bindViewModel() {
-        observationTask = Task { [weak self] in
-            guard let self else { return }
-            while !Task.isCancelled {
-                self.branchLabel.stringValue = self.viewModel.repositoryState.branchDisplayText
-                if self.viewModel.isLoading {
-                    self.setStatusText("Loading repository...")
-                } else if let error = self.viewModel.errorMessage {
-                    self.setStatusText(error)
-                } else if let repo = self.viewModel.selectedRepository {
-                    self.setStatusText(repo.displayName)
-                } else {
-                    self.setStatusText("")
-                }
-                try? await Task.sleep(nanoseconds: 200_000_000)
+        observeViewModel()
+    }
+
+    private func observeViewModel() {
+        withObservationTracking { [weak self] in
+            self?.renderViewModelState()
+        } onChange: { [weak self] in
+            Task { @MainActor [weak self] in
+                self?.observeViewModel()
             }
+        }
+    }
+
+    private func renderViewModelState() {
+        branchLabel.stringValue = RepositoryBranchDisplayFormatter.displayText(for: viewModel.repositoryState)
+        if viewModel.isLoading {
+            setStatusText("Loading repository...")
+        } else if let error = viewModel.errorMessage {
+            setStatusText(error)
+        } else if let repo = viewModel.selectedRepository {
+            setStatusText(repo.displayName)
+        } else {
+            setStatusText("")
         }
     }
 
@@ -151,9 +159,5 @@ final class MainSplitViewController: NSSplitViewController {
                 await self?.viewModel.selectRepository(at: url)
             }
         }
-    }
-
-    deinit {
-        observationTask?.cancel()
     }
 }

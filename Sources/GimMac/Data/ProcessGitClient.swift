@@ -22,7 +22,8 @@ final class ProcessGitClient: GitClientProtocol, @unchecked Sendable {
                 }
 
                 group.addTask {
-                    try await Task.sleep(nanoseconds: UInt64(timeout * 1_000_000_000))
+                    let nanoseconds = timeout > 0 && timeout.isFinite ? UInt64(timeout * 1_000_000_000) : 0
+                    try await Task.sleep(nanoseconds: nanoseconds)
                     await self.runner.cancel(id: commandID)
                     throw GitAppError.timeout(command: arguments, seconds: timeout)
                 }
