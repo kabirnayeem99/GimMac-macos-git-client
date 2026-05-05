@@ -8,11 +8,14 @@ configs:
   Release: release
 settings:
   base:
-    SWIFT_VERSION: 5.10
+    SWIFT_VERSION: "5.1"
     GENERATE_INFOPLIST_FILE: YES
+    DEAD_CODE_STRIPPING: YES
     CODE_SIGN_STYLE: Automatic
-    DEVELOPMENT_TEAM: ""
+    DEVELOPMENT_TEAM: 8B32JSRHMA
     ENABLE_USER_SCRIPT_SANDBOXING: YES
+    ASSETCATALOG_COMPILER_GENERATE_SWIFT_ASSET_SYMBOL_EXTENSIONS: YES
+    STRING_CATALOG_GENERATE_SYMBOLS: YES
     SWIFT_TREAT_WARNINGS_AS_ERRORS: YES
     GCC_TREAT_WARNINGS_AS_ERRORS: YES
     CLANG_WARN_DOCUMENTATION_COMMENTS: YES
@@ -38,13 +41,18 @@ targets:
         PRODUCT_NAME: GimMac
         ASSETCATALOG_COMPILER_APPICON_NAME: AppIcon
         INFOPLIST_KEY_CFBundleDisplayName: GimMac
+        INFOPLIST_KEY_LSUIElement: NO
+        INFOPLIST_KEY_LSBackgroundOnly: NO
         INFOPLIST_KEY_LSApplicationCategoryType: public.app-category.developer-tools
         INFOPLIST_KEY_NSHumanReadableCopyright: "Copyright © 2026"
     scheme:
       testTargets:
-        - GimMacTests
-        - GimMacIntegrationTests
-        - GimMacUITests
+        - name: GimMacTests
+          parallelizable: false
+        - name: GimMacIntegrationTests
+          parallelizable: false
+        - name: GimMacUITests
+          parallelizable: false
 
   GimMacTests:
     type: bundle.unit-test

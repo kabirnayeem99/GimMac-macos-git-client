@@ -58,10 +58,10 @@ Tests:
 
 ## Phase 1: App Shell + Repository Context
 
-- [ ] Build AppKit shell (`NSSplitViewController`): repo/sidebar, changes list, diff pane, commit pane.
-- [ ] Create `RepositoryStore` in Domain (`Repository`, `RepositoryState` models).
-- [ ] Implement repository picker and recent repositories list.
-- [ ] Show current branch or detached HEAD display in toolbar/header.
+- [x] Build AppKit shell (`NSSplitViewController`): repo/sidebar, changes list, diff pane, commit pane.
+- [x] Create `RepositoryStore` in Domain (`Repository`, `RepositoryState` models).
+- [x] Implement repository picker and recent repositories list.
+- [x] Show current branch or detached HEAD display in toolbar/header.
 
 Tests:
 - Unit: `RepositoryStoreViewModel` state transitions.

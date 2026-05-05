@@ -7,11 +7,19 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
+		0F6CE8CF901D76E405EF9802 /* RepositoryStoreViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3BA641FFECA8B1E9350C12E6 /* RepositoryStoreViewModel.swift */; };
+		24F550F735A0244F5E44043A /* Repository.swift in Sources */ = {isa = PBXBuildFile; fileRef = BA9A380B1047F365ED06D571 /* Repository.swift */; };
 		55235049E9EACB77FE66BFAC /* GimMac.icns in Resources */ = {isa = PBXBuildFile; fileRef = 51360A55E8768DDFCF39F1F5 /* GimMac.icns */; };
 		594B2BAC2FA6AE49E7B1AF10 /* ArchitectureBoundaryTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 490F1367EED79749B9D7C6A6 /* ArchitectureBoundaryTests.swift */; };
 		61A279EF393239289F244E4C /* AppDelegate.swift in Sources */ = {isa = PBXBuildFile; fileRef = 50E935AD2F4FF2C447FE20BF /* AppDelegate.swift */; };
+		700D34F6EE4A15B452C9C722 /* RepositoryState.swift in Sources */ = {isa = PBXBuildFile; fileRef = C225BFE6DDC7862E3E24E00E /* RepositoryState.swift */; };
+		7654AF891581F7F37FEF35AE /* LocalGitRepositoryInspector.swift in Sources */ = {isa = PBXBuildFile; fileRef = F05718ABFBE961B085432A32 /* LocalGitRepositoryInspector.swift */; };
+		79233CD7E6A17C3F0BD7B141 /* MainSplitViewController.swift in Sources */ = {isa = PBXBuildFile; fileRef = CD887731BBFAFE6CEC70FD7B /* MainSplitViewController.swift */; };
+		977DB37579B9A69D7460D4B0 /* main.swift in Sources */ = {isa = PBXBuildFile; fileRef = 910DD8BF45DEAF9BF4D48233 /* main.swift */; };
 		97951A938E26F0CE385C17FD /* GimMacUITests.swift in Sources */ = {isa = PBXBuildFile; fileRef = DB6AF397C724F73312DE57FF /* GimMacUITests.swift */; };
 		B0AD9B4A54B735A35ED48267 /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = 25B57C69324148C1CF9426CA /* Assets.xcassets */; };
+		BF5F71EF2E43A8654E2F659F /* RepositoryStoreViewModelTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 40544E3542DD0D5C3B33439B /* RepositoryStoreViewModelTests.swift */; };
+		CAAE9FC6E9B64B0DE72E89C8 /* RepositoryInspecting.swift in Sources */ = {isa = PBXBuildFile; fileRef = 400E2EE559B4BA3E5C092DF1 /* RepositoryInspecting.swift */; };
 		F4DE69CD76C604DFA986C08C /* GitSmokeIntegrationTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 685CA9B92D7980F3228BC721 /* GitSmokeIntegrationTests.swift */; };
 /* End PBXBuildFile section */
 
@@ -42,14 +50,22 @@
 /* Begin PBXFileReference section */
 		1AF68AC660D8556DB05EFE41 /* GimMacIntegrationTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = GimMacIntegrationTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 		25B57C69324148C1CF9426CA /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
+		3BA641FFECA8B1E9350C12E6 /* RepositoryStoreViewModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RepositoryStoreViewModel.swift; sourceTree = "<group>"; };
+		400E2EE559B4BA3E5C092DF1 /* RepositoryInspecting.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RepositoryInspecting.swift; sourceTree = "<group>"; };
+		40544E3542DD0D5C3B33439B /* RepositoryStoreViewModelTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RepositoryStoreViewModelTests.swift; sourceTree = "<group>"; };
 		490F1367EED79749B9D7C6A6 /* ArchitectureBoundaryTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ArchitectureBoundaryTests.swift; sourceTree = "<group>"; };
 		50E935AD2F4FF2C447FE20BF /* AppDelegate.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppDelegate.swift; sourceTree = "<group>"; };
 		51360A55E8768DDFCF39F1F5 /* GimMac.icns */ = {isa = PBXFileReference; lastKnownFileType = image.icns; path = GimMac.icns; sourceTree = "<group>"; };
 		685CA9B92D7980F3228BC721 /* GitSmokeIntegrationTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GitSmokeIntegrationTests.swift; sourceTree = "<group>"; };
 		75E6E6D2CB22EF1C63C56196 /* GimMac.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = GimMac.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		772D8634E4FCC7C6479F2A0C /* GimMacUITests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = GimMacUITests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
+		910DD8BF45DEAF9BF4D48233 /* main.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = main.swift; sourceTree = "<group>"; };
 		B93BE412A7B64B0F59C1609C /* GimMacTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = GimMacTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
+		BA9A380B1047F365ED06D571 /* Repository.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Repository.swift; sourceTree = "<group>"; };
+		C225BFE6DDC7862E3E24E00E /* RepositoryState.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RepositoryState.swift; sourceTree = "<group>"; };
+		CD887731BBFAFE6CEC70FD7B /* MainSplitViewController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MainSplitViewController.swift; sourceTree = "<group>"; };
 		DB6AF397C724F73312DE57FF /* GimMacUITests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GimMacUITests.swift; sourceTree = "<group>"; };
+		F05718ABFBE961B085432A32 /* LocalGitRepositoryInspector.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LocalGitRepositoryInspector.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXGroup section */
@@ -64,6 +80,16 @@
 			name = Products;
 			sourceTree = "<group>";
 		};
+		645E4FC0A4E966B9E089EABD /* Domain */ = {
+			isa = PBXGroup;
+			children = (
+				BA9A380B1047F365ED06D571 /* Repository.swift */,
+				400E2EE559B4BA3E5C092DF1 /* RepositoryInspecting.swift */,
+				C225BFE6DDC7862E3E24E00E /* RepositoryState.swift */,
+			);
+			path = Domain;
+			sourceTree = "<group>";
+		};
 		66EABE7217D6CCB889BDECDC /* GimMacIntegrationTests */ = {
 			isa = PBXGroup;
 			children = (
@@ -73,10 +99,19 @@
 			path = Tests/GimMacIntegrationTests;
 			sourceTree = "<group>";
 		};
+		67BA8E12D2A7A2766D05D061 /* App */ = {
+			isa = PBXGroup;
+			children = (
+				CD887731BBFAFE6CEC70FD7B /* MainSplitViewController.swift */,
+			);
+			path = App;
+			sourceTree = "<group>";
+		};
 		6BCC92053F62D5301849A277 /* GimMacTests */ = {
 			isa = PBXGroup;
 			children = (
 				490F1367EED79749B9D7C6A6 /* ArchitectureBoundaryTests.swift */,
+				40544E3542DD0D5C3B33439B /* RepositoryStoreViewModelTests.swift */,
 			);
 			name = GimMacTests;
 			path = Tests/GimMacTests;
@@ -95,10 +130,23 @@
 			isa = PBXGroup;
 			children = (
 				50E935AD2F4FF2C447FE20BF /* AppDelegate.swift */,
+				910DD8BF45DEAF9BF4D48233 /* main.swift */,
+				67BA8E12D2A7A2766D05D061 /* App */,
+				EC6C4D6729FD8C33A6D11577 /* Data */,
+				645E4FC0A4E966B9E089EABD /* Domain */,
+				A0400FBCA35F787D99921A38 /* Presentation */,
 				BD6E4CDE521BB193DC26F4A8 /* Resources */,
 			);
 			name = GimMac;
 			path = Sources/GimMac;
+			sourceTree = "<group>";
+		};
+		A0400FBCA35F787D99921A38 /* Presentation */ = {
+			isa = PBXGroup;
+			children = (
+				3BA641FFECA8B1E9350C12E6 /* RepositoryStoreViewModel.swift */,
+			);
+			path = Presentation;
 			sourceTree = "<group>";
 		};
 		BD6E4CDE521BB193DC26F4A8 /* Resources */ = {
@@ -119,6 +167,14 @@
 				854C715A0E2053FA8DC290F4 /* GimMacUITests */,
 				214C4681FBCDA8F3B4C435C2 /* Products */,
 			);
+			sourceTree = "<group>";
+		};
+		EC6C4D6729FD8C33A6D11577 /* Data */ = {
+			isa = PBXGroup;
+			children = (
+				F05718ABFBE961B085432A32 /* LocalGitRepositoryInspector.swift */,
+			);
+			path = Data;
 			sourceTree = "<group>";
 		};
 /* End PBXGroup section */
@@ -206,19 +262,19 @@
 				LastUpgradeCheck = 1430;
 				TargetAttributes = {
 					0DA8C9D4CC2DF724218F671D = {
-						DevelopmentTeam = "";
+						DevelopmentTeam = 8B32JSRHMA;
 						ProvisioningStyle = Automatic;
 					};
 					733F94097C89678D355D2750 = {
-						DevelopmentTeam = "";
+						DevelopmentTeam = 8B32JSRHMA;
 						ProvisioningStyle = Automatic;
 					};
 					C05E7E75449F60F302A96BFC = {
-						DevelopmentTeam = "";
+						DevelopmentTeam = 8B32JSRHMA;
 						ProvisioningStyle = Automatic;
 					};
 					FF543386242EC883CD63FF82 = {
-						DevelopmentTeam = "";
+						DevelopmentTeam = 8B32JSRHMA;
 						ProvisioningStyle = Automatic;
 						TestTargetID = 733F94097C89678D355D2750;
 					};
@@ -272,6 +328,13 @@
 			buildActionMask = 2147483647;
 			files = (
 				61A279EF393239289F244E4C /* AppDelegate.swift in Sources */,
+				7654AF891581F7F37FEF35AE /* LocalGitRepositoryInspector.swift in Sources */,
+				79233CD7E6A17C3F0BD7B141 /* MainSplitViewController.swift in Sources */,
+				24F550F735A0244F5E44043A /* Repository.swift in Sources */,
+				CAAE9FC6E9B64B0DE72E89C8 /* RepositoryInspecting.swift in Sources */,
+				700D34F6EE4A15B452C9C722 /* RepositoryState.swift in Sources */,
+				0F6CE8CF901D76E405EF9802 /* RepositoryStoreViewModel.swift in Sources */,
+				977DB37579B9A69D7460D4B0 /* main.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -280,6 +343,7 @@
 			buildActionMask = 2147483647;
 			files = (
 				594B2BAC2FA6AE49E7B1AF10 /* ArchitectureBoundaryTests.swift in Sources */,
+				BF5F71EF2E43A8654E2F659F /* RepositoryStoreViewModelTests.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -333,6 +397,7 @@
 			isa = XCBuildConfiguration;
 			buildSettings = {
 				ALWAYS_SEARCH_USER_PATHS = NO;
+				ASSETCATALOG_COMPILER_GENERATE_SWIFT_ASSET_SYMBOL_EXTENSIONS = YES;
 				CLANG_ANALYZER_LOCALIZABILITY_NONLOCALIZED = YES;
 				CLANG_ANALYZER_NONNULL = YES;
 				CLANG_ANALYZER_NUMBER_OBJECT_CONVERSION = YES_AGGRESSIVE;
@@ -365,8 +430,9 @@
 				CLANG_WARN__DUPLICATE_METHOD_MATCH = YES;
 				CODE_SIGN_STYLE = Automatic;
 				COPY_PHASE_STRIP = NO;
+				DEAD_CODE_STRIPPING = YES;
 				DEBUG_INFORMATION_FORMAT = dwarf;
-				DEVELOPMENT_TEAM = "";
+				DEVELOPMENT_TEAM = 8B32JSRHMA;
 				ENABLE_STRICT_OBJC_MSGSEND = YES;
 				ENABLE_TESTABILITY = YES;
 				ENABLE_USER_SCRIPT_SANDBOXING = YES;
@@ -393,6 +459,7 @@
 				OTHER_SWIFT_FLAGS = "$(inherited) -warnings-as-errors";
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SDKROOT = macosx;
+				STRING_CATALOG_GENERATE_SYMBOLS = YES;
 				SWIFT_ACTIVE_COMPILATION_CONDITIONS = DEBUG;
 				SWIFT_OPTIMIZATION_LEVEL = "-Onone";
 				SWIFT_STRICT_CONCURRENCY = complete;
@@ -442,6 +509,8 @@
 				COMBINE_HIDPI_IMAGES = YES;
 				INFOPLIST_KEY_CFBundleDisplayName = GimMac;
 				INFOPLIST_KEY_LSApplicationCategoryType = "public.app-category.developer-tools";
+				INFOPLIST_KEY_LSBackgroundOnly = NO;
+				INFOPLIST_KEY_LSUIElement = NO;
 				INFOPLIST_KEY_NSHumanReadableCopyright = "Copyright © 2026";
 				LD_RUNPATH_SEARCH_PATHS = (
 					"$(inherited)",
@@ -460,6 +529,8 @@
 				COMBINE_HIDPI_IMAGES = YES;
 				INFOPLIST_KEY_CFBundleDisplayName = GimMac;
 				INFOPLIST_KEY_LSApplicationCategoryType = "public.app-category.developer-tools";
+				INFOPLIST_KEY_LSBackgroundOnly = NO;
+				INFOPLIST_KEY_LSUIElement = NO;
 				INFOPLIST_KEY_NSHumanReadableCopyright = "Copyright © 2026";
 				LD_RUNPATH_SEARCH_PATHS = (
 					"$(inherited)",
@@ -492,6 +563,7 @@
 			isa = XCBuildConfiguration;
 			buildSettings = {
 				ALWAYS_SEARCH_USER_PATHS = NO;
+				ASSETCATALOG_COMPILER_GENERATE_SWIFT_ASSET_SYMBOL_EXTENSIONS = YES;
 				CLANG_ANALYZER_LOCALIZABILITY_NONLOCALIZED = YES;
 				CLANG_ANALYZER_NONNULL = YES;
 				CLANG_ANALYZER_NUMBER_OBJECT_CONVERSION = YES_AGGRESSIVE;
@@ -524,8 +596,9 @@
 				CLANG_WARN__DUPLICATE_METHOD_MATCH = YES;
 				CODE_SIGN_STYLE = Automatic;
 				COPY_PHASE_STRIP = NO;
+				DEAD_CODE_STRIPPING = YES;
 				DEBUG_INFORMATION_FORMAT = "dwarf-with-dsym";
-				DEVELOPMENT_TEAM = "";
+				DEVELOPMENT_TEAM = 8B32JSRHMA;
 				ENABLE_NS_ASSERTIONS = NO;
 				ENABLE_STRICT_OBJC_MSGSEND = YES;
 				ENABLE_USER_SCRIPT_SANDBOXING = YES;
@@ -545,6 +618,7 @@
 				OTHER_SWIFT_FLAGS = "$(inherited) -warnings-as-errors";
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SDKROOT = macosx;
+				STRING_CATALOG_GENERATE_SYMBOLS = YES;
 				SWIFT_COMPILATION_MODE = wholemodule;
 				SWIFT_OPTIMIZATION_LEVEL = "-O";
 				SWIFT_STRICT_CONCURRENCY = complete;

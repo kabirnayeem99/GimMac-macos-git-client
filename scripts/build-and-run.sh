@@ -45,5 +45,18 @@ if [[ ! -d "$APP_PATH" ]]; then
   exit 1
 fi
 
+BUNDLE_ID="io.github.kabirnayeem99.gimmac"
+SAVED_STATE_DIR="$HOME/Library/Saved Application State/${BUNDLE_ID}.savedState"
+
 echo "==> Launching $APP_PATH"
-open "$APP_PATH"
+
+# Stop stale GimMac instances (for example, old Xcode DerivedData runs)
+# so LaunchServices does not reuse a process from another build path.
+pgrep -f '/GimMac.app/Contents/MacOS/GimMac' | xargs -r kill >/dev/null 2>&1 || true
+sleep 0.5
+
+# Remove stale macOS window-restoration state that can reference old classes.
+rm -rf "$SAVED_STATE_DIR"
+
+# Force a new instance from this exact app path.
+open -n "$APP_PATH" --args -ApplePersistenceIgnoreState YES

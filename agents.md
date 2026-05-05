@@ -315,6 +315,26 @@ __weak typeof(self) weakSelf = self;
 
 Follow native macOS expectations.
 
+Required Apple references for AppKit, macOS UI, Xcode, and performance work:
+
+- AppKit overview: https://developer.apple.com/documentation/appkit
+- `NSApplicationDelegate` app lifecycle: https://developer.apple.com/documentation/appkit/nsapplicationdelegate
+- `NSWindow`: https://developer.apple.com/documentation/appkit/nswindow
+- `NSWindowController`: https://developer.apple.com/documentation/appkit/nswindowcontroller
+- `NSSplitViewController`: https://developer.apple.com/documentation/appkit/nssplitviewcontroller
+- `NSViewController`: https://developer.apple.com/documentation/appkit/nsviewcontroller
+- `NSTableView`: https://developer.apple.com/documentation/appkit/nstableview
+- `NSCollectionView`: https://developer.apple.com/documentation/appkit/nscollectionview
+- Apple Human Interface Guidelines: https://developer.apple.com/design/human-interface-guidelines
+- Designing for macOS: https://developer.apple.com/design/human-interface-guidelines/designing-for-macos
+- Menus: https://developer.apple.com/design/human-interface-guidelines/menus
+- Sheets: https://developer.apple.com/design/human-interface-guidelines/sheets
+- Lists and tables: https://developer.apple.com/design/human-interface-guidelines/lists-and-tables
+- Xcode build system: https://developer.apple.com/documentation/xcode
+- Performance and metrics: https://developer.apple.com/documentation/xcode/performance-and-metrics
+- Addressing CPU bottlenecks: https://developer.apple.com/documentation/xcode/addressing-cpu-bottlenecks
+- Gathering memory-use information: https://developer.apple.com/documentation/xcode/gathering-information-about-memory-use
+
 Use:
 
 - AppKit controls where they fit naturally.
