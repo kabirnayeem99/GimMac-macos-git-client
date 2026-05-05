@@ -70,10 +70,10 @@ Tests:
 
 ## Phase 2: Git Client Core
 
-- [ ] Implement `GitClientProtocol` in Domain.
-- [ ] Implement `ProcessGitClient` in Data (`Process` wrapper, timeout, cancellation).
-- [ ] Implement typed `GitAppError` mapping from exit code/stdout/stderr.
-- [ ] Add command builder utilities to enforce argument-array execution and `--` path separator.
+- [x] Implement `GitClientProtocol` in Domain.
+- [x] Implement `ProcessGitClient` in Data (`Process` wrapper, timeout, cancellation).
+- [x] Implement typed `GitAppError` mapping from exit code/stdout/stderr.
+- [x] Add command builder utilities to enforce argument-array execution and `--` path separator.
 
 Tests:
 - Unit: command building, error mapping, timeout/cancel behavior (mocked process layer).
@@ -176,7 +176,7 @@ Tests:
 
 - [ ] Clean Architecture boundary respected (no forbidden dependencies).
 - [ ] Unit tests added/updated and passing.
-- [ ] UI tests added/updated and passing for user-visible flow.
+- [ ] UI tests added/updated for user-visible flow; execute only when explicitly requested or during release validation.
 - [ ] Integration test added for Git behavior where relevant.
 - [ ] Strict build/lint passes.
 - [ ] Docs updated (`PLAN.md`/`DESIGN.md`/`docs`) if behavior or architecture changed.

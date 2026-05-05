@@ -101,17 +101,23 @@ final class MainSplitViewController: NSSplitViewController {
             while !Task.isCancelled {
                 self.branchLabel.stringValue = self.viewModel.repositoryState.branchDisplayText
                 if self.viewModel.isLoading {
-                    self.statusLabel.stringValue = "Loading repository..."
+                    self.setStatusText("Loading repository...")
                 } else if let error = self.viewModel.errorMessage {
-                    self.statusLabel.stringValue = error
+                    self.setStatusText(error)
                 } else if let repo = self.viewModel.selectedRepository {
-                    self.statusLabel.stringValue = repo.displayName
+                    self.setStatusText(repo.displayName)
                 } else {
-                    self.statusLabel.stringValue = ""
+                    self.setStatusText("")
                 }
                 try? await Task.sleep(nanoseconds: 200_000_000)
             }
         }
+    }
+
+    private func setStatusText(_ text: String) {
+        statusLabel.stringValue = text
+        statusLabel.setAccessibilityValue(text)
+        statusLabel.setAccessibilityLabel(text)
     }
 
     private func applyUITestRepositoryIfPresent() {

@@ -1,47 +1,50 @@
-import Foundation
 import XCTest
 @testable import GimMac
 
 final class GitSmokeIntegrationTests: XCTestCase {
-    func testTemporaryRepositoryCanInitialize() throws {
-        let fm = FileManager.default
-        let tempDir = fm.temporaryDirectory.appendingPathComponent(UUID().uuidString, isDirectory: true)
-        try fm.createDirectory(at: tempDir, withIntermediateDirectories: true)
-        defer { try? fm.removeItem(at: tempDir) }
+    func testInspectRepositoryReturnsBranchForNamedBranch() async throws {
+        let root = try makeTemporaryDirectory()
+        defer { try? FileManager.default.removeItem(at: root) }
 
-        let process = Process()
-        process.currentDirectoryURL = tempDir
-        process.executableURL = URL(fileURLWithPath: "/usr/bin/env")
-        process.arguments = ["git", "init"]
+        try runGit(["init"], in: root)
+        try runGit(["checkout", "-b", "phase1-test"], in: root)
 
-        let stderr = Pipe()
-        process.standardError = stderr
-
-        try process.run()
-        process.waitUntilExit()
-
-        let errData = stderr.fileHandleForReading.readDataToEndOfFile()
-        let errText = String(data: errData, encoding: .utf8) ?? ""
-        XCTAssertEqual(process.terminationStatus, 0, "git init failed: \(errText)")
-    }
-
-    func testRepositoryInspectorReadsCurrentBranch() async throws {
-        let fm = FileManager.default
-        let tempDir = fm.temporaryDirectory.appendingPathComponent(UUID().uuidString, isDirectory: true)
-        try fm.createDirectory(at: tempDir, withIntermediateDirectories: true)
-        defer { try? fm.removeItem(at: tempDir) }
-
-        try runGit(["init"], in: tempDir)
-        let readme = tempDir.appendingPathComponent("README.txt")
-        try "phase1".data(using: .utf8)?.write(to: readme)
-        try runGit(["add", "--", "README.txt"], in: tempDir)
-        try runGit(["-c", "user.name=Test", "-c", "user.email=test@example.com", "-c", "commit.gpgsign=false", "commit", "-m", "init"], in: tempDir)
-        try runGit(["checkout", "-b", "phase1-test"], in: tempDir)
-
-        let inspector = LocalGitRepositoryInspector()
-        let state = try await inspector.inspectRepository(at: tempDir)
+        let sut = LocalGitRepositoryInspector()
+        let state = try await sut.inspectRepository(at: root)
 
         XCTAssertEqual(state.currentBranch, "phase1-test")
+    }
+
+    func testProcessGitClientRevParseAndStatusInRealRepository() async throws {
+        let root = try makeTemporaryDirectory()
+        defer { try? FileManager.default.removeItem(at: root) }
+
+        try runGit(["init"], in: root)
+        let readmeURL = root.appendingPathComponent("README.md")
+        try "hello".write(to: readmeURL, atomically: true, encoding: .utf8)
+        try runGit(["add", "--", "README.md"], in: root)
+        try runGit([
+            "-c", "user.name=Test",
+            "-c", "user.email=test@example.com",
+            "-c", "commit.gpgsign=false",
+            "commit", "-m", "initial"
+        ], in: root)
+
+        let sut = ProcessGitClient()
+
+        let revParse = try await sut.run(GitCommandBuilder.revParseHeadShort(), in: root, timeout: 10)
+        XCTAssertFalse(revParse.stdout.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
+
+        let status = try await sut.run(GitCommandBuilder.statusPorcelainV1(), in: root, timeout: 10)
+        XCTAssertEqual(status.stdout, "")
+        XCTAssertEqual(status.exitCode, 0)
+    }
+
+    private func makeTemporaryDirectory() throws -> URL {
+        let tempRoot = URL(fileURLWithPath: NSTemporaryDirectory(), isDirectory: true)
+        let dir = tempRoot.appendingPathComponent(UUID().uuidString, isDirectory: true)
+        try FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
+        return dir
     }
 
     private func runGit(_ args: [String], in directory: URL) throws {
@@ -49,10 +52,13 @@ final class GitSmokeIntegrationTests: XCTestCase {
         process.currentDirectoryURL = directory
         process.executableURL = URL(fileURLWithPath: "/usr/bin/env")
         process.arguments = ["git"] + args
+
         let stderr = Pipe()
         process.standardError = stderr
+
         try process.run()
         process.waitUntilExit()
+
         if process.terminationStatus != 0 {
             let err = String(data: stderr.fileHandleForReading.readDataToEndOfFile(), encoding: .utf8) ?? ""
             XCTFail("git \(args.joined(separator: " ")) failed: \(err)")

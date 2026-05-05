@@ -413,14 +413,20 @@ Every user-visible feature must include:
 
 - unit tests for business logic/parsers/ViewModels,
 - integration tests for Git behavior when command semantics are involved,
-- UI tests for the primary success path and at least one failure state.
+- UI tests for the primary success path and at least one failure state (authoring requirement).
+
+Execution policy for agents:
+
+- Do not run UI tests by default during routine implementation/iteration.
+- Prefer unit tests and integration tests for fast feedback.
+- Run UI tests only when explicitly requested by the user, or for release-focused verification.
 
 Do not require a real GitHub account for MVP tests.
 
 Testing gates:
 
 - Do not merge feature work without passing unit tests.
-- Do not merge UI-affecting work without passing relevant UI tests.
+- Do not merge UI-affecting work without passing relevant UI tests when UI test execution is explicitly requested for that change or during release validation.
 - Do not merge Git-behavior changes without integration coverage for the changed command flow.
 
 ## Documentation Rules

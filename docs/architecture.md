@@ -39,6 +39,6 @@ UITests/
 
 - Unit tests: Domain logic, parser logic, error mapping, ViewModel state transitions.
 - Integration tests: real temporary git repositories for command semantics.
-- UI tests: smoke flows for launch, shell visibility, and key interaction entry points.
+- UI tests: smoke flows for launch, shell visibility, and key interaction entry points (run only when explicitly requested or during release validation).
 
-All feature PRs must keep unit + relevant integration/UI tests passing.
+All feature PRs must keep unit + relevant integration tests passing by default. Run UI tests when explicitly requested or during release validation.

@@ -1,52 +1,27 @@
 import Foundation
 
-enum RepositoryInspectionError: Error, LocalizedError {
-    case commandFailed(String)
-    case invalidOutput
+final class LocalGitRepositoryInspector: RepositoryInspecting {
+    private let gitClient: GitClientProtocol
 
-    var errorDescription: String? {
-        switch self {
-        case .commandFailed(let message):
-            return message
-        case .invalidOutput:
-            return "Received invalid Git output."
-        }
+    init(gitClient: GitClientProtocol = ProcessGitClient()) {
+        self.gitClient = gitClient
     }
-}
 
-struct LocalGitRepositoryInspector: RepositoryInspecting, Sendable {
     func inspectRepository(at url: URL) async throws -> RepositoryState {
-        let branch = try runGitCommand(["rev-parse", "--abbrev-ref", "HEAD"], at: url)
-        if branch == "HEAD" {
-            let shortSHA = try runGitCommand(["rev-parse", "--short", "HEAD"], at: url)
-            return RepositoryState(currentBranch: nil, detachedHeadShortSHA: shortSHA)
-        }
-        return RepositoryState(currentBranch: branch, detachedHeadShortSHA: nil)
-    }
+        let branchResult = try await gitClient.run(["branch", "--show-current"], in: url, timeout: 10)
+        let branch = branchResult.stdout.trimmingCharacters(in: .whitespacesAndNewlines)
 
-    private func runGitCommand(_ arguments: [String], at repositoryURL: URL) throws -> String {
-        let process = Process()
-        process.currentDirectoryURL = repositoryURL
-        process.executableURL = URL(fileURLWithPath: "/usr/bin/env")
-        process.arguments = ["git"] + arguments
-
-        let stdout = Pipe()
-        let stderr = Pipe()
-        process.standardOutput = stdout
-        process.standardError = stderr
-
-        try process.run()
-        process.waitUntilExit()
-
-        let out = String(data: stdout.fileHandleForReading.readDataToEndOfFile(), encoding: .utf8)?.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
-        if process.terminationStatus != 0 {
-            let err = String(data: stderr.fileHandleForReading.readDataToEndOfFile(), encoding: .utf8)?.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
-            throw RepositoryInspectionError.commandFailed(err.isEmpty ? "Git command failed." : err)
+        if !branch.isEmpty {
+            return RepositoryState(currentBranch: branch, detachedHeadShortSHA: nil)
         }
 
-        guard !out.isEmpty else {
-            throw RepositoryInspectionError.invalidOutput
+        let headResult = try await gitClient.run(GitCommandBuilder.revParseHeadShort(), in: url, timeout: 10)
+        let detached = headResult.stdout.trimmingCharacters(in: .whitespacesAndNewlines)
+
+        guard !detached.isEmpty else {
+            throw GitAppError.invalidOutput(command: GitCommandBuilder.revParseHeadShort(), details: "Missing detached HEAD sha")
         }
-        return out
+
+        return RepositoryState(currentBranch: nil, detachedHeadShortSHA: detached)
     }
 }
