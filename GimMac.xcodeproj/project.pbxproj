@@ -8,15 +8,48 @@
 
 /* Begin PBXBuildFile section */
 		55235049E9EACB77FE66BFAC /* GimMac.icns in Resources */ = {isa = PBXBuildFile; fileRef = 51360A55E8768DDFCF39F1F5 /* GimMac.icns */; };
+		594B2BAC2FA6AE49E7B1AF10 /* ArchitectureBoundaryTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 490F1367EED79749B9D7C6A6 /* ArchitectureBoundaryTests.swift */; };
 		61A279EF393239289F244E4C /* AppDelegate.swift in Sources */ = {isa = PBXBuildFile; fileRef = 50E935AD2F4FF2C447FE20BF /* AppDelegate.swift */; };
+		97951A938E26F0CE385C17FD /* GimMacUITests.swift in Sources */ = {isa = PBXBuildFile; fileRef = DB6AF397C724F73312DE57FF /* GimMacUITests.swift */; };
 		B0AD9B4A54B735A35ED48267 /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = 25B57C69324148C1CF9426CA /* Assets.xcassets */; };
+		F4DE69CD76C604DFA986C08C /* GitSmokeIntegrationTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 685CA9B92D7980F3228BC721 /* GitSmokeIntegrationTests.swift */; };
 /* End PBXBuildFile section */
 
+/* Begin PBXContainerItemProxy section */
+		074600EFB53BDC96DA627694 /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = B9F618E025F935A140EF17AE /* Project object */;
+			proxyType = 1;
+			remoteGlobalIDString = 733F94097C89678D355D2750;
+			remoteInfo = GimMac;
+		};
+		AFB5D4D9A1D340714D0E03C7 /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = B9F618E025F935A140EF17AE /* Project object */;
+			proxyType = 1;
+			remoteGlobalIDString = 733F94097C89678D355D2750;
+			remoteInfo = GimMac;
+		};
+		E726349E445375373B2070DD /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = B9F618E025F935A140EF17AE /* Project object */;
+			proxyType = 1;
+			remoteGlobalIDString = 733F94097C89678D355D2750;
+			remoteInfo = GimMac;
+		};
+/* End PBXContainerItemProxy section */
+
 /* Begin PBXFileReference section */
+		1AF68AC660D8556DB05EFE41 /* GimMacIntegrationTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = GimMacIntegrationTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 		25B57C69324148C1CF9426CA /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
+		490F1367EED79749B9D7C6A6 /* ArchitectureBoundaryTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ArchitectureBoundaryTests.swift; sourceTree = "<group>"; };
 		50E935AD2F4FF2C447FE20BF /* AppDelegate.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppDelegate.swift; sourceTree = "<group>"; };
 		51360A55E8768DDFCF39F1F5 /* GimMac.icns */ = {isa = PBXFileReference; lastKnownFileType = image.icns; path = GimMac.icns; sourceTree = "<group>"; };
+		685CA9B92D7980F3228BC721 /* GitSmokeIntegrationTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GitSmokeIntegrationTests.swift; sourceTree = "<group>"; };
 		75E6E6D2CB22EF1C63C56196 /* GimMac.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = GimMac.app; sourceTree = BUILT_PRODUCTS_DIR; };
+		772D8634E4FCC7C6479F2A0C /* GimMacUITests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = GimMacUITests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
+		B93BE412A7B64B0F59C1609C /* GimMacTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = GimMacTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
+		DB6AF397C724F73312DE57FF /* GimMacUITests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GimMacUITests.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXGroup section */
@@ -24,8 +57,38 @@
 			isa = PBXGroup;
 			children = (
 				75E6E6D2CB22EF1C63C56196 /* GimMac.app */,
+				1AF68AC660D8556DB05EFE41 /* GimMacIntegrationTests.xctest */,
+				B93BE412A7B64B0F59C1609C /* GimMacTests.xctest */,
+				772D8634E4FCC7C6479F2A0C /* GimMacUITests.xctest */,
 			);
 			name = Products;
+			sourceTree = "<group>";
+		};
+		66EABE7217D6CCB889BDECDC /* GimMacIntegrationTests */ = {
+			isa = PBXGroup;
+			children = (
+				685CA9B92D7980F3228BC721 /* GitSmokeIntegrationTests.swift */,
+			);
+			name = GimMacIntegrationTests;
+			path = Tests/GimMacIntegrationTests;
+			sourceTree = "<group>";
+		};
+		6BCC92053F62D5301849A277 /* GimMacTests */ = {
+			isa = PBXGroup;
+			children = (
+				490F1367EED79749B9D7C6A6 /* ArchitectureBoundaryTests.swift */,
+			);
+			name = GimMacTests;
+			path = Tests/GimMacTests;
+			sourceTree = "<group>";
+		};
+		854C715A0E2053FA8DC290F4 /* GimMacUITests */ = {
+			isa = PBXGroup;
+			children = (
+				DB6AF397C724F73312DE57FF /* GimMacUITests.swift */,
+			);
+			name = GimMacUITests;
+			path = UITests/GimMacUITests;
 			sourceTree = "<group>";
 		};
 		88C7E89D1D90CC9950466213 /* GimMac */ = {
@@ -51,6 +114,9 @@
 			isa = PBXGroup;
 			children = (
 				88C7E89D1D90CC9950466213 /* GimMac */,
+				66EABE7217D6CCB889BDECDC /* GimMacIntegrationTests */,
+				6BCC92053F62D5301849A277 /* GimMacTests */,
+				854C715A0E2053FA8DC290F4 /* GimMacUITests */,
 				214C4681FBCDA8F3B4C435C2 /* Products */,
 			);
 			sourceTree = "<group>";
@@ -58,6 +124,24 @@
 /* End PBXGroup section */
 
 /* Begin PBXNativeTarget section */
+		0DA8C9D4CC2DF724218F671D /* GimMacTests */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = C2847D95FD069E354EC0B5BD /* Build configuration list for PBXNativeTarget "GimMacTests" */;
+			buildPhases = (
+				4CEC01059D3FFDB1AA171CAD /* Sources */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+				CBEAB99D9703A63092FE5398 /* PBXTargetDependency */,
+			);
+			name = GimMacTests;
+			packageProductDependencies = (
+			);
+			productName = GimMacTests;
+			productReference = B93BE412A7B64B0F59C1609C /* GimMacTests.xctest */;
+			productType = "com.apple.product-type.bundle.unit-test";
+		};
 		733F94097C89678D355D2750 /* GimMac */ = {
 			isa = PBXNativeTarget;
 			buildConfigurationList = 323CFE069581E9FAD9EE8185 /* Build configuration list for PBXNativeTarget "GimMac" */;
@@ -76,6 +160,42 @@
 			productReference = 75E6E6D2CB22EF1C63C56196 /* GimMac.app */;
 			productType = "com.apple.product-type.application";
 		};
+		C05E7E75449F60F302A96BFC /* GimMacIntegrationTests */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = E497FBB0076927BA3C8583ED /* Build configuration list for PBXNativeTarget "GimMacIntegrationTests" */;
+			buildPhases = (
+				AAC1B8433B0307E91967923C /* Sources */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+				ED66246B4CE27E1E8E6D06B6 /* PBXTargetDependency */,
+			);
+			name = GimMacIntegrationTests;
+			packageProductDependencies = (
+			);
+			productName = GimMacIntegrationTests;
+			productReference = 1AF68AC660D8556DB05EFE41 /* GimMacIntegrationTests.xctest */;
+			productType = "com.apple.product-type.bundle.unit-test";
+		};
+		FF543386242EC883CD63FF82 /* GimMacUITests */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = 6D9BE02B3664CA787DE1412A /* Build configuration list for PBXNativeTarget "GimMacUITests" */;
+			buildPhases = (
+				36CBEE52F239FE2E9FDB2BDF /* Sources */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+				C84B66BF1A5339A57CC266E5 /* PBXTargetDependency */,
+			);
+			name = GimMacUITests;
+			packageProductDependencies = (
+			);
+			productName = GimMacUITests;
+			productReference = 772D8634E4FCC7C6479F2A0C /* GimMacUITests.xctest */;
+			productType = "com.apple.product-type.bundle.ui-testing";
+		};
 /* End PBXNativeTarget section */
 
 /* Begin PBXProject section */
@@ -85,9 +205,22 @@
 				BuildIndependentTargetsInParallel = YES;
 				LastUpgradeCheck = 1430;
 				TargetAttributes = {
+					0DA8C9D4CC2DF724218F671D = {
+						DevelopmentTeam = "";
+						ProvisioningStyle = Automatic;
+					};
 					733F94097C89678D355D2750 = {
 						DevelopmentTeam = "";
 						ProvisioningStyle = Automatic;
+					};
+					C05E7E75449F60F302A96BFC = {
+						DevelopmentTeam = "";
+						ProvisioningStyle = Automatic;
+					};
+					FF543386242EC883CD63FF82 = {
+						DevelopmentTeam = "";
+						ProvisioningStyle = Automatic;
+						TestTargetID = 733F94097C89678D355D2750;
 					};
 				};
 			};
@@ -106,6 +239,9 @@
 			projectRoot = "";
 			targets = (
 				733F94097C89678D355D2750 /* GimMac */,
+				C05E7E75449F60F302A96BFC /* GimMacIntegrationTests */,
+				0DA8C9D4CC2DF724218F671D /* GimMacTests */,
+				FF543386242EC883CD63FF82 /* GimMacUITests */,
 			);
 		};
 /* End PBXProject section */
@@ -123,6 +259,14 @@
 /* End PBXResourcesBuildPhase section */
 
 /* Begin PBXSourcesBuildPhase section */
+		36CBEE52F239FE2E9FDB2BDF /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				97951A938E26F0CE385C17FD /* GimMacUITests.swift in Sources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
 		3773B01DCC90EDCA6924C165 /* Sources */ = {
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
@@ -131,9 +275,60 @@
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
+		4CEC01059D3FFDB1AA171CAD /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				594B2BAC2FA6AE49E7B1AF10 /* ArchitectureBoundaryTests.swift in Sources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		AAC1B8433B0307E91967923C /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				F4DE69CD76C604DFA986C08C /* GitSmokeIntegrationTests.swift in Sources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
 /* End PBXSourcesBuildPhase section */
 
+/* Begin PBXTargetDependency section */
+		C84B66BF1A5339A57CC266E5 /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			target = 733F94097C89678D355D2750 /* GimMac */;
+			targetProxy = AFB5D4D9A1D340714D0E03C7 /* PBXContainerItemProxy */;
+		};
+		CBEAB99D9703A63092FE5398 /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			target = 733F94097C89678D355D2750 /* GimMac */;
+			targetProxy = 074600EFB53BDC96DA627694 /* PBXContainerItemProxy */;
+		};
+		ED66246B4CE27E1E8E6D06B6 /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			target = 733F94097C89678D355D2750 /* GimMac */;
+			targetProxy = E726349E445375373B2070DD /* PBXContainerItemProxy */;
+		};
+/* End PBXTargetDependency section */
+
 /* Begin XCBuildConfiguration section */
+		0763330FBE3B47E28AD64BBD /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				BUNDLE_LOADER = "$(TEST_HOST)";
+				COMBINE_HIDPI_IMAGES = YES;
+				GENERATE_INFOPLIST_FILE = YES;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/../Frameworks",
+					"@loader_path/../Frameworks",
+				);
+				PRODUCT_BUNDLE_IDENTIFIER = io.github.kabirnayeem99.gimmac.integrationtests;
+				SDKROOT = macosx;
+				TEST_HOST = "$(BUILT_PRODUCTS_DIR)/GimMac.app/Contents/MacOS/GimMac";
+			};
+			name = Debug;
+		};
 		4090B4F2B7C3FECD66DA2470 /* Debug */ = {
 			isa = XCBuildConfiguration;
 			buildSettings = {
@@ -206,6 +401,40 @@
 			};
 			name = Debug;
 		};
+		50F1C1E3A08CC01E69C8084A /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				BUNDLE_LOADER = "$(TEST_HOST)";
+				COMBINE_HIDPI_IMAGES = YES;
+				GENERATE_INFOPLIST_FILE = YES;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/../Frameworks",
+					"@loader_path/../Frameworks",
+				);
+				PRODUCT_BUNDLE_IDENTIFIER = io.github.kabirnayeem99.gimmac.tests;
+				SDKROOT = macosx;
+				TEST_HOST = "$(BUILT_PRODUCTS_DIR)/GimMac.app/Contents/MacOS/GimMac";
+			};
+			name = Debug;
+		};
+		71B4FD3C7B79F6D1FF82936A /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				BUNDLE_LOADER = "$(TEST_HOST)";
+				COMBINE_HIDPI_IMAGES = YES;
+				GENERATE_INFOPLIST_FILE = YES;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/../Frameworks",
+					"@loader_path/../Frameworks",
+				);
+				PRODUCT_BUNDLE_IDENTIFIER = io.github.kabirnayeem99.gimmac.tests;
+				SDKROOT = macosx;
+				TEST_HOST = "$(BUILT_PRODUCTS_DIR)/GimMac.app/Contents/MacOS/GimMac";
+			};
+			name = Release;
+		};
 		7754E578EC1E7B8EA99D514E /* Release */ = {
 			isa = XCBuildConfiguration;
 			buildSettings = {
@@ -241,6 +470,23 @@
 				SDKROOT = macosx;
 			};
 			name = Debug;
+		};
+		96E667A4316FE14B27B064C1 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				BUNDLE_LOADER = "$(TEST_HOST)";
+				COMBINE_HIDPI_IMAGES = YES;
+				GENERATE_INFOPLIST_FILE = YES;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/../Frameworks",
+					"@loader_path/../Frameworks",
+				);
+				PRODUCT_BUNDLE_IDENTIFIER = io.github.kabirnayeem99.gimmac.integrationtests;
+				SDKROOT = macosx;
+				TEST_HOST = "$(BUILT_PRODUCTS_DIR)/GimMac.app/Contents/MacOS/GimMac";
+			};
+			name = Release;
 		};
 		A754221CB82B80D9064E650D /* Release */ = {
 			isa = XCBuildConfiguration;
@@ -307,6 +553,40 @@
 			};
 			name = Release;
 		};
+		A99B13239699D4FE99C0D5F8 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				BUNDLE_LOADER = "$(TEST_HOST)";
+				COMBINE_HIDPI_IMAGES = YES;
+				GENERATE_INFOPLIST_FILE = YES;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+					"@loader_path/Frameworks",
+				);
+				PRODUCT_BUNDLE_IDENTIFIER = io.github.kabirnayeem99.gimmac.uitests;
+				SDKROOT = macosx;
+				TEST_TARGET_NAME = GimMac;
+			};
+			name = Release;
+		};
+		AABE604E17493F775C364CB5 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				BUNDLE_LOADER = "$(TEST_HOST)";
+				COMBINE_HIDPI_IMAGES = YES;
+				GENERATE_INFOPLIST_FILE = YES;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+					"@loader_path/Frameworks",
+				);
+				PRODUCT_BUNDLE_IDENTIFIER = io.github.kabirnayeem99.gimmac.uitests;
+				SDKROOT = macosx;
+				TEST_TARGET_NAME = GimMac;
+			};
+			name = Debug;
+		};
 /* End XCBuildConfiguration section */
 
 /* Begin XCConfigurationList section */
@@ -319,11 +599,38 @@
 			defaultConfigurationIsVisible = 0;
 			defaultConfigurationName = Debug;
 		};
+		6D9BE02B3664CA787DE1412A /* Build configuration list for PBXNativeTarget "GimMacUITests" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				AABE604E17493F775C364CB5 /* Debug */,
+				A99B13239699D4FE99C0D5F8 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Debug;
+		};
+		C2847D95FD069E354EC0B5BD /* Build configuration list for PBXNativeTarget "GimMacTests" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				50F1C1E3A08CC01E69C8084A /* Debug */,
+				71B4FD3C7B79F6D1FF82936A /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Debug;
+		};
 		E117A3246B9BD1F1AA704B83 /* Build configuration list for PBXProject "GimMac" */ = {
 			isa = XCConfigurationList;
 			buildConfigurations = (
 				4090B4F2B7C3FECD66DA2470 /* Debug */,
 				A754221CB82B80D9064E650D /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Debug;
+		};
+		E497FBB0076927BA3C8583ED /* Build configuration list for PBXNativeTarget "GimMacIntegrationTests" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				0763330FBE3B47E28AD64BBD /* Debug */,
+				96E667A4316FE14B27B064C1 /* Release */,
 			);
 			defaultConfigurationIsVisible = 0;
 			defaultConfigurationName = Debug;

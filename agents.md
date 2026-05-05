@@ -192,6 +192,25 @@ Rules:
 - UI must not directly run `Process`.
 - Services must not import AppKit unless there is a hard platform reason.
 
+### Clean Architecture Enforcement
+
+Use explicit layer boundaries:
+
+```text
+Presentation (AppKit Views/ViewControllers + ViewModels)
+  -> Domain (entities, use cases, service protocols)
+    -> Data/Infrastructure (Git process runner, parsers, persistence, API clients)
+```
+
+Rules:
+
+- `Presentation` depends on `Domain` abstractions only.
+- `Domain` must not depend on `AppKit`, networking, storage, or process execution details.
+- `Data/Infrastructure` implements `Domain` protocols and can depend on Foundation/system APIs.
+- Dependency injection wiring is done at app startup/composition root.
+- Do not import `AppKit` in `Domain` or parser modules.
+- Do not import concrete data services directly into view controllers; go through ViewModels + protocols.
+
 ## Git Command Rules
 
 Never execute through shell strings.
@@ -366,10 +385,23 @@ Required test coverage:
 - Ahead/behind count parsing.
 - Whole-file stage/unstage service behavior.
 - ViewModel behavior with mock services.
+- UI flows for repository selection, changed-file selection, diff display, and commit action states.
 
 Use real temporary repositories for integration tests where needed.
 
+Every user-visible feature must include:
+
+- unit tests for business logic/parsers/ViewModels,
+- integration tests for Git behavior when command semantics are involved,
+- UI tests for the primary success path and at least one failure state.
+
 Do not require a real GitHub account for MVP tests.
+
+Testing gates:
+
+- Do not merge feature work without passing unit tests.
+- Do not merge UI-affecting work without passing relevant UI tests.
+- Do not merge Git-behavior changes without integration coverage for the changed command flow.
 
 ## Documentation Rules
 

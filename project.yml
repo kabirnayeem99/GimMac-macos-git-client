@@ -41,4 +41,44 @@ targets:
         INFOPLIST_KEY_LSApplicationCategoryType: public.app-category.developer-tools
         INFOPLIST_KEY_NSHumanReadableCopyright: "Copyright © 2026"
     scheme:
-      testTargets: []
+      testTargets:
+        - GimMacTests
+        - GimMacIntegrationTests
+        - GimMacUITests
+
+  GimMacTests:
+    type: bundle.unit-test
+    platform: macOS
+    sources:
+      - path: Tests/GimMacTests
+    dependencies:
+      - target: GimMac
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: io.github.kabirnayeem99.gimmac.tests
+        GENERATE_INFOPLIST_FILE: YES
+
+  GimMacIntegrationTests:
+    type: bundle.unit-test
+    platform: macOS
+    sources:
+      - path: Tests/GimMacIntegrationTests
+    dependencies:
+      - target: GimMac
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: io.github.kabirnayeem99.gimmac.integrationtests
+        GENERATE_INFOPLIST_FILE: YES
+
+  GimMacUITests:
+    type: bundle.ui-testing
+    platform: macOS
+    sources:
+      - path: UITests/GimMacUITests
+    dependencies:
+      - target: GimMac
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: io.github.kabirnayeem99.gimmac.uitests
+        GENERATE_INFOPLIST_FILE: YES
+        TEST_TARGET_NAME: GimMac

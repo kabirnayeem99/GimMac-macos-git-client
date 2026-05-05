@@ -1,0 +1,47 @@
+name: macOS CI
+
+on:
+  push:
+    branches: ["**"]
+  pull_request:
+
+jobs:
+  build-and-test:
+    runs-on: macos-15
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Install tooling
+        run: |
+          brew install xcodegen swiftlint
+
+      - name: Generate project
+        run: xcodegen generate
+
+      - name: Strict build gate
+        run: ./scripts/strict-ci.sh
+
+      - name: Unit tests
+        run: |
+          xcodebuild test \
+            -project GimMac.xcodeproj \
+            -scheme GimMac \
+            -destination 'platform=macOS,arch=arm64' \
+            -only-testing:GimMacTests
+
+      - name: Integration tests
+        run: |
+          xcodebuild test \
+            -project GimMac.xcodeproj \
+            -scheme GimMac \
+            -destination 'platform=macOS,arch=arm64' \
+            -only-testing:GimMacIntegrationTests
+
+      - name: UI smoke tests
+        run: |
+          xcodebuild test \
+            -project GimMac.xcodeproj \
+            -scheme GimMac \
+            -destination 'platform=macOS,arch=arm64' \
+            -only-testing:GimMacUITests

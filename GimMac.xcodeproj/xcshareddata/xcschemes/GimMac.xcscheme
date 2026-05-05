@@ -39,6 +39,39 @@
          </BuildableReference>
       </MacroExpansion>
       <Testables>
+         <TestableReference
+            skipped = "NO"
+            parallelizable = "NO">
+            <BuildableReference
+               BuildableIdentifier = "primary"
+               BlueprintIdentifier = "0DA8C9D4CC2DF724218F671D"
+               BuildableName = "GimMacTests.xctest"
+               BlueprintName = "GimMacTests"
+               ReferencedContainer = "container:GimMac.xcodeproj">
+            </BuildableReference>
+         </TestableReference>
+         <TestableReference
+            skipped = "NO"
+            parallelizable = "NO">
+            <BuildableReference
+               BuildableIdentifier = "primary"
+               BlueprintIdentifier = "C05E7E75449F60F302A96BFC"
+               BuildableName = "GimMacIntegrationTests.xctest"
+               BlueprintName = "GimMacIntegrationTests"
+               ReferencedContainer = "container:GimMac.xcodeproj">
+            </BuildableReference>
+         </TestableReference>
+         <TestableReference
+            skipped = "NO"
+            parallelizable = "NO">
+            <BuildableReference
+               BuildableIdentifier = "primary"
+               BlueprintIdentifier = "FF543386242EC883CD63FF82"
+               BuildableName = "GimMacUITests.xctest"
+               BlueprintName = "GimMacUITests"
+               ReferencedContainer = "container:GimMac.xcodeproj">
+            </BuildableReference>
+         </TestableReference>
       </Testables>
       <CommandLineArguments>
       </CommandLineArguments>
