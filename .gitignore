@@ -1,0 +1,82 @@
+# macOS
+.DS_Store
+.AppleDouble
+.LSOverride
+Icon?
+._*
+.DocumentRevisions-V100
+.fseventsd
+.TemporaryItems
+.Trashes
+
+# Xcode
+build/
+DerivedData/
+.derivedData/
+.derivedData/*
+*.xcuserstate
+*.xcscmblueprint
+*.xccheckout
+*.moved-aside
+*.hmap
+*.xcuserdata/
+xcuserdata/
+*.playground/
+timeline.xctimeline
+playground.xcworkspace
+
+# Swift Package Manager
+.build/
+.swiftpm/
+
+# Keep Package.resolved for app projects.
+# Ignore it only for reusable library packages.
+# Package.resolved
+
+# CocoaPods
+Pods/
+
+# Carthage
+Carthage/Build/
+
+# fastlane
+fastlane/report.xml
+fastlane/Preview.html
+fastlane/screenshots/**/*.png
+fastlane/test_output/
+
+# App archives / exports
+*.xcarchive
+*.ipa
+*.dSYM
+*.dSYM.zip
+
+# Signing / secrets
+*.p12
+*.mobileprovision
+*.provisionprofile
+*.cer
+*.key
+*.pem
+.env
+.env.*
+
+# Logs
+*.log
+logs/
+
+# Temporary files
+tmp/
+temp/
+*.tmp
+*.swp
+*.swo
+*~
+
+# Editors
+.idea/
+.vscode/
+
+# Generated build/release artifacts
+dist/
+release/

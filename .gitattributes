@@ -1,0 +1,55 @@
+# Auto-detect text files and normalize to LF in repo
+* text=auto eol=lf
+
+# macOS / Xcode / Swift
+*.swift text eol=lf
+*.m text eol=lf
+*.mm text eol=lf
+*.h text eol=lf
+*.c text eol=lf
+*.cpp text eol=lf
+*.plist text eol=lf
+*.entitlements text eol=lf
+*.xib text eol=lf
+*.storyboard text eol=lf
+*.pbxproj text eol=lf
+*.xcconfig text eol=lf
+*.strings text eol=lf
+
+# Scripts
+*.sh text eol=lf
+*.zsh text eol=lf
+*.bash text eol=lf
+
+# Docs / config
+*.md text eol=lf
+*.txt text eol=lf
+*.json text eol=lf
+*.yml text eol=lf
+*.yaml text eol=lf
+*.xml text eol=lf
+*.toml text eol=lf
+*.gitignore text eol=lf
+*.gitattributes text eol=lf
+
+# Binary files
+*.png binary
+*.jpg binary
+*.jpeg binary
+*.gif binary
+*.webp binary
+*.ico binary
+*.icns binary
+*.pdf binary
+*.zip binary
+*.gz binary
+*.tgz binary
+*.dmg binary
+*.mp4 binary
+*.mov binary
+*.mp3 binary
+*.wav binary
+*.ttf binary
+*.otf binary
+*.woff binary
+*.woff2 binary
