@@ -2,6 +2,18 @@ import SwiftUI
 
 struct Sidebar: View {
     @Binding var selectedTab: Int
+    let viewModel: RepositoryStoreViewModel
+    @State private var filterText = ""
+
+    private var filteredFiles: [ChangedFile] {
+        guard !filterText.isEmpty else {
+            return viewModel.changedFiles
+        }
+
+        return viewModel.changedFiles.filter { file in
+            file.path.localizedCaseInsensitiveContains(filterText)
+        }
+    }
 
     var body: some View {
         VStack(spacing: 0) {
@@ -23,7 +35,7 @@ struct Sidebar: View {
                 .buttonStyle(.bordered)
                 .controlSize(.small)
 
-                TextField("Filter", text: .constant(""))
+                TextField("Filter", text: $filterText)
                     .textFieldStyle(.roundedBorder)
                     .controlSize(.small)
             }
@@ -35,7 +47,7 @@ struct Sidebar: View {
                     .font(.system(size: 12))
                     .foregroundStyle(.secondary)
 
-                Text("0 changed files")
+                Text("\(viewModel.changedFilesCount) changed file\(viewModel.changedFilesCount == 1 ? "" : "s")")
                     .font(.system(size: 12, weight: .medium))
 
                 Spacer()
@@ -45,9 +57,26 @@ struct Sidebar: View {
 
             Divider()
 
-            Spacer()
+            List(filteredFiles) { file in
+                ChangedFileRow(
+                    file: file,
+                    selected: file.path == viewModel.selectedChangedFilePath,
+                    checked: viewModel.isChangedFileChecked(path: file.path),
+                    onToggleChecked: {
+                        viewModel.toggleChangedFileChecked(path: file.path)
+                    }
+                )
+                .onTapGesture {
+                    viewModel.selectChangedFile(path: file.path)
+                }
+                .listRowInsets(EdgeInsets())
+                .listRowSeparator(.hidden)
+                .listRowBackground(Color.clear)
+            }
+            .listStyle(.plain)
+            .scrollContentBackground(.hidden)
 
-            CommitBox()
+            CommitBox(viewModel: viewModel)
         }
         .background(.thinMaterial)
     }

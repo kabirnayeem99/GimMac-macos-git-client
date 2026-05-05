@@ -2,17 +2,7 @@ import SwiftUI
 
 struct CommitHistorySidebar: View {
     @Binding var selectedTab: Int
-
-    private let commits = [
-        ("Update MainSplitViewContro...", "Naimul Kabir • 13 minutes ago"),
-        ("Merge branch 'master' of https://git...", "Naimul Kabir • 17 minutes ago"),
-        ("refactor(app): consolidate AppDele...", "Naimul Kabir • 1 hour ago"),
-        ("feat(app): implement some menu it...", "Naimul Kabir • 1 hour ago"),
-        ("feat(git): implement phase 2 git clie...", "Naimul Kabir • 2 hours ago"),
-        ("feat(appkit): implement phase 1 rep...", "Naimul Kabir • 3 hours ago"),
-        ("chore(repo): complete phase 0 arch...", "Naimul Kabir • 4 hours ago"),
-        ("chore(repo): bootstrap GimMac ma...", "Naimul Kabir • 5 hours ago")
-    ]
+    let viewModel: RepositoryStoreViewModel
 
     var body: some View {
         VStack(spacing: 0) {
@@ -30,7 +20,7 @@ struct CommitHistorySidebar: View {
                     Image(systemName: "point.3.connected.trianglepath.dotted")
                         .font(.system(size: 12))
 
-                    Text("No Branches to Compare")
+                    Text(viewModel.primaryAction.label)
                         .font(.system(size: 12))
 
                     Spacer()
@@ -48,12 +38,16 @@ struct CommitHistorySidebar: View {
             .padding(.horizontal, 10)
             .padding(.bottom, 8)
 
-            List(commits.indices, id: \.self) { index in
+            List(viewModel.commits.indices, id: \.self) { index in
+                let commit = viewModel.commits[index]
                 CommitRow(
-                    title: commits[index].0,
-                    subtitle: commits[index].1,
-                    selected: index == 0
+                    title: commit.summary,
+                    subtitle: "\(commit.authorDisplayName) • \(relativeString(for: commit.date))",
+                    selected: index == viewModel.selectedHistoryCommitIndex
                 )
+                .onTapGesture {
+                    viewModel.selectHistoryCommit(at: index)
+                }
                 .listRowInsets(EdgeInsets())
                 .listRowSeparator(.hidden)
                 .listRowBackground(Color.clear)
@@ -62,5 +56,9 @@ struct CommitHistorySidebar: View {
             .scrollContentBackground(.hidden)
         }
         .background(.thinMaterial)
+    }
+
+    private func relativeString(for date: Date) -> String {
+        RelativeDateTimeFormatter().localizedString(for: date, relativeTo: Date())
     }
 }

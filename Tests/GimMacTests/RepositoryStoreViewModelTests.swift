@@ -10,13 +10,35 @@ private struct MockRepositoryInspector: RepositoryInspecting, Sendable {
     }
 }
 
+private struct MockRepositoryScreenDataProvider: RepositoryScreenDataProviding, Sendable {
+    let snapshot: RepositoryScreenSnapshot
+
+    func loadSnapshot(for repository: Repository?) async -> RepositoryScreenSnapshot {
+        snapshot
+    }
+}
+
+private extension RepositoryScreenSnapshot {
+    static var testSnapshot: RepositoryScreenSnapshot {
+        RepositoryScreenSnapshot(
+            changedFiles: [],
+            commits: [],
+            userProfile: GitUserProfile(name: "Test User", email: "test@example.com"),
+            primaryAction: .fetch
+        )
+    }
+}
+
 @MainActor
 final class RepositoryStoreViewModelTests: XCTestCase {
     func testSelectRepositorySuccessUpdatesBranch() async {
         let inspector = MockRepositoryInspector(
             result: .success(RepositoryState(currentBranch: "main", detachedHeadShortSHA: nil))
         )
-        let sut = RepositoryStoreViewModel(inspector: inspector)
+        let sut = RepositoryStoreViewModel(
+            inspector: inspector,
+            screenRepository: MockRepositoryScreenDataProvider(snapshot: .testSnapshot)
+        )
 
         await sut.selectRepository(at: URL(fileURLWithPath: "/tmp/repo", isDirectory: true))
 
@@ -28,7 +50,10 @@ final class RepositoryStoreViewModelTests: XCTestCase {
     func testSelectRepositoryFailureSetsError() async {
         enum TestError: Error { case failed }
         let inspector = MockRepositoryInspector(result: .failure(TestError.failed))
-        let sut = RepositoryStoreViewModel(inspector: inspector)
+        let sut = RepositoryStoreViewModel(
+            inspector: inspector,
+            screenRepository: MockRepositoryScreenDataProvider(snapshot: .testSnapshot)
+        )
 
         await sut.selectRepository(at: URL(fileURLWithPath: "/tmp/repo", isDirectory: true))
 

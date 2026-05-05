@@ -6,6 +6,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     private var aboutWindowController: NSWindowController?
     private var settingsWindowController: SettingsWindowController?
     private let repositoryInspector = LocalGitRepositoryInspector()
+    private let gitClient = ProcessGitClient()
 
     // MARK: - Lifecycle
 
@@ -75,7 +76,14 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         window.isReleasedWhenClosed = false
 
         window.contentViewController = MainSplitViewController(
-            viewModel: RepositoryStoreViewModel(inspector: repositoryInspector)
+            viewModel: RepositoryStoreViewModel(
+                inspector: repositoryInspector,
+                screenRepository: LiveRepositoryScreenDataRepository(
+                    statusProvider: GitStatusProvider(client: gitClient),
+                    historyProvider: GitHistoryProvider(client: gitClient),
+                    gitClient: gitClient
+                )
+            )
         )
 
         return NSWindowController(window: window)

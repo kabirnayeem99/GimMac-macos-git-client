@@ -1,14 +1,11 @@
 import SwiftUI
 
 struct ChangedFilesColumn: View {
-    private let files = [
-        ("Sources/Gi.../MainMenuFactory.swift", true),
-        ("Sour.../MainSplitViewController.swift", false)
-    ]
+    let viewModel: RepositoryStoreViewModel
 
     var body: some View {
         VStack(spacing: 0) {
-            CommitDetailsHeader()
+            CommitDetailsHeader(viewModel: viewModel)
 
             Divider()
 
@@ -19,7 +16,7 @@ struct ChangedFilesColumn: View {
 
                 Spacer()
 
-                Text("2")
+                Text("\(viewModel.changedFilesCount)")
                     .font(.system(size: 11, weight: .semibold))
                     .foregroundStyle(.secondary)
             }
@@ -27,8 +24,18 @@ struct ChangedFilesColumn: View {
             .frame(height: 32)
             .background(.bar)
 
-            List(files.indices, id: \.self) { index in
-                ChangedFileRow(title: files[index].0, selected: files[index].1)
+            List(viewModel.changedFiles) { file in
+                ChangedFileRow(
+                    file: file,
+                    selected: file.path == viewModel.selectedChangedFilePath,
+                    checked: viewModel.isChangedFileChecked(path: file.path),
+                    onToggleChecked: {
+                        viewModel.toggleChangedFileChecked(path: file.path)
+                    }
+                )
+                    .onTapGesture {
+                        viewModel.selectChangedFile(path: file.path)
+                    }
                     .listRowInsets(EdgeInsets())
                     .listRowSeparator(.hidden)
                     .listRowBackground(Color.clear)

@@ -25,8 +25,12 @@ struct TopToolbar: View {
             )
             .frame(width: 240)
 
-            PushToolbarCard()
-                .frame(width: 260)
+            PushToolbarCard(
+                label: viewModel.primaryAction.label,
+                subtitle: viewModel.primaryAction.subtitle,
+                badge: viewModel.primaryAction.badge
+            )
+            .frame(width: 260)
 
             Spacer()
         }
