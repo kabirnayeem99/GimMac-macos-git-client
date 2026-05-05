@@ -20,7 +20,7 @@ final class RepositoryStoreViewModelTests: XCTestCase {
 
         await sut.selectRepository(at: URL(fileURLWithPath: "/tmp/repo", isDirectory: true))
 
-        XCTAssertEqual(sut.repositoryState.branchDisplayText, "main")
+        XCTAssertEqual(RepositoryBranchDisplayFormatter.displayText(for: sut.repositoryState), "main")
         XCTAssertNil(sut.errorMessage)
         XCTAssertFalse(sut.isLoading)
     }
@@ -32,13 +32,19 @@ final class RepositoryStoreViewModelTests: XCTestCase {
 
         await sut.selectRepository(at: URL(fileURLWithPath: "/tmp/repo", isDirectory: true))
 
-        XCTAssertEqual(sut.repositoryState.branchDisplayText, "No repository selected")
+        XCTAssertEqual(
+            RepositoryBranchDisplayFormatter.displayText(for: sut.repositoryState),
+            "No repository selected"
+        )
         XCTAssertNotNil(sut.errorMessage)
         XCTAssertFalse(sut.isLoading)
     }
 
     func testDetachedHeadDisplayFormatting() {
         let state = RepositoryState(currentBranch: nil, detachedHeadShortSHA: "abc1234")
-        XCTAssertEqual(state.branchDisplayText, "HEAD (detached @ abc1234)")
+        XCTAssertEqual(
+            RepositoryBranchDisplayFormatter.displayText(for: state),
+            "HEAD (detached @ abc1234)"
+        )
     }
 }

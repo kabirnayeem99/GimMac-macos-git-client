@@ -3,7 +3,11 @@ import AppKit
 @MainActor
 final class AppDelegate: NSObject, NSApplicationDelegate {
     private var mainWindowController: NSWindowController?
+    private var aboutWindowController: NSWindowController?
+    private var settingsWindowController: SettingsWindowController?
     private let repositoryInspector = LocalGitRepositoryInspector()
+
+    // MARK: - Lifecycle
 
     func applicationDidFinishLaunching(_ notification: Notification) {
         if let appIcon = NSImage(named: "AppIcon") {
@@ -42,12 +46,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         return true
     }
 
-    @objc
-    private func showMainWindowFromMenu(_ sender: Any?) {
-        ensureMainWindowVisible(forceNew: true)
-    }
+    // MARK: - Main Window
 
-    private func ensureMainWindowVisible(forceNew: Bool) {
+    func ensureMainWindowVisible(forceNew: Bool) {
         if forceNew || mainWindowController?.window == nil {
             mainWindowController = buildMainWindowController()
         }
@@ -80,58 +81,47 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         return NSWindowController(window: window)
     }
 
-    private func installMainMenu() {
-        let mainMenu = NSMenu()
+    // MARK: - Menu Actions
 
-        let appMenuItem = NSMenuItem()
-        mainMenu.addItem(appMenuItem)
-        let appMenu = NSMenu(title: "GimMac")
-        appMenuItem.submenu = appMenu
-        appMenu.addItem(
-            withTitle: "About GimMac",
-            action: #selector(NSApplication.orderFrontStandardAboutPanel(_:)),
-            keyEquivalent: ""
+    func installMainMenu() {
+        let mainMenu = MainMenuFactory.buildMainMenu(
+            actionTarget: self,
+            placeholderAction: #selector(placeholderMenuAction(_:)),
+            aboutAction: #selector(showAboutPanel(_:)),
+            settingsAction: #selector(showSettingsWindow(_:))
         )
-        appMenu.addItem(.separator())
-        appMenu.addItem(
-            withTitle: "Hide GimMac",
-            action: #selector(NSApplication.hide(_:)),
-            keyEquivalent: "h"
-        )
-        let hideOthersItem = NSMenuItem(
-            title: "Hide Others",
-            action: #selector(NSApplication.hideOtherApplications(_:)),
-            keyEquivalent: "h"
-        )
-        hideOthersItem.keyEquivalentModifierMask = [.command, .option]
-        appMenu.addItem(hideOthersItem)
-        appMenu.addItem(
-            withTitle: "Show All",
-            action: #selector(NSApplication.unhideAllApplications(_:)),
-            keyEquivalent: ""
-        )
-        appMenu.addItem(.separator())
-        appMenu.addItem(
-            withTitle: "Quit GimMac",
-            action: #selector(NSApplication.terminate(_:)),
-            keyEquivalent: "q"
-        )
-
-        let windowMenuItem = NSMenuItem()
-        windowMenuItem.title = "Window"
-        mainMenu.addItem(windowMenuItem)
-        let windowMenu = NSMenu(title: "Window")
-        windowMenuItem.submenu = windowMenu
-
-        let showMainWindow = NSMenuItem(
-            title: "Show Main Window",
-            action: #selector(showMainWindowFromMenu(_:)),
-            keyEquivalent: "0"
-        )
-        showMainWindow.target = self
-        windowMenu.addItem(showMainWindow)
 
         NSApp.mainMenu = mainMenu
-        NSApp.windowsMenu = windowMenu
+        NSApp.windowsMenu = mainMenu.item(withTitle: "Window")?.submenu
+    }
+
+    @objc
+    func placeholderMenuAction(_ sender: Any?) {
+        // UI-only placeholder: intentionally no behavior wired yet.
+    }
+
+    @objc
+    func showSettingsWindow(_ sender: Any?) {
+        if settingsWindowController == nil {
+            settingsWindowController = SettingsWindowController()
+        }
+        settingsWindowController?.showWindow(nil)
+        settingsWindowController?.window?.makeKeyAndOrderFront(nil)
+        NSApp.activate(ignoringOtherApps: true)
+    }
+
+    @objc
+    func showAboutPanel(_ sender: Any?) {
+        if let controller = aboutWindowController, let window = controller.window {
+            controller.showWindow(nil)
+            window.makeKeyAndOrderFront(nil)
+            NSApp.activate(ignoringOtherApps: true)
+            return
+        }
+
+        let controller = NSWindowController(window: AboutWindowFactory.makeAboutPanel())
+        aboutWindowController = controller
+        controller.showWindow(nil)
+        NSApp.activate(ignoringOtherApps: true)
     }
 }
