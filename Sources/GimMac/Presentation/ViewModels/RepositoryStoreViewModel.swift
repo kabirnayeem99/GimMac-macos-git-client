@@ -239,6 +239,7 @@ final class RepositoryStoreViewModel {
     private let screenRepository: RepositoryScreenDataProviding
     private let diffProvider: DiffProviding
     private let commitProvider: CommitProviding
+    private let repositoryPersistence: RepositoryPersistenceProviding
 
     private(set) var selectedRepository: Repository?
     private(set) var repositoryState = RepositoryState(currentBranch: nil, detachedHeadShortSHA: nil)
@@ -254,6 +255,7 @@ final class RepositoryStoreViewModel {
     private(set) var selectedDiffDocument = DiffDocument.empty
     private(set) var isLoadingDiff = false
     private(set) var isCommitting = false
+    private(set) var savedRepositories: [StoredRepository] = []
 
     var commitSummary = ""
     var commitDescription = ""
@@ -289,12 +291,14 @@ final class RepositoryStoreViewModel {
         inspector: RepositoryInspecting,
         screenRepository: RepositoryScreenDataProviding,
         diffProvider: DiffProviding,
-        commitProvider: CommitProviding
+        commitProvider: CommitProviding,
+        repositoryPersistence: RepositoryPersistenceProviding
     ) {
         self.inspector = inspector
         self.screenRepository = screenRepository
         self.diffProvider = diffProvider
         self.commitProvider = commitProvider
+        self.repositoryPersistence = repositoryPersistence
     }
 
     func selectRepository(at url: URL) async {
@@ -305,12 +309,52 @@ final class RepositoryStoreViewModel {
 
         do {
             repositoryState = try await inspector.inspectRepository(at: url)
+            _ = try await repositoryPersistence.saveOrUpdateRepository(path: url.path)
         } catch {
             repositoryState = RepositoryState(currentBranch: nil, detachedHeadShortSHA: nil)
             errorMessage = error.localizedDescription
         }
 
         await refreshRepositoryScreenData()
+        await loadSavedRepositories()
+    }
+
+    func bootstrapRepositorySelectionOnLaunch() async {
+        await loadSavedRepositories()
+
+        do {
+            if let selected = try await repositoryPersistence.selectMostRecentlyOpenedRepositoryOnLaunch(),
+               selected.existsOnDisk {
+                await selectRepository(at: selected.url)
+            }
+        } catch {
+            errorMessage = error.localizedDescription
+        }
+    }
+
+    func selectPersistedRepository(id: UUID) async {
+        do {
+            guard let selected = try await repositoryPersistence.selectRepository(id: id) else {
+                return
+            }
+
+            if !selected.existsOnDisk {
+                await loadSavedRepositories()
+                return
+            }
+
+            await selectRepository(at: selected.url)
+        } catch {
+            errorMessage = error.localizedDescription
+        }
+    }
+
+    func loadSavedRepositories() async {
+        do {
+            savedRepositories = try await repositoryPersistence.getAllRepositoriesSortedByLastOpened()
+        } catch {
+            errorMessage = error.localizedDescription
+        }
     }
 
     func refreshRepositoryScreenData() async {

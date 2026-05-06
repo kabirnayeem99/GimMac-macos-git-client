@@ -22,6 +22,11 @@ final class MainSplitViewController: NSViewController {
                 viewModel: viewModel,
                 openRepositoryAction: { [weak self] in
                     self?.openRepositoryTapped()
+                },
+                selectSavedRepositoryAction: { [weak self] id in
+                    Task {
+                        await self?.viewModel.selectPersistedRepository(id: id)
+                    }
                 }
             )
         )
@@ -31,18 +36,19 @@ final class MainSplitViewController: NSViewController {
 
     override func viewDidLoad() {
         super.viewDidLoad()
-        applyUITestRepositoryIfPresent()
+        Task { [weak self] in
+            await self?.viewModel.bootstrapRepositorySelectionOnLaunch()
+            await self?.applyUITestRepositoryIfPresent()
+        }
     }
 
-    private func applyUITestRepositoryIfPresent() {
+    private func applyUITestRepositoryIfPresent() async {
         let environment = ProcessInfo.processInfo.environment
         guard let path = environment["GIMMAC_UI_TEST_REPO_PATH"], !path.isEmpty else {
             return
         }
 
-        Task { [weak self] in
-            await self?.viewModel.selectRepository(at: URL(fileURLWithPath: path, isDirectory: true))
-        }
+        await viewModel.selectRepository(at: URL(fileURLWithPath: path, isDirectory: true))
     }
 
     private func openRepositoryTapped() {

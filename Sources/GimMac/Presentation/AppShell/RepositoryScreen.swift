@@ -3,6 +3,7 @@ import SwiftUI
 struct RepositoryScreen: View {
     let viewModel: RepositoryStoreViewModel
     let openRepositoryAction: () -> Void
+    let selectSavedRepositoryAction: (UUID) -> Void
     @State private var selectedTab = 0
 
     var body: some View {
@@ -12,7 +13,8 @@ struct RepositoryScreen: View {
             } else {
                 TopToolbar(
                     viewModel: viewModel,
-                    openRepositoryAction: openRepositoryAction
+                    openRepositoryAction: openRepositoryAction,
+                    selectRepositoryAction: selectSavedRepositoryAction
                 )
 
                 if selectedTab == 0 {
@@ -45,6 +47,7 @@ struct RepositoryScreen: View {
         .frame(minWidth: 1180, minHeight: 740)
         .task {
             await viewModel.refreshRepositoryScreenData()
+            await viewModel.loadSavedRepositories()
         }
     }
 }

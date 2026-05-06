@@ -3,11 +3,44 @@ import SwiftUI
 struct TopToolbar: View {
     let viewModel: RepositoryStoreViewModel
     let openRepositoryAction: () -> Void
+    let selectRepositoryAction: (UUID) -> Void
 
     var body: some View {
         HStack(spacing: 8) {
-            Button {
-                openRepositoryAction()
+            Menu {
+                if viewModel.savedRepositories.isEmpty {
+                    Text("No saved repositories")
+                } else {
+                    Section("Recent Repositories") {
+                        ForEach(viewModel.savedRepositories) { repository in
+                            Button {
+                                selectRepositoryAction(repository.id)
+                            } label: {
+                                HStack {
+                                    VStack(alignment: .leading, spacing: 2) {
+                                        Text(repository.name)
+                                        Text(repository.path)
+                                            .font(.caption2)
+                                            .foregroundStyle(.secondary)
+                                    }
+                                    if !repository.existsOnDisk {
+                                        Spacer()
+                                        Text("Missing")
+                                            .font(.caption2)
+                                            .foregroundStyle(.tertiary)
+                                    }
+                                }
+                            }
+                            .disabled(!repository.existsOnDisk)
+                        }
+                    }
+                }
+
+                Divider()
+
+                Button("Open Repository…") {
+                    openRepositoryAction()
+                }
             } label: {
                 ToolbarCard(
                     icon: "folder",
@@ -16,6 +49,7 @@ struct TopToolbar: View {
                 )
             }
             .buttonStyle(.plain)
+            .menuIndicator(.hidden)
             .frame(width: 300)
 
             ToolbarCard(

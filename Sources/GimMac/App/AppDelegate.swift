@@ -7,6 +7,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     private var settingsWindowController: SettingsWindowController?
     private let repositoryInspector = LocalGitRepositoryInspector()
     private let gitClient = ProcessGitClient()
+    private lazy var repositoryPersistence = CoreDataRepositoryPersistence(gitClient: gitClient)
 
     // MARK: - Lifecycle
 
@@ -84,7 +85,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
                     gitClient: gitClient
                 ),
                 diffProvider: GitDiffProvider(client: gitClient),
-                commitProvider: GitCommitProvider(client: gitClient)
+                commitProvider: GitCommitProvider(client: gitClient),
+                repositoryPersistence: repositoryPersistence
             )
         )
 

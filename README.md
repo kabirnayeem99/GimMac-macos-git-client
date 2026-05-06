@@ -8,6 +8,10 @@
 <b>Native macOS Git client inspired by the GitHub Desktop workflow.</b>
 </p>
 
+## Screenshot
+
+![GimMac main window showcase](docs/assets/showcase-main-window.jpg)
+
 ## About
 
 GimMac is a native macOS Git client focused on local Git workflows.

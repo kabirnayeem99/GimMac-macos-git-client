@@ -20,3 +20,11 @@ protocol CommitProviding: Sendable {
         description: String?
     ) async throws
 }
+
+protocol RepositoryPersistenceProviding: Sendable {
+    func saveOrUpdateRepository(path: String) async throws -> StoredRepository
+    func getAllRepositoriesSortedByLastOpened() async throws -> [StoredRepository]
+    func getCurrentlySelectedRepository() async throws -> StoredRepository?
+    func selectRepository(id: UUID) async throws -> StoredRepository?
+    func selectMostRecentlyOpenedRepositoryOnLaunch() async throws -> StoredRepository?
+}
