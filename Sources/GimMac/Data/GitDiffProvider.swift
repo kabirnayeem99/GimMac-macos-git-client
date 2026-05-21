@@ -15,11 +15,44 @@ final class GitDiffProvider: DiffProviding, Sendable {
             .filter { !$0.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty }
             .joined(separator: "\n")
 
-        guard !full.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else {
+        return Self.parseUnifiedDiff(full, path: path)
+    }
+
+    func fetchCommitDiff(
+        in repositoryURL: URL,
+        for path: String,
+        commitSHA: String
+    ) async throws -> DiffDocument {
+        // Try parent..commit first; fall back to `git show` for the root commit.
+        let primary = try? await client.run(
+            ["diff", "\(commitSHA)^..\(commitSHA)", "--", path],
+            in: repositoryURL,
+            timeout: 15
+        )
+
+        let stdout: String
+        if let primary, primary.exitCode == 0,
+           !primary.stdout.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+            stdout = primary.stdout
+        } else {
+            // Initial commit (no parent) — use `git show` which prints a diff against /dev/null.
+            let show = try await client.run(
+                ["show", "--format=", commitSHA, "--", path],
+                in: repositoryURL,
+                timeout: 15
+            )
+            stdout = show.stdout
+        }
+
+        return Self.parseUnifiedDiff(stdout, path: path)
+    }
+
+    private static func parseUnifiedDiff(_ raw: String, path: String) -> DiffDocument {
+        guard !raw.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else {
             return DiffDocument(filePath: path, lines: [])
         }
 
-        let parsedFiles = SwiftyDiffUnifiedParser.parse(full)
+        let parsedFiles = SwiftyDiffUnifiedParser.parse(raw)
         let parsedFile = parsedFiles.first { $0.path == path } ?? parsedFiles.first
 
         guard let parsedFile else {

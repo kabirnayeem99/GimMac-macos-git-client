@@ -10,7 +10,8 @@
 
 ## Screenshot
 
-![GimMac main window showcase](docs/assets/showcase-main-window.jpg)
+![GimMac Changes showcase](docs/assets/showcase-changes-screen.jpg)
+![GimMac History showcase](docs/assets/showcase-history-screen.jpg)
 
 ## About
 

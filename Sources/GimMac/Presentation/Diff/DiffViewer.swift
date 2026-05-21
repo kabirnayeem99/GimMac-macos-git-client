@@ -2,9 +2,29 @@ import SwiftUI
 
 struct DiffViewer: View {
     let viewModel: RepositoryStoreViewModel
+    var source: Source = .changes
+
+    enum Source {
+        case changes
+        case history
+    }
+
+    private var document: DiffDocument {
+        switch source {
+        case .changes: return viewModel.selectedDiffDocument
+        case .history: return viewModel.historyDiffDocument
+        }
+    }
+
+    private var isLoading: Bool {
+        switch source {
+        case .changes: return viewModel.isLoadingDiff
+        case .history: return viewModel.isLoadingHistoryDiff
+        }
+    }
 
     private var lines: [DiffLine] {
-        viewModel.selectedDiffDocument.lines.map { line in
+        document.lines.map { line in
             let kind: DiffKind
             switch line.kind {
             case .context:
@@ -27,12 +47,12 @@ struct DiffViewer: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 0) {
             DiffHeader(
-                filePath: viewModel.selectedDiffDocument.filePath,
-                addedCount: viewModel.selectedDiffDocument.addedCount,
-                removedCount: viewModel.selectedDiffDocument.removedCount
+                filePath: document.filePath,
+                addedCount: document.addedCount,
+                removedCount: document.removedCount
             )
 
-            if viewModel.isLoadingDiff {
+            if isLoading {
                 VStack(alignment: .leading, spacing: 0) {
                     ProgressView("Loading diff…")
                         .padding(.top, 12)

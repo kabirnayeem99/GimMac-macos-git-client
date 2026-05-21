@@ -86,6 +86,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
                     gitClient: gitClient
                 ),
                 diffProvider: GitDiffProvider(client: gitClient),
+                commitInspector: GitCommitInspector(client: gitClient),
                 commitProvider: GitCommitProvider(client: gitClient),
                 repositoryPersistence: repositoryPersistence,
                 discardProvider: GitDiscardProvider(client: gitClient),

@@ -12,10 +12,10 @@ struct HistoryRepositoryScreen: View {
             )
             .frame(minWidth: 280, idealWidth: 300, maxWidth: 360)
 
-            ChangedFilesColumn(viewModel: viewModel)
+            HistoryFilesColumn(viewModel: viewModel)
                 .frame(minWidth: 260, idealWidth: 300, maxWidth: 360)
 
-            DiffViewer(viewModel: viewModel)
+            DiffViewer(viewModel: viewModel, source: .history)
                 .frame(minWidth: 520, maxWidth: .infinity, maxHeight: .infinity)
         }
     }

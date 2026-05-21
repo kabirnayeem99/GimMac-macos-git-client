@@ -10,6 +10,11 @@ protocol StatusProviding: Sendable {
 
 protocol DiffProviding: Sendable {
     func fetchDiff(in repositoryURL: URL, for path: String) async throws -> DiffDocument
+    func fetchCommitDiff(in repositoryURL: URL, for path: String, commitSHA: String) async throws -> DiffDocument
+}
+
+protocol CommitInspecting: Sendable {
+    func fetchFiles(for commitSHA: String, in repositoryURL: URL) async throws -> [CommitFile]
 }
 
 struct CommitOptions: Equatable, Sendable {

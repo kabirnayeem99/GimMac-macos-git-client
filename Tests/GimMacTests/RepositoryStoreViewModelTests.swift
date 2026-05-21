@@ -22,6 +22,20 @@ private struct MockDiffProvider: DiffProviding, Sendable {
     func fetchDiff(in repositoryURL: URL, for path: String) async throws -> DiffDocument {
         DiffDocument(filePath: path, lines: [])
     }
+
+    func fetchCommitDiff(
+        in repositoryURL: URL,
+        for path: String,
+        commitSHA: String
+    ) async throws -> DiffDocument {
+        DiffDocument(filePath: path, lines: [])
+    }
+}
+
+private struct MockCommitInspector: CommitInspecting, Sendable {
+    func fetchFiles(for commitSHA: String, in repositoryURL: URL) async throws -> [CommitFile] {
+        []
+    }
 }
 
 private actor MockRepositoryPersistence: RepositoryPersistenceProviding {
@@ -184,6 +198,7 @@ final class RepositoryStoreViewModelTests: XCTestCase {
             inspector: inspector,
             screenRepository: MockRepositoryScreenDataProvider(snapshot: .testSnapshot),
             diffProvider: MockDiffProvider(),
+            commitInspector: MockCommitInspector(),
             commitProvider: MockCommitProvider(),
             repositoryPersistence: MockRepositoryPersistence()
         )
@@ -202,6 +217,7 @@ final class RepositoryStoreViewModelTests: XCTestCase {
             inspector: inspector,
             screenRepository: MockRepositoryScreenDataProvider(snapshot: .testSnapshot),
             diffProvider: MockDiffProvider(),
+            commitInspector: MockCommitInspector(),
             commitProvider: MockCommitProvider(),
             repositoryPersistence: MockRepositoryPersistence()
         )
@@ -267,6 +283,7 @@ final class RepositoryStoreViewModelTests: XCTestCase {
             inspector: inspector,
             screenRepository: MockRepositoryScreenDataProvider(snapshot: .testSnapshot),
             diffProvider: MockDiffProvider(),
+            commitInspector: MockCommitInspector(),
             commitProvider: MockCommitProvider(),
             repositoryPersistence: persistence
         )
