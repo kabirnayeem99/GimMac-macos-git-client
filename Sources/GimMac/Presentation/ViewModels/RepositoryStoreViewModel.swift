@@ -11,6 +11,8 @@ import Observation
 final class RepositoryStoreViewModel {
     private let inspector: RepositoryInspecting
     private let screenRepository: RepositoryScreenDataProviding
+    private let diffProvider: DiffProviding
+    private let commitInspector: CommitInspecting
     private let commitProvider: CommitProviding
     private let repositoryPersistence: RepositoryPersistenceProviding
     private let discardProvider: DiscardProviding?
@@ -61,6 +63,11 @@ final class RepositoryStoreViewModel {
         set { commitForm.signOff = newValue }
     }
     var selectedHistoryCommitIndex: Int { historyHandler.selectedIndex }
+    var historyFiles: [CommitFile] { historyHandler.commitFiles }
+    var isLoadingHistoryFiles: Bool { historyHandler.isLoadingCommitFiles }
+    var selectedHistoryFilePath: String? { historyHandler.selectedCommitFilePath }
+    var historyDiffDocument: DiffDocument { historyHandler.diffDocument }
+    var isLoadingHistoryDiff: Bool { historyHandler.isLoadingDiff }
     var selectedChangedFilePath: String? { diffHandler.selectedFilePath }
     var checkedChangedFilePaths: Set<String> { changedFilesHandler.checkedPaths }
     var selectedDiffDocument: DiffDocument { diffHandler.selectedDiffDocument }
@@ -116,6 +123,7 @@ final class RepositoryStoreViewModel {
         inspector: RepositoryInspecting,
         screenRepository: RepositoryScreenDataProviding,
         diffProvider: DiffProviding,
+        commitInspector: CommitInspecting,
         commitProvider: CommitProviding,
         repositoryPersistence: RepositoryPersistenceProviding,
         discardProvider: DiscardProviding? = nil,
@@ -123,6 +131,8 @@ final class RepositoryStoreViewModel {
     ) {
         self.inspector = inspector
         self.screenRepository = screenRepository
+        self.diffProvider = diffProvider
+        self.commitInspector = commitInspector
         self.commitProvider = commitProvider
         self.repositoryPersistence = repositoryPersistence
         self.discardProvider = discardProvider
@@ -223,6 +233,38 @@ final class RepositoryStoreViewModel {
 
     func selectHistoryCommit(at index: Int) {
         historyHandler.selectCommit(at: index)
+        guard let repository = selectedRepository,
+              let sha = selectedCommit?.id else { return }
+        let inspector = commitInspector
+        let provider = diffProvider
+        let url = repository.url
+        Task { [weak self] in
+            guard let self else { return }
+            await self.historyHandler.loadFiles(for: sha, using: inspector, in: url)
+            if let firstPath = self.historyHandler.selectedCommitFilePath {
+                await self.historyHandler.loadDiff(
+                    for: firstPath,
+                    commitSHA: sha,
+                    using: provider,
+                    in: url
+                )
+            }
+        }
+    }
+
+    func selectHistoryFile(path: String) {
+        guard let repository = selectedRepository,
+              let sha = selectedCommit?.id else { return }
+        let provider = diffProvider
+        let url = repository.url
+        Task { [weak self] in
+            await self?.historyHandler.loadDiff(
+                for: path,
+                commitSHA: sha,
+                using: provider,
+                in: url
+            )
+        }
     }
 
     func selectChangedFile(path: String) {
