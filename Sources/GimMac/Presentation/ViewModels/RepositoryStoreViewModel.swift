@@ -15,12 +15,14 @@ final class RepositoryStoreViewModel {
     let historyHandler = HistoryHandler()
 
     private(set) var selectedRepository: Repository?
-    private(set) var repositoryState = RepositoryState(currentBranch: nil, detachedHeadShortSHA: nil)
+    private(set) var tip: TipState = .unknown
     private(set) var isLoading = false
     private(set) var errorMessage: String?
 
-    private(set) var primaryAction: RepositoryPrimaryAction = .fetch
-    private(set) var hasRemote = false
+    private(set) var primaryAction: RepositoryPrimaryAction = .publishRepository
+    private(set) var remoteName: String?
+    private(set) var lastFetched: Date?
+    private(set) var forcePushNeeded = false
     private(set) var changedFiles: [ChangedFile] = []
     private(set) var commits: [Commit] = []
     private(set) var currentGitUser = GitUserProfile(name: "Unknown User", email: "unknown@example.com")
@@ -61,6 +63,11 @@ final class RepositoryStoreViewModel {
         selectedCommit?.summary ?? "No recent commit"
     }
 
+    var lastFetchedDescription: String {
+        guard let date = lastFetched else { return "Never fetched" }
+        return "Last fetched " + RelativeDateTimeFormatter().localizedString(for: date, relativeTo: Date())
+    }
+
     var canCommitChanges: Bool {
         !commitForm.isCommitting &&
         selectedRepository != nil &&
@@ -93,10 +100,10 @@ final class RepositoryStoreViewModel {
         defer { isLoading = false }
 
         do {
-            repositoryState = try await inspector.inspectRepository(at: url)
+            tip = try await inspector.inspectRepository(at: url)
             _ = try await repositoryPersistence.saveOrUpdateRepository(path: url.path)
         } catch {
-            repositoryState = RepositoryState(currentBranch: nil, detachedHeadShortSHA: nil)
+            tip = .unknown
             errorMessage = error.localizedDescription
         }
 
@@ -142,7 +149,8 @@ final class RepositoryStoreViewModel {
         do {
             let snapshot = try await screenRepository.loadSnapshot(for: selectedRepository)
             primaryAction = snapshot.primaryAction
-            hasRemote = snapshot.hasRemote
+            remoteName = snapshot.remoteName
+            forcePushNeeded = snapshot.forcePushNeeded
             changedFiles = snapshot.changedFiles
             commits = snapshot.commits
             currentGitUser = snapshot.userProfile

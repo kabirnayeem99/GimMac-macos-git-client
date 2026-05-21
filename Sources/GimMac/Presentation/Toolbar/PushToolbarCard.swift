@@ -4,6 +4,16 @@ struct PushToolbarCard: View {
     let label: String
     let subtitle: String
     let badge: String?
+    let lastFetched: Date?
+
+    @State private var now = Date()
+
+    private let ticker = Timer.publish(every: 60, on: .main, in: .common).autoconnect()
+
+    private var fetchedDescription: String {
+        guard let date = lastFetched else { return subtitle }
+        return "Last fetched " + RelativeDateTimeFormatter().localizedString(for: date, relativeTo: now)
+    }
 
     var body: some View {
         HStack(spacing: 10) {
@@ -15,7 +25,7 @@ struct PushToolbarCard: View {
                 Text(label)
                     .font(.system(size: 13, weight: .semibold))
 
-                Text(subtitle)
+                Text(fetchedDescription)
                     .font(.system(size: 10))
                     .foregroundStyle(.secondary)
             }
@@ -39,5 +49,8 @@ struct PushToolbarCard: View {
         .frame(height: 40)
         .background(.regularMaterial)
         .clipShape(RoundedRectangle(cornerRadius: 10, style: .continuous))
+        .onReceive(ticker) { date in
+            now = date
+        }
     }
 }

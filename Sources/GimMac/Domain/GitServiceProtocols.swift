@@ -32,3 +32,7 @@ protocol RepositoryPersistenceProviding: Sendable {
 protocol RepositoryScreenDataProviding: Sendable {
     func loadSnapshot(for repository: Repository?) async throws -> RepositoryScreenSnapshot
 }
+
+protocol BranchUpstreamProviding: Sendable {
+    func fetchUpstream(for branch: String, in repositoryURL: URL) async throws -> String?
+}

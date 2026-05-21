@@ -1,55 +1,87 @@
 import Foundation
 
-enum RepositoryPrimaryAction: Equatable {
-    case fetch
-    case commit
-    case pull(Int)
-    case push(Int)
-    case sync(ahead: Int, behind: Int)
+enum ConflictState: Equatable {
+    case none
     case merge
+    case rebase
+    case cherryPick
+}
+
+enum RepositoryPrimaryAction: Equatable {
+    case publishRepository
+    case publishBranch(remote: String)
+    case fetch(remote: String)
+    case commit
+    case pull(remote: String, behind: Int)
+    case push(remote: String, ahead: Int)
+    case forcePush(remote: String, ahead: Int)
+    case sync(remote: String, ahead: Int, behind: Int)
+    case merge
+    case rebase
+    case cherryPick
 
     var label: String {
         switch self {
-        case .fetch:
-            return "Fetch origin"
+        case .publishRepository:
+            return "Publish repository"
+        case .publishBranch:
+            return "Publish branch"
+        case .fetch(let remote):
+            return "Fetch \(remote)"
         case .commit:
             return "Commit changes"
-        case .pull:
-            return "Pull origin"
-        case .push:
-            return "Push origin"
-        case .sync:
-            return "Sync branch"
+        case .pull(let remote, _):
+            return "Pull \(remote)"
+        case .push(let remote, _):
+            return "Push \(remote)"
+        case .forcePush(let remote, _):
+            return "Force push \(remote)"
+        case .sync(let remote, _, _):
+            return "Sync \(remote)"
         case .merge:
             return "Continue Merge"
+        case .rebase:
+            return "Continue Rebase"
+        case .cherryPick:
+            return "Continue Cherry-Pick"
         }
     }
 
     var badge: String? {
         switch self {
-        case .pull(let count), .push(let count):
+        case .pull(_, let count), .push(_, let count), .forcePush(_, let count):
             return count > 0 ? String(count) : nil
-        case .sync(let ahead, let behind):
+        case .sync(_, let ahead, let behind):
             return "\(ahead)/\(behind)"
-        case .fetch, .commit, .merge:
+        case .publishRepository, .publishBranch, .fetch, .commit, .merge, .rebase, .cherryPick:
             return nil
         }
     }
 
     var subtitle: String {
         switch self {
+        case .publishRepository:
+            return "Publish this repository to a remote"
+        case .publishBranch(let remote):
+            return "Publish this branch to \(remote)"
         case .fetch:
             return "Repository is up to date"
         case .commit:
             return "You have local changes"
-        case .pull(let count):
+        case .pull(_, let count):
             return "Behind by \(count) commit\(count == 1 ? "" : "s")"
-        case .push(let count):
+        case .push(_, let count):
             return "Ahead by \(count) commit\(count == 1 ? "" : "s")"
-        case .sync(let ahead, let behind):
+        case .forcePush(_, let count):
+            return "Force push \(count) commit\(count == 1 ? "" : "s")"
+        case .sync(_, let ahead, let behind):
             return "Ahead \(ahead), behind \(behind)"
         case .merge:
             return "Resolve conflicts and commit"
+        case .rebase:
+            return "Resolve conflicts and continue"
+        case .cherryPick:
+            return "Resolve conflicts and continue"
         }
     }
 }
@@ -77,5 +109,6 @@ struct RepositoryScreenSnapshot: Equatable {
     let commits: [Commit]
     let userProfile: GitUserProfile
     let primaryAction: RepositoryPrimaryAction
-    let hasRemote: Bool
+    let remoteName: String?
+    let forcePushNeeded: Bool
 }

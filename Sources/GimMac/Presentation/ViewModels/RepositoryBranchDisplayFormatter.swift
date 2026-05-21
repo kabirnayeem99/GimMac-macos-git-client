@@ -1,13 +1,16 @@
 import Foundation
 
 enum RepositoryBranchDisplayFormatter {
-    static func displayText(for state: RepositoryState) -> String {
-        if let currentBranch = state.currentBranch, !currentBranch.isEmpty {
-            return currentBranch
+    static func displayText(for tip: TipState) -> String {
+        switch tip {
+        case .unknown:
+            return "No repository selected"
+        case .unborn(let ref):
+            return ref
+        case .detached(let sha):
+            return "HEAD @ \(sha)"
+        case .valid(let branch):
+            return branch.name
         }
-        if let detachedHeadShortSHA = state.detachedHeadShortSHA, !detachedHeadShortSHA.isEmpty {
-            return "HEAD (detached @ \(detachedHeadShortSHA))"
-        }
-        return "No repository selected"
     }
 }

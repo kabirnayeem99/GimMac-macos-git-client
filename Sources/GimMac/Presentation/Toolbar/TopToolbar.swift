@@ -55,18 +55,17 @@ struct TopToolbar: View {
             ToolbarCard(
                 icon: "point.3.connected.trianglepath.dotted",
                 title: "Branch",
-                value: RepositoryBranchDisplayFormatter.displayText(for: viewModel.repositoryState)
+                value: RepositoryBranchDisplayFormatter.displayText(for: viewModel.tip)
             )
             .frame(width: 240)
 
-            if viewModel.hasRemote {
-                PushToolbarCard(
-                    label: viewModel.primaryAction.label,
-                    subtitle: viewModel.primaryAction.subtitle,
-                    badge: viewModel.primaryAction.badge
-                )
-                .frame(width: 260)
-            }
+            PushToolbarCard(
+                label: viewModel.primaryAction.label,
+                subtitle: viewModel.primaryAction.subtitle,
+                badge: viewModel.primaryAction.badge,
+                lastFetched: viewModel.lastFetched
+            )
+            .frame(width: 260)
 
             Spacer()
         }

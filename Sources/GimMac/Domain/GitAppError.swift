@@ -9,6 +9,8 @@ enum GitAppError: Error, Equatable, LocalizedError {
     case cancelled(command: [String])
     case commandFailed(command: [String], exitCode: Int32, stdout: String, stderr: String)
     case invalidOutput(command: [String], details: String)
+    case bareRepository
+    case unsafeRepository(path: String)
 
     var errorDescription: String? {
         switch self {
@@ -29,6 +31,10 @@ enum GitAppError: Error, Equatable, LocalizedError {
             return "\(message) (git \(command.joined(separator: " ")))"
         case let .invalidOutput(command, details):
             return "Git returned invalid output for \(command.joined(separator: " ")): \(details)"
+        case .bareRepository:
+            return "This is a bare Git repository and cannot be opened."
+        case let .unsafeRepository(path):
+            return "Git refused to open \(path) due to unsafe ownership. Run: git config --global --add safe.directory \(path)"
         }
     }
 }

@@ -9,10 +9,14 @@ final class GitSmokeIntegrationTests: XCTestCase {
         try runGit(["init"], in: root)
         try runGit(["checkout", "-b", "phase1-test"], in: root)
 
-        let sut = LocalGitRepositoryInspector()
-        let state = try await sut.inspectRepository(at: root)
+        let sut = LocalGitRepositoryInspector(gitClient: ProcessGitClient())
+        let tip = try await sut.inspectRepository(at: root)
 
-        XCTAssertEqual(state.currentBranch, "phase1-test")
+        if case .unborn(let ref) = tip {
+            XCTAssertEqual(ref, "phase1-test")
+        } else {
+            XCTFail("Expected .unborn for a branch with no commits, got \(tip)")
+        }
     }
 
     func testProcessGitClientRevParseAndStatusInRealRepository() async throws {

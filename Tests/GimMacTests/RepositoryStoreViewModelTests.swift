@@ -3,9 +3,9 @@ import XCTest
 @testable import GimMac
 
 private struct MockRepositoryInspector: RepositoryInspecting, Sendable {
-    let result: Result<RepositoryState, Error>
+    let result: Result<TipState, Error>
 
-    func inspectRepository(at url: URL) async throws -> RepositoryState {
+    func inspectRepository(at url: URL) async throws -> TipState {
         try result.get()
     }
 }
@@ -166,8 +166,9 @@ private extension RepositoryScreenSnapshot {
             changedFiles: [],
             commits: [],
             userProfile: GitUserProfile(name: "Test User", email: "test@example.com"),
-            primaryAction: .fetch,
-            hasRemote: false
+            primaryAction: .publishRepository,
+            remoteName: nil,
+            forcePushNeeded: false
         )
     }
 }
@@ -176,7 +177,7 @@ private extension RepositoryScreenSnapshot {
 final class RepositoryStoreViewModelTests: XCTestCase {
     func testSelectRepositorySuccessUpdatesBranch() async {
         let inspector = MockRepositoryInspector(
-            result: .success(RepositoryState(currentBranch: "main", detachedHeadShortSHA: nil))
+            result: .success(.valid(branch: BranchSummary(name: "main", upstream: nil, sha: "abc1234")))
         )
         let sut = RepositoryStoreViewModel(
             inspector: inspector,
@@ -188,7 +189,7 @@ final class RepositoryStoreViewModelTests: XCTestCase {
 
         await sut.selectRepository(at: URL(fileURLWithPath: "/tmp/repo", isDirectory: true))
 
-        XCTAssertEqual(RepositoryBranchDisplayFormatter.displayText(for: sut.repositoryState), "main")
+        XCTAssertEqual(RepositoryBranchDisplayFormatter.displayText(for: sut.tip), "main")
         XCTAssertNil(sut.errorMessage)
         XCTAssertFalse(sut.isLoading)
     }
@@ -207,7 +208,7 @@ final class RepositoryStoreViewModelTests: XCTestCase {
         await sut.selectRepository(at: URL(fileURLWithPath: "/tmp/repo", isDirectory: true))
 
         XCTAssertEqual(
-            RepositoryBranchDisplayFormatter.displayText(for: sut.repositoryState),
+            RepositoryBranchDisplayFormatter.displayText(for: sut.tip),
             "No repository selected"
         )
         XCTAssertNotNil(sut.errorMessage)
@@ -215,10 +216,18 @@ final class RepositoryStoreViewModelTests: XCTestCase {
     }
 
     func testDetachedHeadDisplayFormatting() {
-        let state = RepositoryState(currentBranch: nil, detachedHeadShortSHA: "abc1234")
+        let tip = TipState.detached(sha: "abc1234")
         XCTAssertEqual(
-            RepositoryBranchDisplayFormatter.displayText(for: state),
-            "HEAD (detached @ abc1234)"
+            RepositoryBranchDisplayFormatter.displayText(for: tip),
+            "HEAD @ abc1234"
+        )
+    }
+
+    func testUnbornBranchDisplayFormatting() {
+        let tip = TipState.unborn(ref: "main")
+        XCTAssertEqual(
+            RepositoryBranchDisplayFormatter.displayText(for: tip),
+            "main"
         )
     }
 
@@ -252,7 +261,7 @@ final class RepositoryStoreViewModelTests: XCTestCase {
             ]
         )
 
-        let inspector = MockRepositoryInspector(result: .success(RepositoryState(currentBranch: "main", detachedHeadShortSHA: nil)))
+        let inspector = MockRepositoryInspector(result: .success(.valid(branch: BranchSummary(name: "main", upstream: nil, sha: "abc1234"))))
         let sut = RepositoryStoreViewModel(
             inspector: inspector,
             screenRepository: MockRepositoryScreenDataProvider(snapshot: .testSnapshot),

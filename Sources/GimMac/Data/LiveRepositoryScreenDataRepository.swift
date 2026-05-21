@@ -3,15 +3,18 @@ import Foundation
 final class LiveRepositoryScreenDataRepository: RepositoryScreenDataProviding, Sendable {
     private let statusProvider: StatusProviding
     private let historyProvider: HistoryProviding
+    private let upstreamProvider: BranchUpstreamProviding
     private let gitClient: GitClientProtocol
 
     init(
         statusProvider: StatusProviding,
         historyProvider: HistoryProviding,
+        upstreamProvider: BranchUpstreamProviding,
         gitClient: GitClientProtocol
     ) {
         self.statusProvider = statusProvider
         self.historyProvider = historyProvider
+        self.upstreamProvider = upstreamProvider
         self.gitClient = gitClient
     }
 
@@ -25,16 +28,25 @@ final class LiveRepositoryScreenDataRepository: RepositoryScreenDataProviding, S
         async let userNameTask = readConfig("user.name", in: repository.url)
         async let userEmailTask = readConfig("user.email", in: repository.url)
         async let aheadBehindTask = readAheadBehind(in: repository.url)
-        async let mergeInProgressTask = readMergeInProgress(in: repository.url)
-        async let hasRemoteTask = readHasRemote(in: repository.url)
+        async let conflictStateTask = readConflictState(in: repository.url)
+        async let remoteNameTask = readRemoteName(in: repository.url)
 
         let changedFiles = try await changedFilesTask
         let commits = try await commitsTask
         let userName = (try? await userNameTask)?.trimmingCharacters(in: .whitespacesAndNewlines)
         let userEmail = (try? await userEmailTask)?.trimmingCharacters(in: .whitespacesAndNewlines)
         let aheadBehind = (try? await aheadBehindTask) ?? (0, 0)
-        let mergeInProgress = (try? await mergeInProgressTask) ?? false
-        let hasRemote = (try? await hasRemoteTask) ?? false
+        let conflictState = (try? await conflictStateTask) ?? .none
+        let remoteName = try? await remoteNameTask
+
+        let upstream = await resolveUpstream(for: repository.url, remoteName: remoteName)
+
+        let forcePushNeeded: Bool
+        if aheadBehind.0 > 0 && aheadBehind.1 > 0, let remote = remoteName {
+            forcePushNeeded = await readForcePushNeeded(remoteName: remote, in: repository.url)
+        } else {
+            forcePushNeeded = false
+        }
 
         let user = GitUserProfile(
             name: userName?.isEmpty == false ? userName! : (commits.first?.authorName ?? "Unknown User"),
@@ -45,7 +57,10 @@ final class LiveRepositoryScreenDataRepository: RepositoryScreenDataProviding, S
             changedFilesCount: changedFiles.count,
             ahead: aheadBehind.0,
             behind: aheadBehind.1,
-            mergeInProgress: mergeInProgress
+            conflictState: conflictState,
+            remoteName: remoteName,
+            upstream: upstream,
+            forcePushNeeded: forcePushNeeded
         )
 
         return RepositoryScreenSnapshot(
@@ -53,8 +68,17 @@ final class LiveRepositoryScreenDataRepository: RepositoryScreenDataProviding, S
             commits: commits,
             userProfile: user,
             primaryAction: primaryAction,
-            hasRemote: hasRemote
+            remoteName: remoteName,
+            forcePushNeeded: forcePushNeeded
         )
+    }
+
+    private func resolveUpstream(for repositoryURL: URL, remoteName: String?) async -> String? {
+        guard remoteName != nil else { return nil }
+        let inspector = LocalGitRepositoryInspector(gitClient: gitClient)
+        guard let tipState = try? await inspector.inspectRepository(at: repositoryURL),
+              case .valid(let branch) = tipState else { return nil }
+        return try? await upstreamProvider.fetchUpstream(for: branch.name, in: repositoryURL)
     }
 
     private func readConfig(_ key: String, in repositoryURL: URL) async throws -> String {
@@ -63,56 +87,94 @@ final class LiveRepositoryScreenDataRepository: RepositoryScreenDataProviding, S
     }
 
     private func readAheadBehind(in repositoryURL: URL) async throws -> (Int, Int) {
-        let result = try await gitClient.run(["rev-list", "--left-right", "--count", "@{upstream}...HEAD"], in: repositoryURL, timeout: 5)
+        let result = try await gitClient.run(
+            ["rev-list", "--left-right", "--count", "@{upstream}...HEAD"],
+            in: repositoryURL,
+            timeout: 5
+        )
         let pieces = result.stdout.trimmingCharacters(in: .whitespacesAndNewlines).split(separator: "\t")
         guard pieces.count == 2, let behind = Int(pieces[0]), let ahead = Int(pieces[1]) else {
             return (0, 0)
         }
-
         return (ahead, behind)
     }
 
-    private func readMergeInProgress(in repositoryURL: URL) async throws -> Bool {
-        do {
-            _ = try await gitClient.run(["rev-parse", "-q", "--verify", "MERGE_HEAD"], in: repositoryURL, timeout: 5)
-            return true
-        } catch {
-            return false
-        }
+    private func readConflictState(in repositoryURL: URL) async throws -> ConflictState {
+        let merge = (try? await gitClient.run(
+            ["rev-parse", "-q", "--verify", "MERGE_HEAD"], in: repositoryURL, timeout: 5
+        )) != nil
+        let rebase = (try? await gitClient.run(
+            ["rev-parse", "-q", "--verify", "REBASE_HEAD"], in: repositoryURL, timeout: 5
+        )) != nil
+        let cherryPick = (try? await gitClient.run(
+            ["rev-parse", "-q", "--verify", "CHERRY_PICK_HEAD"], in: repositoryURL, timeout: 5
+        )) != nil
+        if merge { return .merge }
+        if rebase { return .rebase }
+        if cherryPick { return .cherryPick }
+        return .none
     }
 
-    private func readHasRemote(in repositoryURL: URL) async throws -> Bool {
-        let result = try await gitClient.run(["remote", "get-url", "origin"], in: repositoryURL, timeout: 5)
-        return !result.stdout.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+    private func readRemoteName(in repositoryURL: URL) async throws -> String? {
+        let result = try await gitClient.run(["remote", "-v"], in: repositoryURL, timeout: 5)
+        let line = result.stdout.components(separatedBy: "\n").first(where: { !$0.isEmpty })
+        return line?.components(separatedBy: "\t").first
+    }
+
+    private func readForcePushNeeded(remoteName: String, in url: URL) async -> Bool {
+        let result = try? await gitClient.run(
+            ["merge-base", "--is-ancestor", remoteName, "HEAD"],
+            in: url,
+            timeout: 5
+        )
+        return result?.exitCode == 1
     }
 
     private func derivePrimaryAction(
         changedFilesCount: Int,
         ahead: Int,
         behind: Int,
-        mergeInProgress: Bool
+        conflictState: ConflictState,
+        remoteName: String?,
+        upstream: String?,
+        forcePushNeeded: Bool
     ) -> RepositoryPrimaryAction {
-        if mergeInProgress {
-            return .merge
+        switch conflictState {
+        case .merge:      return .merge
+        case .rebase:     return .rebase
+        case .cherryPick: return .cherryPick
+        case .none:       break
+        }
+
+        guard let remote = remoteName else {
+            return .publishRepository
+        }
+
+        guard upstream != nil else {
+            return .publishBranch(remote: remote)
+        }
+
+        if forcePushNeeded {
+            return .forcePush(remote: remote, ahead: ahead)
         }
 
         if ahead > 0 && behind > 0 {
-            return .sync(ahead: ahead, behind: behind)
+            return .sync(remote: remote, ahead: ahead, behind: behind)
         }
 
         if ahead > 0 {
-            return .push(ahead)
+            return .push(remote: remote, ahead: ahead)
         }
 
         if behind > 0 {
-            return .pull(behind)
+            return .pull(remote: remote, behind: behind)
         }
 
         if changedFilesCount > 0 {
             return .commit
         }
 
-        return .fetch
+        return .fetch(remote: remote)
     }
 }
 
@@ -137,8 +199,9 @@ private extension RepositoryScreenSnapshot {
                 )
             ],
             userProfile: GitUserProfile(name: "Naimul Kabir", email: "naimul@example.com"),
-            primaryAction: .push(1),
-            hasRemote: false
+            primaryAction: .push(remote: "origin", ahead: 1),
+            remoteName: nil,
+            forcePushNeeded: false
         )
     }
 }

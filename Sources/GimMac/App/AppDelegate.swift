@@ -82,6 +82,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
                 screenRepository: LiveRepositoryScreenDataRepository(
                     statusProvider: GitStatusProvider(client: gitClient),
                     historyProvider: GitHistoryProvider(client: gitClient),
+                    upstreamProvider: GitBranchUpstreamReader(client: gitClient),
                     gitClient: gitClient
                 ),
                 diffProvider: GitDiffProvider(client: gitClient),
