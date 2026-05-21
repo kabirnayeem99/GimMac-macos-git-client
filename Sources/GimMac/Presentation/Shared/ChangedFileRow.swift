@@ -5,6 +5,8 @@ struct ChangedFileRow: View {
     let selected: Bool
     let checked: Bool
     let onToggleChecked: () -> Void
+    var onDiscardChanges: () -> Void = {}
+    var onRevealInFinder: () -> Void = {}
 
     private var statusIcon: String {
         switch file.status {
@@ -71,5 +73,10 @@ struct ChangedFileRow: View {
         .contentShape(RoundedRectangle(cornerRadius: 7, style: .continuous))
         .padding(.horizontal, 6)
         .padding(.vertical, 2)
+        .contextMenu {
+            Button("Discard Changes…", action: onDiscardChanges)
+            Divider()
+            Button("Reveal in Finder", action: onRevealInFinder)
+        }
     }
 }

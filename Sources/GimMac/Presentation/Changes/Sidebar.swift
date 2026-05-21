@@ -38,6 +38,7 @@ struct Sidebar: View {
     @Binding var selectedTab: Int
     let viewModel: RepositoryStoreViewModel
     @State private var filterState = FilterViewState()
+    @State private var pendingDiscardPath: String?
 
     private var filteredFiles: [ChangedFile] {
         viewModel.changedFiles.filter { file in
@@ -146,9 +147,26 @@ struct Sidebar: View {
             .padding(.bottom, 10)
 
             HStack(spacing: 8) {
-                Image(systemName: "checkmark.square.fill")
-                    .font(.system(size: 12))
-                    .foregroundStyle(.secondary)
+                let allChecked = !viewModel.changedFiles.isEmpty &&
+                    viewModel.checkedChangedFilePaths.count == viewModel.changedFilesCount
+                let someChecked = !viewModel.checkedChangedFilePaths.isEmpty && !allChecked
+
+                Button {
+                    if allChecked {
+                        viewModel.deselectAllChangedFiles()
+                    } else {
+                        viewModel.selectAllChangedFiles()
+                    }
+                } label: {
+                    Image(systemName: allChecked
+                          ? "checkmark.square.fill"
+                          : (someChecked ? "minus.square.fill" : "square"))
+                        .font(.system(size: 12, weight: .semibold))
+                        .foregroundStyle(.secondary)
+                }
+                .buttonStyle(.plain)
+                .disabled(viewModel.changedFiles.isEmpty)
+                .help(allChecked ? "Deselect all" : "Select all")
 
                 Text("\(viewModel.changedFilesCount) changed file\(viewModel.changedFilesCount == 1 ? "" : "s")")
                     .font(.system(size: 12, weight: .medium))
@@ -168,6 +186,12 @@ struct Sidebar: View {
                     checked: viewModel.isChangedFileChecked(path: file.path),
                     onToggleChecked: {
                         viewModel.toggleChangedFileChecked(path: file.path)
+                    },
+                    onDiscardChanges: {
+                        pendingDiscardPath = file.path
+                    },
+                    onRevealInFinder: {
+                        viewModel.revealInFinder(path: file.path)
                     }
                 )
                 .frame(maxWidth: .infinity, alignment: .leading)
@@ -182,9 +206,42 @@ struct Sidebar: View {
             .listStyle(.plain)
             .scrollContentBackground(.hidden)
 
+            if let stash = viewModel.stashEntry {
+                StashPanel(
+                    entry: stash,
+                    onRestore: { Task { await viewModel.applyStash() } },
+                    onDiscard: { Task { await viewModel.dropStash() } }
+                )
+            }
+
             CommitBox(viewModel: viewModel)
         }
         .background(.thinMaterial)
+        .confirmationDialog(
+            discardConfirmationTitle,
+            isPresented: Binding(
+                get: { pendingDiscardPath != nil },
+                set: { if !$0 { pendingDiscardPath = nil } }
+            ),
+            titleVisibility: .visible
+        ) {
+            Button("Discard Changes", role: .destructive) {
+                if let path = pendingDiscardPath {
+                    Task { await viewModel.discardChanges(path: path) }
+                }
+                pendingDiscardPath = nil
+            }
+            Button("Cancel", role: .cancel) {
+                pendingDiscardPath = nil
+            }
+        } message: {
+            Text("Changes to this file will be lost. This cannot be undone.")
+        }
+    }
+
+    private var discardConfirmationTitle: String {
+        guard let path = pendingDiscardPath else { return "Discard changes?" }
+        return "Discard changes to \"\(path)\"?"
     }
 
     private func send(_ intent: FilterIntent) {
@@ -208,5 +265,42 @@ struct Sidebar: View {
         }
 
         return nextState
+    }
+}
+
+private struct StashPanel: View {
+    let entry: StashEntry
+    let onRestore: () -> Void
+    let onDiscard: () -> Void
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 6) {
+            HStack(spacing: 6) {
+                Image(systemName: "tray.full")
+                    .font(.system(size: 11, weight: .semibold))
+                    .foregroundStyle(.secondary)
+                Text("Stashed Changes")
+                    .font(.system(size: 11, weight: .semibold))
+                    .foregroundStyle(.secondary)
+                Spacer()
+            }
+
+            Text(entry.message)
+                .font(.system(size: 12))
+                .lineLimit(2)
+
+            HStack(spacing: 8) {
+                Button("Restore", action: onRestore)
+                    .buttonStyle(.borderless)
+                    .controlSize(.small)
+                Button("Discard", role: .destructive, action: onDiscard)
+                    .buttonStyle(.borderless)
+                    .controlSize(.small)
+                Spacer()
+            }
+        }
+        .padding(10)
+        .background(.bar)
+        .overlay(alignment: .top) { Divider() }
     }
 }

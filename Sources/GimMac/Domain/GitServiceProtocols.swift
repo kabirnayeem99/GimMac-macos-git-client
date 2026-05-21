@@ -12,13 +12,22 @@ protocol DiffProviding: Sendable {
     func fetchDiff(in repositoryURL: URL, for path: String) async throws -> DiffDocument
 }
 
+struct CommitOptions: Equatable, Sendable {
+    var skipHooks: Bool = false
+    var signOff: Bool = false
+    var isAmend: Bool = false
+}
+
 protocol CommitProviding: Sendable {
     func commit(
         in repositoryURL: URL,
         paths: [String],
         summary: String,
-        description: String?
+        description: String?,
+        options: CommitOptions
     ) async throws
+
+    func undoLastCommit(in repositoryURL: URL) async throws
 }
 
 protocol RepositoryPersistenceProviding: Sendable {
@@ -35,4 +44,14 @@ protocol RepositoryScreenDataProviding: Sendable {
 
 protocol BranchUpstreamProviding: Sendable {
     func fetchUpstream(for branch: String, in repositoryURL: URL) async throws -> String?
+}
+
+protocol DiscardProviding: Sendable {
+    func discardChanges(in repositoryURL: URL, for path: String, status: GitFileStatus) async throws
+}
+
+protocol StashProviding: Sendable {
+    func fetchStash(in repositoryURL: URL) async throws -> StashEntry?
+    func applyStash(in repositoryURL: URL) async throws
+    func dropStash(in repositoryURL: URL) async throws
 }

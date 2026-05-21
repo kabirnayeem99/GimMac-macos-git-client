@@ -1,5 +1,6 @@
 # Others
 github-desktop-codebase/
+.claude/worktrees/
 
 # macOS
 .DS_Store

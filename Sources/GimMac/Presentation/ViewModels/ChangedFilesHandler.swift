@@ -24,4 +24,12 @@ final class ChangedFilesHandler {
             checkedPaths.insert(path)
         }
     }
+
+    func selectAll(paths: [String]) {
+        checkedPaths = Set(paths)
+    }
+
+    func deselectAll() {
+        checkedPaths = []
+    }
 }

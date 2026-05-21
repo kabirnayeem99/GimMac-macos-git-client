@@ -1,6 +1,20 @@
 import SwiftUI
 
 struct HeaderSection: View {
+    let title: String
+    let subtitle: String
+    let icon: String
+
+    init(
+        title: String = "No local changes",
+        subtitle: String = "There are no uncommitted changes in this repository. Choose an action below to continue.",
+        icon: String = "tray"
+    ) {
+        self.title = title
+        self.subtitle = subtitle
+        self.icon = icon
+    }
+
     var body: some View {
         HStack(alignment: .top, spacing: 16) {
             VStack(alignment: .leading, spacing: 10) {
@@ -9,11 +23,11 @@ struct HeaderSection: View {
                     .foregroundStyle(.tertiary)
                     .textCase(.uppercase)
 
-                Text("No local changes")
+                Text(title)
                     .font(.system(size: 28, weight: .semibold))
                     .foregroundStyle(.primary)
 
-                Text("There are no uncommitted changes in this repository. Choose an action below to continue.")
+                Text(subtitle)
                     .font(.system(size: 13))
                     .foregroundStyle(.secondary)
                     .lineSpacing(2)
@@ -22,7 +36,7 @@ struct HeaderSection: View {
 
             Spacer()
 
-            Image(systemName: "tray")
+            Image(systemName: icon)
                 .font(.system(size: 32, weight: .regular))
                 .foregroundStyle(.tertiary)
                 .padding(.top, 6)

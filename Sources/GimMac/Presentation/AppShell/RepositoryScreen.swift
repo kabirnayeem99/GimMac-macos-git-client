@@ -31,7 +31,7 @@ struct RepositoryScreen: View {
                             DiffViewer(viewModel: viewModel)
                                 .frame(maxWidth: .infinity, maxHeight: .infinity)
                         } else {
-                            MainContent()
+                            MainContent(viewModel: viewModel)
                                 .frame(maxWidth: .infinity, maxHeight: .infinity)
                         }
                     }

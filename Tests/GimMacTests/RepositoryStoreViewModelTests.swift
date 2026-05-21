@@ -145,7 +145,8 @@ private actor MockRepositoryPersistence: RepositoryPersistenceProviding {
 }
 
 private struct MockCommitProvider: CommitProviding, Sendable {
-    func commit(in repositoryURL: URL, paths: [String], summary: String, description: String?) async throws {}
+    func commit(in repositoryURL: URL, paths: [String], summary: String, description: String?, options: CommitOptions) async throws {}
+    func undoLastCommit(in repositoryURL: URL) async throws {}
 }
 
 private struct MockGitClient: GitClientProtocol, Sendable {

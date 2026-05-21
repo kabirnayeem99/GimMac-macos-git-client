@@ -1,5 +1,10 @@
+import AppKit
 import Foundation
 import Observation
+
+// Architecture note: AppKit is imported here only for `NSWorkspace` used to
+// reveal a file in Finder. This is a small, native-only OS integration that
+// avoids creating a separate service for a single one-line side effect.
 
 @MainActor
 @Observable
@@ -8,6 +13,8 @@ final class RepositoryStoreViewModel {
     private let screenRepository: RepositoryScreenDataProviding
     private let commitProvider: CommitProviding
     private let repositoryPersistence: RepositoryPersistenceProviding
+    private let discardProvider: DiscardProviding?
+    private let stashProvider: StashProviding?
 
     let commitForm = CommitFormHandler()
     let changedFilesHandler = ChangedFilesHandler()
@@ -41,6 +48,18 @@ final class RepositoryStoreViewModel {
     }
 
     var isCommitting: Bool { commitForm.isCommitting }
+    var isAmendMode: Bool { commitForm.isAmendMode }
+    var summaryCharacterCount: Int { commitForm.summaryCharacterCount }
+    var summaryExceedsRecommendedLength: Bool { commitForm.summaryExceedsRecommendedLength }
+
+    var skipHooks: Bool {
+        get { commitForm.skipHooks }
+        set { commitForm.skipHooks = newValue }
+    }
+    var signOff: Bool {
+        get { commitForm.signOff }
+        set { commitForm.signOff = newValue }
+    }
     var selectedHistoryCommitIndex: Int { historyHandler.selectedIndex }
     var selectedChangedFilePath: String? { diffHandler.selectedFilePath }
     var checkedChangedFilePaths: Set<String> { changedFilesHandler.checkedPaths }
@@ -71,8 +90,24 @@ final class RepositoryStoreViewModel {
     var canCommitChanges: Bool {
         !commitForm.isCommitting &&
         selectedRepository != nil &&
-        !changedFilesHandler.checkedPaths.isEmpty &&
-        !commitForm.trimmedSummary.isEmpty
+        (commitForm.isAmendMode || !changedFilesHandler.checkedPaths.isEmpty) &&
+        !commitForm.trimmedSummary.isEmpty &&
+        !hasCheckedConflicts
+    }
+
+    var hasCheckedConflicts: Bool {
+        changedFiles
+            .filter { changedFilesHandler.isChecked($0.path) }
+            .contains { $0.hasConflict }
+    }
+
+    var isSyncing: Bool {
+        switch primaryAction {
+        case .fetch, .pull, .push, .forcePush, .sync:
+            return true
+        default:
+            return false
+        }
     }
 
     // MARK: - Init
@@ -82,12 +117,16 @@ final class RepositoryStoreViewModel {
         screenRepository: RepositoryScreenDataProviding,
         diffProvider: DiffProviding,
         commitProvider: CommitProviding,
-        repositoryPersistence: RepositoryPersistenceProviding
+        repositoryPersistence: RepositoryPersistenceProviding,
+        discardProvider: DiscardProviding? = nil,
+        stashProvider: StashProviding? = nil
     ) {
         self.inspector = inspector
         self.screenRepository = screenRepository
         self.commitProvider = commitProvider
         self.repositoryPersistence = repositoryPersistence
+        self.discardProvider = discardProvider
+        self.stashProvider = stashProvider
         self.diffHandler = DiffHandler(diffProvider: diffProvider)
     }
 
@@ -167,6 +206,13 @@ final class RepositoryStoreViewModel {
 
             if let repository = selectedRepository {
                 await diffHandler.loadDiff(in: repository, changedFiles: changedFiles)
+                if let stashProvider {
+                    stashEntry = try? await stashProvider.fetchStash(in: repository.url)
+                } else {
+                    stashEntry = nil
+                }
+            } else {
+                stashEntry = nil
             }
         } catch {
             errorMessage = error.localizedDescription
@@ -198,7 +244,7 @@ final class RepositoryStoreViewModel {
     // MARK: - Commit
 
     func commitChanges() async {
-        guard canCommitChanges, let repository = selectedRepository else { return }
+        guard canCommitChanges, !hasCheckedConflicts, let repository = selectedRepository else { return }
 
         let summary = commitForm.trimmedSummary
         let description = commitForm.trimmedDescription
@@ -208,17 +254,114 @@ final class RepositoryStoreViewModel {
         errorMessage = nil
         defer { commitForm.setCommitting(false) }
 
+        let options = CommitOptions(
+            skipHooks: commitForm.skipHooks,
+            signOff: commitForm.signOff,
+            isAmend: commitForm.isAmendMode
+        )
+
         do {
             try await commitProvider.commit(
                 in: repository.url,
                 paths: pathsToCommit,
                 summary: summary,
-                description: description.isEmpty ? nil : description
+                description: description.isEmpty ? nil : description,
+                options: options
             )
             commitForm.reset()
             await refreshRepositoryScreenData()
         } catch {
             errorMessage = error.localizedDescription
+        }
+    }
+
+    func undoCommit() async {
+        guard let repository = selectedRepository else { return }
+        errorMessage = nil
+        do {
+            try await commitProvider.undoLastCommit(in: repository.url)
+            await refreshRepositoryScreenData()
+        } catch {
+            errorMessage = error.localizedDescription
+        }
+    }
+
+    // MARK: - Discard
+
+    func discardChanges(path: String) async {
+        guard let repository = selectedRepository,
+              let discardProvider,
+              let file = changedFiles.first(where: { $0.path == path }) else { return }
+        errorMessage = nil
+        do {
+            try await discardProvider.discardChanges(in: repository.url, for: path, status: file.status)
+            await refreshRepositoryScreenData()
+        } catch {
+            errorMessage = error.localizedDescription
+        }
+    }
+
+    // MARK: - Reveal in Finder
+
+    func revealInFinder(path: String) {
+        guard let repository = selectedRepository else { return }
+        let fileURL = repository.url.appendingPathComponent(path)
+        NSWorkspace.shared.activateFileViewerSelecting([fileURL])
+    }
+
+    // MARK: - Select / Deselect all
+
+    func selectAllChangedFiles() {
+        changedFilesHandler.selectAll(paths: changedFiles.map(\.path))
+    }
+
+    func deselectAllChangedFiles() {
+        changedFilesHandler.deselectAll()
+    }
+
+    // MARK: - Commit warning
+
+    var commitWarning: CommitWarningKind? {
+        switch tip {
+        case .detached: return .detachedHead
+        case .unborn: return .unborn
+        default: return nil
+        }
+    }
+
+    // MARK: - Stash
+
+    private(set) var stashEntry: StashEntry?
+
+    func applyStash() async {
+        guard let repository = selectedRepository, let stashProvider else { return }
+        errorMessage = nil
+        do {
+            try await stashProvider.applyStash(in: repository.url)
+            await refreshRepositoryScreenData()
+        } catch {
+            errorMessage = error.localizedDescription
+        }
+    }
+
+    func dropStash() async {
+        guard let repository = selectedRepository, let stashProvider else { return }
+        errorMessage = nil
+        do {
+            try await stashProvider.dropStash(in: repository.url)
+            await refreshRepositoryScreenData()
+        } catch {
+            errorMessage = error.localizedDescription
+        }
+    }
+
+    // MARK: - Amend
+
+    func toggleAmendMode() {
+        commitForm.toggleAmend()
+        if commitForm.isAmendMode, let last = commits.first {
+            commitForm.reset()
+            commitForm.prefill(summary: last.summary, body: last.body)
         }
     }
 }
