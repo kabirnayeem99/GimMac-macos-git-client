@@ -17,6 +17,9 @@ final class RepositoryStoreViewModel {
     private let repositoryPersistence: RepositoryPersistenceProviding
     private let discardProvider: DiscardProviding?
     private let stashProvider: StashProviding?
+    private let branchProvider: BranchProviding?
+    private let branchOperator: BranchOperating?
+    private let statusProvider: StatusProviding?
 
     let commitForm = CommitFormHandler()
     let changedFilesHandler = ChangedFilesHandler()
@@ -127,7 +130,10 @@ final class RepositoryStoreViewModel {
         commitProvider: CommitProviding,
         repositoryPersistence: RepositoryPersistenceProviding,
         discardProvider: DiscardProviding? = nil,
-        stashProvider: StashProviding? = nil
+        stashProvider: StashProviding? = nil,
+        branchProvider: BranchProviding? = nil,
+        branchOperator: BranchOperating? = nil,
+        statusProvider: StatusProviding? = nil
     ) {
         self.inspector = inspector
         self.screenRepository = screenRepository
@@ -137,6 +143,9 @@ final class RepositoryStoreViewModel {
         self.repositoryPersistence = repositoryPersistence
         self.discardProvider = discardProvider
         self.stashProvider = stashProvider
+        self.branchProvider = branchProvider
+        self.branchOperator = branchOperator
+        self.statusProvider = statusProvider
         self.diffHandler = DiffHandler(diffProvider: diffProvider)
     }
 
@@ -398,6 +407,29 @@ final class RepositoryStoreViewModel {
     }
 
     // MARK: - Amend
+
+    // MARK: - Branches
+
+    /// Factory for the branches panel VM. Returns `nil` when the host did not
+    /// inject the branch services (e.g. preview / test scaffolding) — callers
+    /// should hide the affordance in that case.
+    func makeBranchesViewModel() -> BranchesViewModel? {
+        guard let branchProvider, let branchOperator, let statusProvider else { return nil }
+        let viewModel = BranchesViewModel(
+            branchProvider: branchProvider,
+            branchOperator: branchOperator,
+            statusProvider: statusProvider
+        )
+        viewModel.setRepository(selectedRepository?.url, currentBranchName: currentBranchName)
+        return viewModel
+    }
+
+    /// Short name of the checked-out branch, derived from `tip`. `nil` for
+    /// detached / unborn / unknown states.
+    private var currentBranchName: String? {
+        if case .valid(let summary) = tip { return summary.name }
+        return nil
+    }
 
     func toggleAmendMode() {
         commitForm.toggleAmend()

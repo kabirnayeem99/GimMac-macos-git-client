@@ -59,4 +59,68 @@ protocol StashProviding: Sendable {
     func fetchStash(in repositoryURL: URL) async throws -> StashEntry?
     func applyStash(in repositoryURL: URL) async throws
     func dropStash(in repositoryURL: URL) async throws
+    /// Push a new stash with the current working-tree changes (including untracked).
+    /// Used by the stash-and-switch flow before swapping branches.
+    func pushStash(in repositoryURL: URL, message: String?) async throws
+}
+
+// MARK: - Branches
+
+/// Read-only branch discovery. Separate from `BranchOperating` so read-only
+/// callers (e.g. toolbar/popover) don't gain mutate access.
+protocol BranchProviding: Sendable {
+    /// Fetch all local and remote branches via a single `for-each-ref` call.
+    func fetchBranches(in repositoryURL: URL) async throws -> [Branch]
+
+    /// Fetch branches that point at a given commitish.
+    func fetchBranchesPointing(at commitish: String, in repositoryURL: URL) async throws -> [Branch]
+
+    /// Fetch local branches fully merged into the given branch.
+    func fetchMergedBranches(into branch: Branch, in repositoryURL: URL) async throws -> [Branch]
+}
+
+/// Mutating branch operations. Kept separate from `BranchProviding`.
+protocol BranchOperating: Sendable {
+    /// Create a new branch from `startPoint`. Does not switch to it.
+    @discardableResult
+    func createBranch(
+        named name: String,
+        from startPoint: BranchStartPoint,
+        noTrack: Bool,
+        in repositoryURL: URL
+    ) async throws -> String
+
+    /// Switch the working tree to the given branch (`git switch`).
+    func switchBranch(to branch: Branch, in repositoryURL: URL) async throws
+
+    /// Delete a local branch. `force = true` uses `-D` to skip the merge check.
+    func deleteLocalBranch(_ branch: Branch, force: Bool, in repositoryURL: URL) async throws
+
+    /// Delete a remote tracking branch via `git push remote :branchName`.
+    func deleteRemoteBranch(_ branch: Branch, remote: String, in repositoryURL: URL) async throws
+
+    /// Rename a local branch. `force = true` uses `-M` to allow overwriting.
+    @discardableResult
+    func renameBranch(
+        _ branch: Branch,
+        to newName: String,
+        force: Bool,
+        in repositoryURL: URL
+    ) async throws -> String
+}
+
+/// Compare two arbitrary branches (not just vs upstream).
+protocol BranchCompareProviding: Sendable {
+    func compareBranches(
+        base: Branch,
+        compare: Branch,
+        in repositoryURL: URL
+    ) async throws -> BranchCompareResult
+}
+
+/// Merge or rebase the current branch from the default branch. Post-MVP scope,
+/// protocol declared here so callers can be wired up incrementally.
+protocol UpdateFromDefaultProviding: Sendable {
+    func mergeDefaultBranch(into branch: Branch, in repositoryURL: URL) async throws
+    func rebaseOntoDefaultBranch(_ branch: Branch, in repositoryURL: URL) async throws
 }

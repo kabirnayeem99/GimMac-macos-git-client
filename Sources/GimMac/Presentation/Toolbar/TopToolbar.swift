@@ -52,12 +52,16 @@ struct TopToolbar: View {
             .menuIndicator(.hidden)
             .frame(width: 300)
 
-            ToolbarCard(
-                icon: "point.3.connected.trianglepath.dotted",
-                title: "Branch",
-                value: RepositoryBranchDisplayFormatter.displayText(for: viewModel.tip)
-            )
-            .frame(width: 240)
+            BranchesPopoverButton(
+                viewModelFactory: { [viewModel] in viewModel.makeBranchesViewModel() }
+            ) {
+                ToolbarCard(
+                    icon: "point.3.connected.trianglepath.dotted",
+                    title: "Branch",
+                    value: RepositoryBranchDisplayFormatter.displayText(for: viewModel.tip)
+                )
+            }
+            .frame(width: 240, height: 40)
 
             PushToolbarCard(
                 label: viewModel.primaryAction.label,

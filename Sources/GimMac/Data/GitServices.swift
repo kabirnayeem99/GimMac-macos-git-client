@@ -174,6 +174,14 @@ final class GitStashProvider: StashProviding, Sendable {
         _ = try await client.run(["stash", "drop"], in: repositoryURL, timeout: 10)
     }
 
+    func pushStash(in repositoryURL: URL, message: String?) async throws {
+        var arguments = ["stash", "push", "--include-untracked"]
+        if let message, !message.isEmpty {
+            arguments += ["-m", message]
+        }
+        _ = try await client.run(arguments, in: repositoryURL, timeout: 30)
+    }
+
     private static func parseBranchName(from message: String) -> String? {
         // "WIP on branch: ..." or "On branch: ..."
         let scanners = ["WIP on ", "On "]

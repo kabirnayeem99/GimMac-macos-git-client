@@ -90,7 +90,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
                 commitProvider: GitCommitProvider(client: gitClient),
                 repositoryPersistence: repositoryPersistence,
                 discardProvider: GitDiscardProvider(client: gitClient),
-                stashProvider: GitStashProvider(client: gitClient)
+                stashProvider: GitStashProvider(client: gitClient),
+                branchProvider: GitBranchReader(client: gitClient),
+                branchOperator: GitBranchOperator(client: gitClient),
+                statusProvider: GitStatusProvider(client: gitClient)
             )
         )
 
