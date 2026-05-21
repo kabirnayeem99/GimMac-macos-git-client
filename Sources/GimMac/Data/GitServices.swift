@@ -1,6 +1,6 @@
 import Foundation
 
-final class GitHistoryProvider: HistoryProviding, @unchecked Sendable {
+final class GitHistoryProvider: HistoryProviding, Sendable {
     private let client: GitClientProtocol
 
     init(client: GitClientProtocol) {
@@ -19,7 +19,7 @@ final class GitHistoryProvider: HistoryProviding, @unchecked Sendable {
     }
 }
 
-final class GitStatusProvider: StatusProviding, @unchecked Sendable {
+final class GitStatusProvider: StatusProviding, Sendable {
     private let client: GitClientProtocol
 
     init(client: GitClientProtocol) {
@@ -33,7 +33,7 @@ final class GitStatusProvider: StatusProviding, @unchecked Sendable {
     }
 }
 
-final class GitCommitProvider: CommitProviding, @unchecked Sendable {
+final class GitCommitProvider: CommitProviding, Sendable {
     private let client: GitClientProtocol
 
     init(client: GitClientProtocol) {

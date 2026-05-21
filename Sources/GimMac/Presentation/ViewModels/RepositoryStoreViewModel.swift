@@ -1,245 +1,18 @@
 import Foundation
 import Observation
 
-enum RepositoryPrimaryAction: Equatable {
-    case fetch
-    case commit
-    case pull(Int)
-    case push(Int)
-    case sync(ahead: Int, behind: Int)
-    case merge
-
-    var label: String {
-        switch self {
-        case .fetch:
-            return "Fetch origin"
-        case .commit:
-            return "Commit changes"
-        case .pull:
-            return "Pull origin"
-        case .push:
-            return "Push origin"
-        case .sync:
-            return "Sync branch"
-        case .merge:
-            return "Continue Merge"
-        }
-    }
-
-    var badge: String? {
-        switch self {
-        case .pull(let count), .push(let count):
-            return count > 0 ? String(count) : nil
-        case .sync(let ahead, let behind):
-            return "\(ahead)/\(behind)"
-        case .fetch, .commit, .merge:
-            return nil
-        }
-    }
-
-    var subtitle: String {
-        switch self {
-        case .fetch:
-            return "Repository is up to date"
-        case .commit:
-            return "You have local changes"
-        case .pull(let count):
-            return "Behind by \(count) commit\(count == 1 ? "" : "s")"
-        case .push(let count):
-            return "Ahead by \(count) commit\(count == 1 ? "" : "s")"
-        case .sync(let ahead, let behind):
-            return "Ahead \(ahead), behind \(behind)"
-        case .merge:
-            return "Resolve conflicts and commit"
-        }
-    }
-}
-
-struct GitUserProfile: Equatable {
-    let name: String
-    let email: String
-
-    var initials: String {
-        let parts = name.split(separator: " ").map(String.init)
-        if parts.count >= 2 {
-            return String(parts[0].prefix(1) + parts[1].prefix(1)).uppercased()
-        }
-
-        if let first = parts.first, !first.isEmpty {
-            return String(first.prefix(2)).uppercased()
-        }
-
-        return "--"
-    }
-}
-
-struct RepositoryScreenSnapshot: Equatable {
-    let changedFiles: [ChangedFile]
-    let commits: [Commit]
-    let userProfile: GitUserProfile
-    let primaryAction: RepositoryPrimaryAction
-    let hasRemote: Bool
-}
-
-protocol RepositoryScreenDataProviding: Sendable {
-    func loadSnapshot(for repository: Repository?) async -> RepositoryScreenSnapshot
-}
-
-final class LiveRepositoryScreenDataRepository: RepositoryScreenDataProviding, @unchecked Sendable {
-    private let statusProvider: StatusProviding
-    private let historyProvider: HistoryProviding
-    private let gitClient: GitClientProtocol
-
-    init(
-        statusProvider: StatusProviding,
-        historyProvider: HistoryProviding,
-        gitClient: GitClientProtocol
-    ) {
-        self.statusProvider = statusProvider
-        self.historyProvider = historyProvider
-        self.gitClient = gitClient
-    }
-
-    func loadSnapshot(for repository: Repository?) async -> RepositoryScreenSnapshot {
-        guard let repository else {
-            return .mock
-        }
-
-        do {
-            async let changedFilesTask = statusProvider.fetchStatus(in: repository.url)
-            async let commitsTask = historyProvider.fetchHistory(in: repository.url, maxCount: 50)
-            async let userNameTask = readConfig("user.name", in: repository.url)
-            async let userEmailTask = readConfig("user.email", in: repository.url)
-            async let aheadBehindTask = readAheadBehind(in: repository.url)
-            async let mergeInProgressTask = readMergeInProgress(in: repository.url)
-            async let hasRemoteTask = readHasRemote(in: repository.url)
-
-            let changedFiles = (try? await changedFilesTask) ?? []
-            let commits = (try? await commitsTask) ?? []
-            let userName = (try? await userNameTask)?.trimmingCharacters(in: .whitespacesAndNewlines)
-            let userEmail = (try? await userEmailTask)?.trimmingCharacters(in: .whitespacesAndNewlines)
-            let aheadBehind = (try? await aheadBehindTask) ?? (0, 0)
-            let mergeInProgress = (try? await mergeInProgressTask) ?? false
-            let hasRemote = (try? await hasRemoteTask) ?? false
-
-            let user = GitUserProfile(
-                name: userName?.isEmpty == false ? userName! : (commits.first?.authorName ?? "Unknown User"),
-                email: userEmail?.isEmpty == false ? userEmail! : (commits.first?.authorEmail ?? "unknown@example.com")
-            )
-
-            let primaryAction = derivePrimaryAction(
-                changedFilesCount: changedFiles.count,
-                ahead: aheadBehind.0,
-                behind: aheadBehind.1,
-                mergeInProgress: mergeInProgress
-            )
-
-            return RepositoryScreenSnapshot(
-                changedFiles: changedFiles,
-                commits: commits,
-                userProfile: user,
-                primaryAction: primaryAction,
-                hasRemote: hasRemote
-            )
-        } catch {
-            return .mock
-        }
-    }
-
-    private func readConfig(_ key: String, in repositoryURL: URL) async throws -> String {
-        let result = try await gitClient.run(["config", key], in: repositoryURL, timeout: 5)
-        return result.stdout
-    }
-
-    private func readAheadBehind(in repositoryURL: URL) async throws -> (Int, Int) {
-        let result = try await gitClient.run(["rev-list", "--left-right", "--count", "@{upstream}...HEAD"], in: repositoryURL, timeout: 5)
-        let pieces = result.stdout.trimmingCharacters(in: .whitespacesAndNewlines).split(separator: "\t")
-        guard pieces.count == 2, let behind = Int(pieces[0]), let ahead = Int(pieces[1]) else {
-            return (0, 0)
-        }
-
-        return (ahead, behind)
-    }
-
-    private func readMergeInProgress(in repositoryURL: URL) async throws -> Bool {
-        do {
-            _ = try await gitClient.run(["rev-parse", "-q", "--verify", "MERGE_HEAD"], in: repositoryURL, timeout: 5)
-            return true
-        } catch {
-            return false
-        }
-    }
-
-    private func readHasRemote(in repositoryURL: URL) async throws -> Bool {
-        let result = try await gitClient.run(["remote", "get-url", "origin"], in: repositoryURL, timeout: 5)
-        return !result.stdout.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
-    }
-
-    private func derivePrimaryAction(
-        changedFilesCount: Int,
-        ahead: Int,
-        behind: Int,
-        mergeInProgress: Bool
-    ) -> RepositoryPrimaryAction {
-        if mergeInProgress {
-            return .merge
-        }
-
-        if ahead > 0 && behind > 0 {
-            return .sync(ahead: ahead, behind: behind)
-        }
-
-        if ahead > 0 {
-            return .push(ahead)
-        }
-
-        if behind > 0 {
-            return .pull(behind)
-        }
-
-        if changedFilesCount > 0 {
-            return .commit
-        }
-
-        return .fetch
-    }
-}
-
-private extension RepositoryScreenSnapshot {
-    static var mock: RepositoryScreenSnapshot {
-        let now = Date()
-
-        return RepositoryScreenSnapshot(
-            changedFiles: [
-                ChangedFile(path: "Sources/GimMac/App/MainMenuFactory.swift", status: .modified, oldPath: nil),
-                ChangedFile(path: "Sources/GimMac/Presentation/AppShell/MainSplitViewController.swift", status: .modified, oldPath: nil)
-            ],
-            commits: [
-                Commit(
-                    id: "18ac194aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
-                    shortHash: "18ac194",
-                    authorName: "Naimul Kabir",
-                    authorEmail: "naimul@example.com",
-                    date: now.addingTimeInterval(-600),
-                    summary: "Update MainSplitViewController.swift",
-                    body: "Restructure main screen and split views"
-                )
-            ],
-            userProfile: GitUserProfile(name: "Naimul Kabir", email: "naimul@example.com"),
-            primaryAction: .push(1),
-            hasRemote: false
-        )
-    }
-}
-
 @MainActor
 @Observable
 final class RepositoryStoreViewModel {
     private let inspector: RepositoryInspecting
     private let screenRepository: RepositoryScreenDataProviding
-    private let diffProvider: DiffProviding
     private let commitProvider: CommitProviding
     private let repositoryPersistence: RepositoryPersistenceProviding
+
+    let commitForm = CommitFormHandler()
+    let changedFilesHandler = ChangedFilesHandler()
+    let diffHandler: DiffHandler
+    let historyHandler = HistoryHandler()
 
     private(set) var selectedRepository: Repository?
     private(set) var repositoryState = RepositoryState(currentBranch: nil, detachedHeadShortSHA: nil)
@@ -251,33 +24,34 @@ final class RepositoryStoreViewModel {
     private(set) var changedFiles: [ChangedFile] = []
     private(set) var commits: [Commit] = []
     private(set) var currentGitUser = GitUserProfile(name: "Unknown User", email: "unknown@example.com")
-    private(set) var checkedChangedFilePaths: Set<String> = []
-    private(set) var selectedDiffDocument = DiffDocument.empty
-    private(set) var isLoadingDiff = false
-    private(set) var isCommitting = false
     private(set) var savedRepositories: [StoredRepository] = []
 
-    var commitSummary = ""
-    var commitDescription = ""
-    var selectedHistoryCommitIndex = 0
-    var selectedChangedFilePath: String?
+    // MARK: - Forwarded from handlers (views bind through these)
 
-    var changedFilesCount: Int {
-        changedFiles.count
+    var commitSummary: String {
+        get { commitForm.commitSummary }
+        set { commitForm.commitSummary = newValue }
     }
 
-    var selectedCommit: Commit? {
-        guard !commits.isEmpty else {
-            return nil
-        }
-
-        let safeIndex = min(max(selectedHistoryCommitIndex, 0), commits.count - 1)
-        return commits[safeIndex]
+    var commitDescription: String {
+        get { commitForm.commitDescription }
+        set { commitForm.commitDescription = newValue }
     }
 
-    var commitButtonLabel: String {
-        "\(primaryAction.label)"
-    }
+    var isCommitting: Bool { commitForm.isCommitting }
+    var selectedHistoryCommitIndex: Int { historyHandler.selectedIndex }
+    var selectedChangedFilePath: String? { diffHandler.selectedFilePath }
+    var checkedChangedFilePaths: Set<String> { changedFilesHandler.checkedPaths }
+    var selectedDiffDocument: DiffDocument { diffHandler.selectedDiffDocument }
+    var isLoadingDiff: Bool { diffHandler.isLoadingDiff }
+
+    // MARK: - Computed
+
+    var changedFilesCount: Int { changedFiles.count }
+
+    var selectedCommit: Commit? { historyHandler.selectedCommit(in: commits) }
+
+    var commitButtonLabel: String { primaryAction.label }
 
     var lastCommitSectionTitle: String {
         selectedCommit == nil ? "No commits yet" : "Committed just now"
@@ -286,6 +60,15 @@ final class RepositoryStoreViewModel {
     var lastCommitSummary: String {
         selectedCommit?.summary ?? "No recent commit"
     }
+
+    var canCommitChanges: Bool {
+        !commitForm.isCommitting &&
+        selectedRepository != nil &&
+        !changedFilesHandler.checkedPaths.isEmpty &&
+        !commitForm.trimmedSummary.isEmpty
+    }
+
+    // MARK: - Init
 
     init(
         inspector: RepositoryInspecting,
@@ -296,10 +79,12 @@ final class RepositoryStoreViewModel {
     ) {
         self.inspector = inspector
         self.screenRepository = screenRepository
-        self.diffProvider = diffProvider
         self.commitProvider = commitProvider
         self.repositoryPersistence = repositoryPersistence
+        self.diffHandler = DiffHandler(diffProvider: diffProvider)
     }
+
+    // MARK: - Repository selection
 
     func selectRepository(at url: URL) async {
         isLoading = true
@@ -334,15 +119,11 @@ final class RepositoryStoreViewModel {
 
     func selectPersistedRepository(id: UUID) async {
         do {
-            guard let selected = try await repositoryPersistence.selectRepository(id: id) else {
-                return
-            }
-
+            guard let selected = try await repositoryPersistence.selectRepository(id: id) else { return }
             if !selected.existsOnDisk {
                 await loadSavedRepositories()
                 return
             }
-
             await selectRepository(at: selected.url)
         } catch {
             errorMessage = error.localizedDescription
@@ -358,75 +139,66 @@ final class RepositoryStoreViewModel {
     }
 
     func refreshRepositoryScreenData() async {
-        let snapshot = await screenRepository.loadSnapshot(for: selectedRepository)
-        primaryAction = snapshot.primaryAction
-        hasRemote = snapshot.hasRemote
-        changedFiles = snapshot.changedFiles
-        commits = snapshot.commits
-        currentGitUser = snapshot.userProfile
+        do {
+            let snapshot = try await screenRepository.loadSnapshot(for: selectedRepository)
+            primaryAction = snapshot.primaryAction
+            hasRemote = snapshot.hasRemote
+            changedFiles = snapshot.changedFiles
+            commits = snapshot.commits
+            currentGitUser = snapshot.userProfile
 
-        let latestPaths = Set(changedFiles.map(\.path))
-        let retainedChecks = checkedChangedFilePaths.intersection(latestPaths)
-        let newPaths = latestPaths.subtracting(retainedChecks)
-        checkedChangedFilePaths = retainedChecks.union(newPaths)
+            changedFilesHandler.syncWith(changedFiles)
 
-        if selectedChangedFilePath == nil {
-            selectedChangedFilePath = changedFiles.first?.path
+            if diffHandler.selectedFilePath == nil, let first = changedFiles.first?.path {
+                diffHandler.selectFile(first)
+            }
+
+            if let commit = selectedCommit {
+                commitForm.prefill(summary: commit.summary, body: commit.body)
+            }
+
+            if let repository = selectedRepository {
+                await diffHandler.loadDiff(in: repository, changedFiles: changedFiles)
+            }
+        } catch {
+            errorMessage = error.localizedDescription
         }
-
-        if commitSummary.isEmpty {
-            commitSummary = selectedCommit?.summary ?? ""
-        }
-
-        if commitDescription.isEmpty {
-            commitDescription = selectedCommit?.body ?? ""
-        }
-
-        await loadDiffForSelectedFile()
     }
 
+    // MARK: - Delegated to handlers
+
     func selectHistoryCommit(at index: Int) {
-        selectedHistoryCommitIndex = index
+        historyHandler.selectCommit(at: index)
     }
 
     func selectChangedFile(path: String) {
-        selectedChangedFilePath = path
+        diffHandler.selectFile(path)
+        guard let repository = selectedRepository else { return }
         Task { [weak self] in
-            await self?.loadDiffForSelectedFile()
+            await self?.diffHandler.loadDiff(in: repository, changedFiles: self?.changedFiles ?? [])
         }
     }
 
     func isChangedFileChecked(path: String) -> Bool {
-        checkedChangedFilePaths.contains(path)
+        changedFilesHandler.isChecked(path)
     }
 
     func toggleChangedFileChecked(path: String) {
-        if checkedChangedFilePaths.contains(path) {
-            checkedChangedFilePaths.remove(path)
-        } else {
-            checkedChangedFilePaths.insert(path)
-        }
+        changedFilesHandler.toggle(path)
     }
 
-    var canCommitChanges: Bool {
-        !isCommitting &&
-        selectedRepository != nil &&
-        !checkedChangedFilePaths.isEmpty &&
-        !commitSummary.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
-    }
+    // MARK: - Commit
 
     func commitChanges() async {
-        guard canCommitChanges, let repository = selectedRepository else {
-            return
-        }
+        guard canCommitChanges, let repository = selectedRepository else { return }
 
-        let summary = commitSummary.trimmingCharacters(in: .whitespacesAndNewlines)
-        let description = commitDescription.trimmingCharacters(in: .whitespacesAndNewlines)
-        let pathsToCommit = checkedChangedFilePaths.sorted()
+        let summary = commitForm.trimmedSummary
+        let description = commitForm.trimmedDescription
+        let pathsToCommit = changedFilesHandler.checkedPaths.sorted()
 
-        isCommitting = true
+        commitForm.setCommitting(true)
         errorMessage = nil
-        defer { isCommitting = false }
+        defer { commitForm.setCommitting(false) }
 
         do {
             try await commitProvider.commit(
@@ -435,53 +207,10 @@ final class RepositoryStoreViewModel {
                 summary: summary,
                 description: description.isEmpty ? nil : description
             )
-
-            commitSummary = ""
-            commitDescription = ""
+            commitForm.reset()
             await refreshRepositoryScreenData()
         } catch {
             errorMessage = error.localizedDescription
         }
-    }
-
-    private func loadDiffForSelectedFile() async {
-        guard let repository = selectedRepository, let path = selectedChangedFilePath else {
-            selectedDiffDocument = .empty
-            return
-        }
-
-        if let changedFile = changedFiles.first(where: { $0.path == path }),
-           changedFile.status == .untracked {
-            selectedDiffDocument = loadUntrackedFileDiff(repositoryURL: repository.url, path: path)
-            return
-        }
-
-        isLoadingDiff = true
-        defer { isLoadingDiff = false }
-
-        do {
-            selectedDiffDocument = try await diffProvider.fetchDiff(in: repository.url, for: path)
-        } catch {
-            selectedDiffDocument = DiffDocument(filePath: path, lines: [])
-        }
-    }
-
-    private func loadUntrackedFileDiff(repositoryURL: URL, path: String) -> DiffDocument {
-        let fileURL = repositoryURL.appendingPathComponent(path)
-        guard let content = try? String(contentsOf: fileURL, encoding: .utf8) else {
-            return DiffDocument(filePath: path, lines: [])
-        }
-
-        let lines = content.components(separatedBy: .newlines)
-        let diffLines = lines.enumerated().map { index, line in
-            DiffDocumentLine(
-                kind: .added,
-                oldNumber: nil,
-                newNumber: index + 1,
-                text: line
-            )
-        }
-
-        return DiffDocument(filePath: path, lines: diffLines)
     }
 }

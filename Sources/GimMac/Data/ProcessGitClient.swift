@@ -5,7 +5,7 @@ protocol GitCommandRunning: Sendable {
     func cancel(id: UUID) async
 }
 
-final class ProcessGitClient: GitClientProtocol, @unchecked Sendable {
+final class ProcessGitClient: GitClientProtocol, Sendable {
     private let runner: GitCommandRunning
     private let logger: GitCommandLogger
 
@@ -60,6 +60,7 @@ final class ProcessGitClient: GitClientProtocol, @unchecked Sendable {
 
 actor ProcessGitCommandRunner: GitCommandRunning {
     private var inFlight: [UUID: Process] = [:]
+    private let queue = DispatchQueue(label: "com.gimmac.git-runner", qos: .userInitiated)
 
     func execute(id: UUID, arguments: [String], repositoryURL: URL) async throws -> GitCommandResult {
         let process = Process()
@@ -80,7 +81,7 @@ actor ProcessGitCommandRunner: GitCommandRunning {
 
         return try await withTaskCancellationHandler {
             try await withCheckedThrowingContinuation { continuation in
-                DispatchQueue.global(qos: .userInitiated).async {
+                queue.async {
                     do {
                         try process.run()
                         process.waitUntilExit()

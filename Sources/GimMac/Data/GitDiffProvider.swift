@@ -1,6 +1,6 @@
 import Foundation
 
-final class GitDiffProvider: DiffProviding, @unchecked Sendable {
+final class GitDiffProvider: DiffProviding, Sendable {
     private let client: GitClientProtocol
 
     init(client: GitClientProtocol) {

@@ -1,3 +1,6 @@
+# Others
+github-desktop-codebase/
+
 # macOS
 .DS_Store
 .AppleDouble
@@ -80,3 +83,4 @@ temp/
 # Generated build/release artifacts
 dist/
 release/
+

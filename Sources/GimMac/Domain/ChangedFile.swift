@@ -12,8 +12,10 @@ enum GitFileStatus: String, Sendable {
 }
 
 struct ChangedFile: Identifiable, Equatable, Sendable {
-    var id: String { path }
+    var id: String { "\(status.rawValue):\(oldPath ?? path)" }
     let path: String
     let status: GitFileStatus
-    let oldPath: String? // For renames
+    let oldPath: String?
+    let isStaged: Bool
+    let hasConflict: Bool
 }

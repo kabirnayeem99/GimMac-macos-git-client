@@ -28,3 +28,7 @@ protocol RepositoryPersistenceProviding: Sendable {
     func selectRepository(id: UUID) async throws -> StoredRepository?
     func selectMostRecentlyOpenedRepositoryOnLaunch() async throws -> StoredRepository?
 }
+
+protocol RepositoryScreenDataProviding: Sendable {
+    func loadSnapshot(for repository: Repository?) async throws -> RepositoryScreenSnapshot
+}

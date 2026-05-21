@@ -3,25 +3,26 @@ import Foundation
 final class LocalGitRepositoryInspector: RepositoryInspecting {
     private let gitClient: GitClientProtocol
 
-    init(gitClient: GitClientProtocol = ProcessGitClient()) {
+    init(gitClient: GitClientProtocol) {
         self.gitClient = gitClient
     }
 
     func inspectRepository(at url: URL) async throws -> RepositoryState {
-        let branchResult = try await gitClient.run(["branch", "--show-current"], in: url, timeout: 10)
-        let branch = branchResult.stdout.trimmingCharacters(in: .whitespacesAndNewlines)
+        async let branchTask = gitClient.run(["branch", "--show-current"], in: url, timeout: 10)
+        async let headTask   = gitClient.run(["rev-parse", "HEAD"],        in: url, timeout: 10)
+
+        let branch   = try await branchTask.stdout.trimmingCharacters(in: .whitespacesAndNewlines)
+        let headHash = (try? await headTask)?.stdout.trimmingCharacters(in: .whitespacesAndNewlines)
 
         if !branch.isEmpty {
-            return RepositoryState(currentBranch: branch, detachedHeadShortSHA: nil)
+            return RepositoryState(currentBranch: branch, detachedHeadShortSHA: nil, headHash: headHash)
         }
 
-        let headResult = try await gitClient.run(GitCommandBuilder.revParseHeadShort(), in: url, timeout: 10)
-        let detached = headResult.stdout.trimmingCharacters(in: .whitespacesAndNewlines)
-
-        guard !detached.isEmpty else {
-            throw GitAppError.invalidOutput(command: GitCommandBuilder.revParseHeadShort(), details: "Missing detached HEAD sha")
+        let shortSHA = headHash.map { String($0.prefix(7)) } ?? ""
+        guard !shortSHA.isEmpty else {
+            throw GitAppError.invalidOutput(command: ["rev-parse", "HEAD"], details: "Missing detached HEAD sha")
         }
 
-        return RepositoryState(currentBranch: nil, detachedHeadShortSHA: detached)
+        return RepositoryState(currentBranch: nil, detachedHeadShortSHA: shortSHA, headHash: headHash)
     }
 }

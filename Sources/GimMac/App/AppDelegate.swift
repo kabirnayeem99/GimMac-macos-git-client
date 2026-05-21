@@ -5,8 +5,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     private var mainWindowController: NSWindowController?
     private var aboutWindowController: NSWindowController?
     private var settingsWindowController: SettingsWindowController?
-    private let repositoryInspector = LocalGitRepositoryInspector()
     private let gitClient = ProcessGitClient()
+    private lazy var repositoryInspector = LocalGitRepositoryInspector(gitClient: gitClient)
     private lazy var repositoryPersistence = CoreDataRepositoryPersistence(gitClient: gitClient)
 
     // MARK: - Lifecycle

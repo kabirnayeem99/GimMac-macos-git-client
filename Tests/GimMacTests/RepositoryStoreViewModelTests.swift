@@ -13,7 +13,7 @@ private struct MockRepositoryInspector: RepositoryInspecting, Sendable {
 private struct MockRepositoryScreenDataProvider: RepositoryScreenDataProviding, Sendable {
     let snapshot: RepositoryScreenSnapshot
 
-    func loadSnapshot(for repository: Repository?) async -> RepositoryScreenSnapshot {
+    func loadSnapshot(for repository: Repository?) async throws -> RepositoryScreenSnapshot {
         snapshot
     }
 }
