@@ -136,3 +136,21 @@ protocol GitConfigWriting: Sendable {
     func setGlobalUserName(_ name: String) async throws
     func setGlobalUserEmail(_ email: String) async throws
 }
+
+// MARK: - Repository Settings
+
+protocol RepositoryRemoteProviding: Sendable {
+    func fetchRemoteURL(named remote: String, in repositoryURL: URL) async throws -> String?
+    func setRemoteURL(_ url: String, named remote: String, in repositoryURL: URL) async throws
+}
+
+protocol LFSProviding: Sendable {
+    func isLFSAvailable(in repositoryURL: URL) async throws -> Bool
+    func initializeLFS(in repositoryURL: URL) async throws
+}
+
+/// String-based branch rename used by Repository Settings — avoids the `Branch`
+/// object dependency in presentation-layer ViewModels.
+protocol DefaultBranchRenaming: Sendable {
+    func renameCurrentBranch(from oldName: String, to newName: String, in repositoryURL: URL) async throws
+}

@@ -2,7 +2,7 @@ import Foundation
 
 /// Implements `BranchOperating`. All commands pass arguments as arrays —
 /// never shell strings — per `AGENTS.md` security rules.
-final class GitBranchOperator: BranchOperating, Sendable {
+final class GitBranchOperator: BranchOperating, DefaultBranchRenaming, Sendable {
     private let client: GitClientProtocol
 
     init(client: GitClientProtocol) {
@@ -61,6 +61,12 @@ final class GitBranchOperator: BranchOperating, Sendable {
         let flag = force ? "-M" : "-m"
         _ = try await client.run(["branch", flag, branch.name, newName], in: repositoryURL, timeout: 10)
         return newName
+    }
+
+    // MARK: - DefaultBranchRenaming
+
+    func renameCurrentBranch(from oldName: String, to newName: String, in repositoryURL: URL) async throws {
+        _ = try await client.run(["branch", "-M", oldName, newName], in: repositoryURL, timeout: 10)
     }
 
     // MARK: - Start point translation

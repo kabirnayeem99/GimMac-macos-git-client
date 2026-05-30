@@ -7,7 +7,8 @@ enum MainMenuFactory {
         placeholderAction: Selector,
         aboutAction: Selector,
         settingsAction: Selector,
-        openInEditorAction: Selector
+        openInEditorAction: Selector,
+        repositorySettingsAction: Selector
     ) -> NSMenu {
         let mainMenu = NSMenu()
         
@@ -21,7 +22,12 @@ enum MainMenuFactory {
         mainMenu.addItem(appMenuItem)
         
         let fileMenuItem = NSMenuItem(title: "File", action: nil, keyEquivalent: "")
-        fileMenuItem.submenu = buildFileMenu(actionTarget: actionTarget, placeholderAction: placeholderAction, openInEditorAction: openInEditorAction)
+        fileMenuItem.submenu = buildFileMenu(
+            actionTarget: actionTarget,
+            placeholderAction: placeholderAction,
+            openInEditorAction: openInEditorAction,
+            repositorySettingsAction: repositorySettingsAction
+        )
         mainMenu.addItem(fileMenuItem)
         
         let editMenuItem = NSMenuItem(title: "Edit", action: nil, keyEquivalent: "")
@@ -86,14 +92,21 @@ enum MainMenuFactory {
         return menu
     }
     
-    private static func buildFileMenu(actionTarget: AnyObject, placeholderAction: Selector, openInEditorAction: Selector) -> NSMenu {
+    private static func buildFileMenu(
+        actionTarget: AnyObject,
+        placeholderAction: Selector,
+        openInEditorAction: Selector,
+        repositorySettingsAction: Selector
+    ) -> NSMenu {
         let menu = NSMenu(title: "File")
 
         menu.addItem(item("New Repository…", key: "n", target: actionTarget, action: placeholderAction))
-        menu.addItem(item("Add Local Repository…", key: "O", target: actionTarget, action: placeholderAction)) // Shift + Cmd + O
+        menu.addItem(item("Add Local Repository…", key: "O", target: actionTarget, action: placeholderAction))
         menu.addItem(item("Clone Repository…", target: actionTarget, action: placeholderAction))
         menu.addItem(.separator())
         menu.addItem(item("Open in External Editor", key: "e", modifiers: [.command, .shift], target: actionTarget, action: openInEditorAction))
+        menu.addItem(.separator())
+        menu.addItem(item("Repository Settings…", key: "i", modifiers: [.command, .shift], target: actionTarget, action: repositorySettingsAction))
 
         return menu
     }

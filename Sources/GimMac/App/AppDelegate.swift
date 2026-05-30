@@ -5,9 +5,13 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     private var mainWindowController: NSWindowController?
     private var aboutWindowController: NSWindowController?
     private var settingsWindowController: SettingsWindowController?
+    private var repositorySettingsWindowController: RepositorySettingsWindowController?
     private var onboardingWindowController: OnboardingWindowController?
     private let gitClient = ProcessGitClient()
     private let editorService = NSWorkspaceExternalEditorService()
+    private lazy var remoteService = GitRemoteService(client: gitClient)
+    private lazy var lfsService = GitLFSService(client: gitClient)
+    private lazy var branchRenameService = GitBranchOperator(client: gitClient)
 
     private static let onboardingCompletedKey = "io.github.kabirnayeem99.gimmac.onboardingCompleted"
     private lazy var repositoryInspector = LocalGitRepositoryInspector(gitClient: gitClient)
@@ -137,7 +141,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             placeholderAction: #selector(placeholderMenuAction(_:)),
             aboutAction: #selector(showAboutPanel(_:)),
             settingsAction: #selector(showSettingsWindow(_:)),
-            openInEditorAction: #selector(openInExternalEditor(_:))
+            openInEditorAction: #selector(openInExternalEditor(_:)),
+            repositorySettingsAction: #selector(showRepositorySettings(_:))
         )
 
         NSApp.mainMenu = mainMenu
@@ -156,6 +161,38 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         }
         settingsWindowController?.showWindow(nil)
         settingsWindowController?.window?.makeKeyAndOrderFront(nil)
+        NSApp.activate(ignoringOtherApps: true)
+    }
+
+    @objc
+    func showRepositorySettings(_ sender: Any?) {
+        guard let repo = repositoryStoreViewModel.selectedRepository else { return }
+
+        let branchName: String
+        if case .valid(let summary) = repositoryStoreViewModel.tip {
+            branchName = summary.name
+        } else {
+            branchName = "HEAD"
+        }
+
+        let viewModel = RepositorySettingsViewModel(
+            repositoryURL: repo.url,
+            currentBranchName: branchName,
+            remoteProvider: remoteService,
+            lfsProvider: lfsService,
+            branchRenamer: branchRenameService,
+            editorService: editorService
+        )
+        viewModel.onDismiss = { [weak self] in
+            self?.repositorySettingsWindowController?.close()
+            self?.repositorySettingsWindowController = nil
+        }
+
+        let controller = RepositorySettingsWindowController(viewModel: viewModel)
+        repositorySettingsWindowController = controller
+        controller.showWindow(nil)
+        controller.window?.center()
+        controller.window?.makeKeyAndOrderFront(nil)
         NSApp.activate(ignoringOtherApps: true)
     }
 
