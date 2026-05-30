@@ -5,7 +5,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     private var mainWindowController: NSWindowController?
     private var aboutWindowController: NSWindowController?
     private var settingsWindowController: SettingsWindowController?
+    private var onboardingWindowController: OnboardingWindowController?
     private let gitClient = ProcessGitClient()
+
+    private static let onboardingCompletedKey = "io.github.kabirnayeem99.gimmac.onboardingCompleted"
     private lazy var repositoryInspector = LocalGitRepositoryInspector(gitClient: gitClient)
     private lazy var repositoryPersistence = CoreDataRepositoryPersistence(gitClient: gitClient)
 
@@ -18,7 +21,30 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
 
         NSApp.setActivationPolicy(.regular)
         installMainMenu()
-        ensureMainWindowVisible(forceNew: true)
+
+        if UserDefaults.standard.bool(forKey: Self.onboardingCompletedKey) {
+            ensureMainWindowVisible(forceNew: true)
+        } else {
+            presentOnboarding()
+        }
+    }
+
+    // MARK: - Onboarding
+
+    private func presentOnboarding() {
+        let configService = GitConfigService(client: gitClient)
+        let viewModel = OnboardingViewModel(configReader: configService, configWriter: configService)
+        viewModel.onComplete = { [weak self] in
+            UserDefaults.standard.set(true, forKey: Self.onboardingCompletedKey)
+            self?.onboardingWindowController?.close()
+            self?.onboardingWindowController = nil
+            self?.ensureMainWindowVisible(forceNew: true)
+        }
+        let controller = OnboardingWindowController(viewModel: viewModel)
+        onboardingWindowController = controller
+        controller.showWindow(nil)
+        controller.window?.makeKeyAndOrderFront(nil)
+        NSApp.activate(ignoringOtherApps: true)
     }
 
     func applicationDidBecomeActive(_ notification: Notification) {

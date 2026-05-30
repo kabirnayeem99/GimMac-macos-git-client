@@ -124,3 +124,15 @@ protocol UpdateFromDefaultProviding: Sendable {
     func mergeDefaultBranch(into branch: Branch, in repositoryURL: URL) async throws
     func rebaseOntoDefaultBranch(_ branch: Branch, in repositoryURL: URL) async throws
 }
+
+// MARK: - Git Config
+
+protocol GitConfigReading: Sendable {
+    func globalUserName() async throws -> String?
+    func globalUserEmail() async throws -> String?
+}
+
+protocol GitConfigWriting: Sendable {
+    func setGlobalUserName(_ name: String) async throws
+    func setGlobalUserEmail(_ email: String) async throws
+}

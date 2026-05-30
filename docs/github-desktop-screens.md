@@ -1,10 +1,9 @@
-Here is a practical inventory of **GitHub Desktop (2026)**: major screens, features, and the approximate underlying Git operations they map to. GitHub Desktop is essentially a GUI over Git + some GitHub APIs. ([GitHub][1])
+Here is a practical inventory of **GitHub Desktop (2026)** screens and features that map to pure Git operations — no GitHub API or auth required.
 
 ## 1. Welcome / Onboarding
 
 **Functions**
 
-* Sign into GitHub
 * Configure Git identity
 * Clone repository
 * Create repository
@@ -12,7 +11,6 @@ Here is a practical inventory of **GitHub Desktop (2026)**: major screens, featu
 
 **Underlying Git**
 
-* Login → GitHub OAuth/API (not Git)
 * Configure name/email → `git config --global user.name`, `git config --global user.email`
 * Clone → `git clone`
 * Create local repo → `git init`
@@ -123,7 +121,6 @@ Timeline of commits.
 * Create branch from commit
 * Reset to commit
 * Tag commit
-* Open on GitHub
 
 **Underlying Git**
 
@@ -132,7 +129,6 @@ Timeline of commits.
 * Branch from commit → `git checkout -b`
 * Reset → `git reset --soft|mixed|hard`
 * Tag → `git tag`
-* View on GitHub → browser/API
 
 ---
 
@@ -158,27 +154,7 @@ Timeline of commits.
 
 ---
 
-## 6. Pull Request Screen
-
-GitHub-specific feature.
-
-**Functions**
-
-* Create PR
-* Select base branch
-* Add title/body
-* Open PR in browser
-* View CI status
-
-**Underlying Git**
-
-* Push branch → `git push -u origin branch`
-* PR creation → GitHub API (not Git)
-* CI status → GitHub API
-
----
-
-## 7. Fetch / Pull / Push Bar (Top toolbar)
+## 6. Fetch / Pull / Push Bar (Top toolbar)
 
 ### Fetch origin
 
@@ -219,7 +195,7 @@ GitHub-specific feature.
 
 ---
 
-## 8. Merge Conflict Resolution Screen
+## 7. Merge Conflict Resolution Screen
 
 **Functions**
 
@@ -237,7 +213,7 @@ GitHub-specific feature.
 
 ---
 
-## 9. Stash Screen
+## 8. Stash Screen
 
 **Functions**
 
@@ -253,13 +229,11 @@ GitHub-specific feature.
 
 ---
 
-## 10. Clone Repository Dialog
+## 9. Clone Repository Dialog
 
 **Sources**
 
-* GitHub account repos
 * URL
-* Enterprise GitHub
 * Local path
 
 **Underlying Git**
@@ -268,7 +242,7 @@ GitHub-specific feature.
 
 ---
 
-## 11. Create Repository Screen
+## 10. Create Repository Screen
 
 **Functions**
 
@@ -276,36 +250,15 @@ GitHub-specific feature.
 * README
 * Git ignore template
 * License
-* Publish to GitHub
 
 **Underlying Git**
 
 * `git init`
 * initial commit
-* `git remote add origin`
-* `git push -u origin main`
 
 ---
 
-## 12. Publish Repository Screen
-
-**Functions**
-
-* Make repo public/private
-* Push local repo to GitHub
-
-**Underlying Git**
-
-* `git remote add origin`
-* `git push -u origin`
-
-GitHub API:
-
-* create remote repository
-
----
-
-## 13. Repository Settings
+## 11. Repository Settings
 
 **Functions**
 
@@ -323,7 +276,7 @@ GitHub API:
 
 ---
 
-## 14. External Editor Integration
+## 12. External Editor Integration
 
 **Functions**
 
@@ -336,7 +289,7 @@ GitHub API:
 
 ---
 
-## 15. Compare / Review Changes Before Merge
+## 13. Compare / Review Changes Before Merge
 
 **Functions**
 
@@ -351,7 +304,7 @@ GitHub API:
 
 ---
 
-## 16. Advanced History Editing (recent versions)
+## 14. Advanced History Editing (recent versions)
 
 **Functions**
 
@@ -402,12 +355,9 @@ A useful mental model:
 * diff
 * stash
 * pull/push
-* PR
 * merge
 * cherry-pick
 * squash
 
-**CLI = edge cases + power user workflows**. ([GitHub][1])
-
-[1]: https://github.com/apps/desktop?utm_source=chatgpt.com "GitHub Desktop | Simple collaboration from your desktop · GitHub"
+**CLI = edge cases + power user workflows**.
 
