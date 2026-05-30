@@ -7,6 +7,11 @@ struct ChangedFileRow: View {
     let onToggleChecked: () -> Void
     var onDiscardChanges: () -> Void = {}
     var onRevealInFinder: () -> Void = {}
+    var onOpenInEditor: () -> Void = {}
+    var onOpenWithDefault: () -> Void = {}
+    var onCopyPath: () -> Void = {}
+    var onCopyRelativePath: () -> Void = {}
+    var editorName: String? = nil
 
     private var statusIcon: String {
         switch file.status {
@@ -74,9 +79,18 @@ struct ChangedFileRow: View {
         .padding(.horizontal, 6)
         .padding(.vertical, 2)
         .contextMenu {
-            Button("Discard Changes…", action: onDiscardChanges)
-            Divider()
             Button("Reveal in Finder", action: onRevealInFinder)
+            if let name = editorName {
+                Button("Open in \(name)", action: onOpenInEditor)
+            } else {
+                Button("Open in External Editor", action: onOpenInEditor)
+            }
+            Button("Open with Default Program", action: onOpenWithDefault)
+            Divider()
+            Button("Copy File Path", action: onCopyPath)
+            Button("Copy Relative File Path", action: onCopyRelativePath)
+            Divider()
+            Button("Discard Changes…", role: .destructive, action: onDiscardChanges)
         }
     }
 }

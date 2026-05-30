@@ -27,8 +27,8 @@ private enum SettingsPane: String, CaseIterable {
 
 @MainActor
 final class SettingsWindowController: NSWindowController {
-    init() {
-        let rootViewController = SettingsRootViewController()
+    init(editorService: any ExternalEditorServiceProtocol) {
+        let rootViewController = SettingsRootViewController(editorService: editorService)
         let window = NSWindow(contentViewController: rootViewController)
         window.title = "Settings"
         window.setContentSize(NSSize(width: 960, height: 620))
@@ -55,8 +55,19 @@ private final class SettingsRootViewController: NSSplitViewController {
         SettingsPane.allCases.filter { supportsCopilot || $0 != .copilot }
     }()
 
+    private let editorService: any ExternalEditorServiceProtocol
     private let sidebarController = SidebarViewController()
-    private let detailController = SettingsDetailViewController()
+    private lazy var detailController = SettingsDetailViewController(editorService: editorService)
+
+    init(editorService: any ExternalEditorServiceProtocol) {
+        self.editorService = editorService
+        super.init(nibName: nil, bundle: nil)
+    }
+
+    @available(*, unavailable)
+    required init?(coder: NSCoder) {
+        fatalError("init(coder:) has not been implemented")
+    }
 
     override func viewDidLoad() {
         super.viewDidLoad()
@@ -186,6 +197,20 @@ private final class SettingsDetailViewController: NSViewController {
     private let contentStack = FlippedStackView()
     private let scrollView = NSScrollView()
 
+    private let editorService: any ExternalEditorServiceProtocol
+    private var availableEditors: [ExternalEditor] = []
+    private weak var editorPopupButton: NSPopUpButton?
+
+    init(editorService: any ExternalEditorServiceProtocol) {
+        self.editorService = editorService
+        super.init(nibName: nil, bundle: nil)
+    }
+
+    @available(*, unavailable)
+    required init?(coder: NSCoder) {
+        fatalError("init(coder:) has not been implemented")
+    }
+
     override func loadView() {
         view = NSView()
         view.translatesAutoresizingMaskIntoConstraints = false
@@ -219,18 +244,12 @@ private final class SettingsDetailViewController: NSViewController {
 
     func configure(for pane: SettingsPane) {
         contentStack.arrangedSubviews.forEach { $0.removeFromSuperview() }
+        editorPopupButton = nil
         contentStack.addArrangedSubview(makeHeader(title: pane.rawValue))
 
         switch pane {
         case .integrations:
-            addGroup("Integrations", rows: [
-                .popUp("External Editor", ["None", "Xcode", "VS Code", "Nova"]),
-                .popUp("Shell / terminal", ["Terminal.app", "iTerm2"]),
-                .check("Enable custom editor"),
-                .text("Custom editor path"),
-                .check("Enable custom shell"),
-                .text("Custom shell path")
-            ])
+            buildIntegrationsPane()
         case .copilot:
             addGroup("Copilot", rows: [
                 .popUp("Models", ["GPT-5.2", "GPT-5.4"]),
@@ -279,6 +298,66 @@ private final class SettingsDetailViewController: NSViewController {
                 .check("Show check marks beside diff line numbers")
             ])
         }
+    }
+
+    private func buildIntegrationsPane() {
+        availableEditors = editorService.availableEditors()
+
+        let container = NSStackView()
+        container.orientation = .vertical
+        container.alignment = .leading
+        container.spacing = 10
+
+        let groupTitle = NSTextField(labelWithString: "External Editor")
+        groupTitle.font = .systemFont(ofSize: 15, weight: .semibold)
+        container.addArrangedSubview(groupTitle)
+
+        let row = NSStackView()
+        row.orientation = .horizontal
+        row.spacing = 12
+        row.addArrangedSubview(fixedLabel("Open with"))
+
+        let popup = NSPopUpButton()
+        popup.translatesAutoresizingMaskIntoConstraints = false
+        popup.widthAnchor.constraint(equalToConstant: 260).isActive = true
+
+        if availableEditors.isEmpty {
+            popup.addItem(withTitle: "No editors found")
+            popup.isEnabled = false
+        } else {
+            popup.addItems(withTitles: availableEditors.map { $0.name })
+            popup.target = self
+            popup.action = #selector(editorSelectionChanged(_:))
+
+            let savedID = UserDefaults.standard.string(forKey: ExternalEditorPreferences.selectedEditorKey)
+            if let savedID,
+               let index = availableEditors.firstIndex(where: { $0.bundleIdentifier == savedID }) {
+                popup.selectItem(at: index)
+            } else {
+                popup.selectItem(at: 0)
+            }
+        }
+
+        row.addArrangedSubview(popup)
+        editorPopupButton = popup
+        container.addArrangedSubview(row)
+
+        if availableEditors.isEmpty {
+            let note = NSTextField(labelWithString: "No supported editors found on this Mac.")
+            note.textColor = .secondaryLabelColor
+            container.addArrangedSubview(note)
+        }
+
+        container.setContentHuggingPriority(.defaultHigh, for: .vertical)
+        contentStack.addArrangedSubview(container)
+    }
+
+    @objc
+    private func editorSelectionChanged(_ sender: NSPopUpButton) {
+        let index = sender.indexOfSelectedItem
+        guard availableEditors.indices.contains(index) else { return }
+        let editor = availableEditors[index]
+        UserDefaults.standard.set(editor.bundleIdentifier, forKey: ExternalEditorPreferences.selectedEditorKey)
     }
 
     private enum Row {

@@ -360,6 +360,45 @@ final class RepositoryStoreViewModel {
         NSWorkspace.shared.activateFileViewerSelecting([fileURL])
     }
 
+    // MARK: - File context actions
+
+    var selectedEditorName: String? {
+        guard let bundleID = UserDefaults.standard.string(forKey: ExternalEditorPreferences.selectedEditorKey),
+              let appURL = NSWorkspace.shared.urlForApplication(withBundleIdentifier: bundleID),
+              let bundle = Bundle(url: appURL) else { return nil }
+        return (bundle.infoDictionary?["CFBundleDisplayName"] as? String)
+            ?? (bundle.infoDictionary?["CFBundleName"] as? String)
+    }
+
+    func openInExternalEditor(path: String) {
+        guard let repository = selectedRepository else { return }
+        let fileURL = repository.url.appendingPathComponent(path)
+        guard let bundleID = UserDefaults.standard.string(forKey: ExternalEditorPreferences.selectedEditorKey),
+              let appURL = NSWorkspace.shared.urlForApplication(withBundleIdentifier: bundleID) else {
+            NSWorkspace.shared.open(fileURL)
+            return
+        }
+        let config = NSWorkspace.OpenConfiguration()
+        config.activates = true
+        NSWorkspace.shared.open([fileURL], withApplicationAt: appURL, configuration: config, completionHandler: nil)
+    }
+
+    func openWithDefaultProgram(path: String) {
+        guard let repository = selectedRepository else { return }
+        NSWorkspace.shared.open(repository.url.appendingPathComponent(path))
+    }
+
+    func copyFilePath(path: String) {
+        guard let repository = selectedRepository else { return }
+        NSPasteboard.general.clearContents()
+        NSPasteboard.general.setString(repository.url.appendingPathComponent(path).path, forType: .string)
+    }
+
+    func copyRelativeFilePath(path: String) {
+        NSPasteboard.general.clearContents()
+        NSPasteboard.general.setString(path, forType: .string)
+    }
+
     // MARK: - Select / Deselect all
 
     func selectAllChangedFiles() {

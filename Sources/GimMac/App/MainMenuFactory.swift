@@ -6,7 +6,8 @@ enum MainMenuFactory {
         actionTarget: AnyObject,
         placeholderAction: Selector,
         aboutAction: Selector,
-        settingsAction: Selector
+        settingsAction: Selector,
+        openInEditorAction: Selector
     ) -> NSMenu {
         let mainMenu = NSMenu()
         
@@ -20,7 +21,7 @@ enum MainMenuFactory {
         mainMenu.addItem(appMenuItem)
         
         let fileMenuItem = NSMenuItem(title: "File", action: nil, keyEquivalent: "")
-        fileMenuItem.submenu = buildFileMenu(actionTarget: actionTarget, placeholderAction: placeholderAction)
+        fileMenuItem.submenu = buildFileMenu(actionTarget: actionTarget, placeholderAction: placeholderAction, openInEditorAction: openInEditorAction)
         mainMenu.addItem(fileMenuItem)
         
         let editMenuItem = NSMenuItem(title: "Edit", action: nil, keyEquivalent: "")
@@ -85,13 +86,15 @@ enum MainMenuFactory {
         return menu
     }
     
-    private static func buildFileMenu(actionTarget: AnyObject, placeholderAction: Selector) -> NSMenu {
+    private static func buildFileMenu(actionTarget: AnyObject, placeholderAction: Selector, openInEditorAction: Selector) -> NSMenu {
         let menu = NSMenu(title: "File")
-        
+
         menu.addItem(item("New Repository…", key: "n", target: actionTarget, action: placeholderAction))
         menu.addItem(item("Add Local Repository…", key: "O", target: actionTarget, action: placeholderAction)) // Shift + Cmd + O
         menu.addItem(item("Clone Repository…", target: actionTarget, action: placeholderAction))
-        
+        menu.addItem(.separator())
+        menu.addItem(item("Open in External Editor", key: "e", modifiers: [.command, .shift], target: actionTarget, action: openInEditorAction))
+
         return menu
     }
     

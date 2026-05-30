@@ -27,7 +27,23 @@ struct HistoryFilesColumn: View {
             List(viewModel.historyFiles) { file in
                 HistoryFileRow(
                     file: file,
-                    selected: file.path == viewModel.selectedHistoryFilePath
+                    selected: file.path == viewModel.selectedHistoryFilePath,
+                    onRevealInFinder: {
+                        viewModel.revealInFinder(path: file.path)
+                    },
+                    onOpenInEditor: {
+                        viewModel.openInExternalEditor(path: file.path)
+                    },
+                    onOpenWithDefault: {
+                        viewModel.openWithDefaultProgram(path: file.path)
+                    },
+                    onCopyPath: {
+                        viewModel.copyFilePath(path: file.path)
+                    },
+                    onCopyRelativePath: {
+                        viewModel.copyRelativeFilePath(path: file.path)
+                    },
+                    editorName: viewModel.selectedEditorName
                 )
                 .frame(maxWidth: .infinity, alignment: .leading)
                 .contentShape(Rectangle())
@@ -48,6 +64,12 @@ struct HistoryFilesColumn: View {
 struct HistoryFileRow: View {
     let file: CommitFile
     let selected: Bool
+    var onRevealInFinder: () -> Void = {}
+    var onOpenInEditor: () -> Void = {}
+    var onOpenWithDefault: () -> Void = {}
+    var onCopyPath: () -> Void = {}
+    var onCopyRelativePath: () -> Void = {}
+    var editorName: String? = nil
 
     private var statusIcon: String {
         switch file.status {
@@ -107,5 +129,17 @@ struct HistoryFileRow: View {
         .contentShape(RoundedRectangle(cornerRadius: 7, style: .continuous))
         .padding(.horizontal, 6)
         .padding(.vertical, 2)
+        .contextMenu {
+            Button("Reveal in Finder", action: onRevealInFinder)
+            if let name = editorName {
+                Button("Open in \(name)", action: onOpenInEditor)
+            } else {
+                Button("Open in External Editor", action: onOpenInEditor)
+            }
+            Button("Open with Default Program", action: onOpenWithDefault)
+            Divider()
+            Button("Copy File Path", action: onCopyPath)
+            Button("Copy Relative File Path", action: onCopyRelativePath)
+        }
     }
 }

@@ -192,7 +192,20 @@ struct Sidebar: View {
                     },
                     onRevealInFinder: {
                         viewModel.revealInFinder(path: file.path)
-                    }
+                    },
+                    onOpenInEditor: {
+                        viewModel.openInExternalEditor(path: file.path)
+                    },
+                    onOpenWithDefault: {
+                        viewModel.openWithDefaultProgram(path: file.path)
+                    },
+                    onCopyPath: {
+                        viewModel.copyFilePath(path: file.path)
+                    },
+                    onCopyRelativePath: {
+                        viewModel.copyRelativeFilePath(path: file.path)
+                    },
+                    editorName: viewModel.selectedEditorName
                 )
                 .frame(maxWidth: .infinity, alignment: .leading)
                 .contentShape(Rectangle())

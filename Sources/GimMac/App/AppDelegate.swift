@@ -7,10 +7,30 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     private var settingsWindowController: SettingsWindowController?
     private var onboardingWindowController: OnboardingWindowController?
     private let gitClient = ProcessGitClient()
+    private let editorService = NSWorkspaceExternalEditorService()
 
     private static let onboardingCompletedKey = "io.github.kabirnayeem99.gimmac.onboardingCompleted"
     private lazy var repositoryInspector = LocalGitRepositoryInspector(gitClient: gitClient)
     private lazy var repositoryPersistence = CoreDataRepositoryPersistence(gitClient: gitClient)
+
+    private lazy var repositoryStoreViewModel: RepositoryStoreViewModel = RepositoryStoreViewModel(
+        inspector: repositoryInspector,
+        screenRepository: LiveRepositoryScreenDataRepository(
+            statusProvider: GitStatusProvider(client: gitClient),
+            historyProvider: GitHistoryProvider(client: gitClient),
+            upstreamProvider: GitBranchUpstreamReader(client: gitClient),
+            gitClient: gitClient
+        ),
+        diffProvider: GitDiffProvider(client: gitClient),
+        commitInspector: GitCommitInspector(client: gitClient),
+        commitProvider: GitCommitProvider(client: gitClient),
+        repositoryPersistence: repositoryPersistence,
+        discardProvider: GitDiscardProvider(client: gitClient),
+        stashProvider: GitStashProvider(client: gitClient),
+        branchProvider: GitBranchReader(client: gitClient),
+        branchOperator: GitBranchOperator(client: gitClient),
+        statusProvider: GitStatusProvider(client: gitClient)
+    )
 
     // MARK: - Lifecycle
 
@@ -103,24 +123,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         window.isReleasedWhenClosed = false
 
         window.contentViewController = MainSplitViewController(
-            viewModel: RepositoryStoreViewModel(
-                inspector: repositoryInspector,
-                screenRepository: LiveRepositoryScreenDataRepository(
-                    statusProvider: GitStatusProvider(client: gitClient),
-                    historyProvider: GitHistoryProvider(client: gitClient),
-                    upstreamProvider: GitBranchUpstreamReader(client: gitClient),
-                    gitClient: gitClient
-                ),
-                diffProvider: GitDiffProvider(client: gitClient),
-                commitInspector: GitCommitInspector(client: gitClient),
-                commitProvider: GitCommitProvider(client: gitClient),
-                repositoryPersistence: repositoryPersistence,
-                discardProvider: GitDiscardProvider(client: gitClient),
-                stashProvider: GitStashProvider(client: gitClient),
-                branchProvider: GitBranchReader(client: gitClient),
-                branchOperator: GitBranchOperator(client: gitClient),
-                statusProvider: GitStatusProvider(client: gitClient)
-            )
+            viewModel: repositoryStoreViewModel
         )
 
         return NSWindowController(window: window)
@@ -133,7 +136,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             actionTarget: self,
             placeholderAction: #selector(placeholderMenuAction(_:)),
             aboutAction: #selector(showAboutPanel(_:)),
-            settingsAction: #selector(showSettingsWindow(_:))
+            settingsAction: #selector(showSettingsWindow(_:)),
+            openInEditorAction: #selector(openInExternalEditor(_:))
         )
 
         NSApp.mainMenu = mainMenu
@@ -148,11 +152,20 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     @objc
     func showSettingsWindow(_ sender: Any?) {
         if settingsWindowController == nil {
-            settingsWindowController = SettingsWindowController()
+            settingsWindowController = SettingsWindowController(editorService: editorService)
         }
         settingsWindowController?.showWindow(nil)
         settingsWindowController?.window?.makeKeyAndOrderFront(nil)
         NSApp.activate(ignoringOtherApps: true)
+    }
+
+    @objc
+    func openInExternalEditor(_ sender: Any?) {
+        guard let repo = repositoryStoreViewModel.selectedRepository else { return }
+        let editors = editorService.availableEditors()
+        let savedID = UserDefaults.standard.string(forKey: ExternalEditorPreferences.selectedEditorKey)
+        guard let editor = editors.first(where: { $0.bundleIdentifier == savedID }) ?? editors.first else { return }
+        editorService.launch(editor: editor, at: repo.url)
     }
 
     @objc
