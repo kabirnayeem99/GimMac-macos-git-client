@@ -70,17 +70,24 @@ final class BranchesViewModel {
     private let branchProvider: BranchProviding
     private let branchOperator: BranchOperating
     private let statusProvider: StatusProviding
+    let compareProvider: BranchCompareProviding?
+    let updateFromDefaultProvider: UpdateFromDefaultProviding?
+
     /// Repository the panel operates on. Set by the host before `loadBranches`.
     var repositoryURL: URL?
 
     init(
         branchProvider: BranchProviding,
         branchOperator: BranchOperating,
-        statusProvider: StatusProviding
+        statusProvider: StatusProviding,
+        compareProvider: BranchCompareProviding? = nil,
+        updateFromDefaultProvider: UpdateFromDefaultProviding? = nil
     ) {
         self.branchProvider = branchProvider
         self.branchOperator = branchOperator
         self.statusProvider = statusProvider
+        self.compareProvider = compareProvider
+        self.updateFromDefaultProvider = updateFromDefaultProvider
     }
 
     // MARK: - Actions
@@ -187,6 +194,25 @@ final class BranchesViewModel {
             _ = try await branchOperator.renameBranch(branch, to: newName, force: force, in: repositoryURL)
             if currentBranchName == branch.name {
                 currentBranchName = newName
+            }
+            await loadBranches()
+        } catch {
+            errorMessage = (error as? GitAppError)?.localizedDescription ?? error.localizedDescription
+        }
+    }
+
+    /// Update the current branch from the repo's default branch via merge or
+    /// rebase. Requires `updateFromDefaultProvider` — no-op when nil.
+    func updateBranchFromDefault(_ branch: Branch, rebase: Bool) async {
+        guard let repositoryURL, let provider = updateFromDefaultProvider else { return }
+        isLoading = true
+        errorMessage = nil
+        defer { isLoading = false }
+        do {
+            if rebase {
+                try await provider.rebaseOntoDefaultBranch(branch, in: repositoryURL)
+            } else {
+                try await provider.mergeDefaultBranch(into: branch, in: repositoryURL)
             }
             await loadBranches()
         } catch {

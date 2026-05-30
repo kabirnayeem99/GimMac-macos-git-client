@@ -34,7 +34,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         branchProvider: GitBranchReader(client: gitClient),
         branchOperator: GitBranchOperator(client: gitClient),
         statusProvider: GitStatusProvider(client: gitClient),
-        remoteSyncProvider: GitRemoteSyncService(client: gitClient)
+        remoteSyncProvider: GitRemoteSyncService(client: gitClient),
+        compareProvider: GitBranchCompareReader(client: gitClient),
+        updateFromDefaultProvider: GitUpdateFromDefaultService(client: gitClient)
     )
 
     // MARK: - Lifecycle

@@ -224,6 +224,9 @@ final class BranchesViewController: NSViewController {
         menu.addItem(withTitle: "Rename…", action: #selector(menuRenameBranch(_:)), keyEquivalent: "")
         menu.addItem(withTitle: "Delete…", action: #selector(menuDeleteBranch(_:)), keyEquivalent: "")
         menu.addItem(.separator())
+        menu.addItem(withTitle: "Compare with Current Branch…", action: #selector(menuCompareBranch(_:)), keyEquivalent: "")
+        menu.addItem(withTitle: "Update from Default Branch…", action: #selector(menuUpdateFromDefault(_:)), keyEquivalent: "")
+        menu.addItem(.separator())
         menu.addItem(withTitle: "Copy Name", action: #selector(menuCopyName(_:)), keyEquivalent: "")
         for item in menu.items { item.target = self }
         return menu
@@ -267,6 +270,37 @@ final class BranchesViewController: NSViewController {
             }
         }
         presentAsSheet(controller.viewController)
+    }
+
+    @objc private func menuCompareBranch(_ sender: Any?) {
+        guard let compareBranch = clickedOrSelectedBranch(),
+              let compareProvider = viewModel.compareProvider,
+              let repositoryURL = viewModel.repositoryURL else { return }
+        let currentName = viewModel.currentBranchName ?? ""
+        guard let baseBranch = viewModel.localBranches.first(where: { $0.name == currentName })
+                ?? viewModel.remoteBranches.first(where: { $0.nameWithoutRemote == currentName })
+        else { return }
+        let controller = CompareBranchWindowController(
+            baseBranch: baseBranch,
+            compareBranch: compareBranch,
+            compareProvider: compareProvider,
+            repositoryURL: repositoryURL
+        )
+        presentAsSheet(controller.viewController)
+    }
+
+    @objc private func menuUpdateFromDefault(_ sender: Any?) {
+        guard let branch = clickedOrSelectedBranch() ?? localCurrentBranch() else { return }
+        let controller = UpdateFromDefaultSheetController(branch: branch) { [weak self] rebase in
+            guard let self else { return }
+            Task { await self.viewModel.updateBranchFromDefault(branch, rebase: rebase) }
+        }
+        presentAsSheet(controller.viewController)
+    }
+
+    private func localCurrentBranch() -> Branch? {
+        guard let name = viewModel.currentBranchName else { return nil }
+        return viewModel.localBranches.first { $0.name == name }
     }
 
     @objc private func menuCopyName(_ sender: Any?) {
@@ -320,9 +354,18 @@ extension BranchesViewController: NSTableViewDataSource, NSTableViewDelegate {
 
 extension BranchesViewController: NSMenuDelegate {
     func menuWillOpen(_ menu: NSMenu) {
-        // Disable "Rename" for remote branches.
+        let branch = clickedOrSelectedBranch()
+        let isLocal = branch?.isLocal == true
+        let hasCurrentBranch = viewModel.currentBranchName != nil
+
         if let rename = menu.items.first(where: { $0.action == #selector(menuRenameBranch(_:)) }) {
-            rename.isEnabled = clickedOrSelectedBranch()?.isLocal == true
+            rename.isEnabled = isLocal
+        }
+        if let compare = menu.items.first(where: { $0.action == #selector(menuCompareBranch(_:)) }) {
+            compare.isEnabled = hasCurrentBranch && viewModel.compareProvider != nil
+        }
+        if let update = menu.items.first(where: { $0.action == #selector(menuUpdateFromDefault(_:)) }) {
+            update.isEnabled = viewModel.updateFromDefaultProvider != nil
         }
     }
 }

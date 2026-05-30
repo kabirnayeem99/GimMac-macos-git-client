@@ -21,6 +21,8 @@ final class RepositoryStoreViewModel {
     private let branchOperator: BranchOperating?
     private let statusProvider: StatusProviding?
     private let remoteSyncProvider: RemoteSyncProviding?
+    private let compareProvider: BranchCompareProviding?
+    private let updateFromDefaultProvider: UpdateFromDefaultProviding?
 
     let commitForm = CommitFormHandler()
     let changedFilesHandler = ChangedFilesHandler()
@@ -158,7 +160,9 @@ final class RepositoryStoreViewModel {
         branchProvider: BranchProviding? = nil,
         branchOperator: BranchOperating? = nil,
         statusProvider: StatusProviding? = nil,
-        remoteSyncProvider: RemoteSyncProviding? = nil
+        remoteSyncProvider: RemoteSyncProviding? = nil,
+        compareProvider: BranchCompareProviding? = nil,
+        updateFromDefaultProvider: UpdateFromDefaultProviding? = nil
     ) {
         self.inspector = inspector
         self.screenRepository = screenRepository
@@ -172,6 +176,8 @@ final class RepositoryStoreViewModel {
         self.branchOperator = branchOperator
         self.statusProvider = statusProvider
         self.remoteSyncProvider = remoteSyncProvider
+        self.compareProvider = compareProvider
+        self.updateFromDefaultProvider = updateFromDefaultProvider
         self.diffHandler = DiffHandler(diffProvider: diffProvider)
     }
 
@@ -564,7 +570,9 @@ final class RepositoryStoreViewModel {
         let viewModel = BranchesViewModel(
             branchProvider: branchProvider,
             branchOperator: branchOperator,
-            statusProvider: statusProvider
+            statusProvider: statusProvider,
+            compareProvider: compareProvider,
+            updateFromDefaultProvider: updateFromDefaultProvider
         )
         viewModel.setRepository(selectedRepository?.url, currentBranchName: currentBranchName)
         return viewModel
