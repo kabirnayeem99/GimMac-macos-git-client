@@ -5,6 +5,7 @@ struct PushToolbarCard: View {
     let subtitle: String
     let badge: String?
     let lastFetched: Date?
+    var isLoading: Bool = false
 
     @State private var now = Date()
 
@@ -17,9 +18,16 @@ struct PushToolbarCard: View {
 
     var body: some View {
         HStack(spacing: 10) {
-            Image(systemName: "arrow.up.circle.fill")
-                .font(.system(size: 17, weight: .medium))
-                .foregroundStyle(.tint)
+            if isLoading {
+                ProgressView()
+                    .progressViewStyle(.circular)
+                    .controlSize(.small)
+                    .frame(width: 17, height: 17)
+            } else {
+                Image(systemName: "arrow.up.circle.fill")
+                    .font(.system(size: 17, weight: .medium))
+                    .foregroundStyle(.tint)
+            }
 
             VStack(alignment: .leading, spacing: 2) {
                 Text(label)
@@ -32,7 +40,7 @@ struct PushToolbarCard: View {
 
             Spacer()
 
-            if let badge {
+            if let badge, !isLoading {
                 Text(badge)
                     .font(.system(size: 10, weight: .bold))
                     .padding(.horizontal, 7)

@@ -5,6 +5,8 @@ struct TopToolbar: View {
     let openRepositoryAction: () -> Void
     let selectRepositoryAction: (UUID) -> Void
 
+    @State private var showForcePushAlert = false
+
     var body: some View {
         HStack(spacing: 8) {
             Menu {
@@ -63,13 +65,44 @@ struct TopToolbar: View {
             }
             .frame(width: 240, height: 40)
 
-            PushToolbarCard(
-                label: viewModel.primaryAction.label,
-                subtitle: viewModel.primaryAction.subtitle,
-                badge: viewModel.primaryAction.badge,
-                lastFetched: viewModel.lastFetched
-            )
-            .frame(width: 260)
+            if viewModel.showSyncBar {
+                Menu {
+                    Button(viewModel.primaryAction.label) {
+                        Task { await viewModel.performPrimaryAction() }
+                    }
+                    .disabled(viewModel.isSyncInProgress || !viewModel.canPerformPrimaryAction)
+
+                    if viewModel.showForcePushOption {
+                        Divider()
+                        Button("Force Push \(viewModel.remoteName ?? "origin")…", role: .destructive) {
+                            showForcePushAlert = true
+                        }
+                        .disabled(viewModel.isSyncInProgress)
+                    }
+                } label: {
+                    PushToolbarCard(
+                        label: viewModel.primaryAction.label,
+                        subtitle: viewModel.primaryAction.subtitle,
+                        badge: viewModel.primaryAction.badge,
+                        lastFetched: viewModel.lastFetched,
+                        isLoading: viewModel.isSyncInProgress
+                    )
+                }
+                .buttonStyle(.plain)
+                .menuIndicator(.hidden)
+                .frame(width: 260)
+                .alert(
+                    "Force Push to \(viewModel.remoteName ?? "origin")?",
+                    isPresented: $showForcePushAlert
+                ) {
+                    Button("Cancel", role: .cancel) {}
+                    Button("Force Push", role: .destructive) {
+                        Task { await viewModel.performForcePush() }
+                    }
+                } message: {
+                    Text("This overwrites the remote branch history with your local commits and cannot be undone.")
+                }
+            }
 
             Spacer()
         }

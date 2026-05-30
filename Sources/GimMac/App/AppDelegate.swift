@@ -33,7 +33,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         stashProvider: GitStashProvider(client: gitClient),
         branchProvider: GitBranchReader(client: gitClient),
         branchOperator: GitBranchOperator(client: gitClient),
-        statusProvider: GitStatusProvider(client: gitClient)
+        statusProvider: GitStatusProvider(client: gitClient),
+        remoteSyncProvider: GitRemoteSyncService(client: gitClient)
     )
 
     // MARK: - Lifecycle

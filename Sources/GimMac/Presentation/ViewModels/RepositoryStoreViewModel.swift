@@ -20,6 +20,7 @@ final class RepositoryStoreViewModel {
     private let branchProvider: BranchProviding?
     private let branchOperator: BranchOperating?
     private let statusProvider: StatusProviding?
+    private let remoteSyncProvider: RemoteSyncProviding?
 
     let commitForm = CommitFormHandler()
     let changedFilesHandler = ChangedFilesHandler()
@@ -35,6 +36,7 @@ final class RepositoryStoreViewModel {
     private(set) var remoteName: String?
     private(set) var lastFetched: Date?
     private(set) var forcePushNeeded = false
+    private(set) var isSyncInProgress = false
     private(set) var changedFiles: [ChangedFile] = []
     private(set) var commits: [Commit] = []
     private(set) var currentGitUser = GitUserProfile(name: "Unknown User", email: "unknown@example.com")
@@ -111,9 +113,31 @@ final class RepositoryStoreViewModel {
             .contains { $0.hasConflict }
     }
 
-    var isSyncing: Bool {
+    var isSyncing: Bool { isSyncInProgress }
+
+    var showSyncBar: Bool {
         switch primaryAction {
-        case .fetch, .pull, .push, .forcePush, .sync:
+        case .publishRepository, .publishBranch, .commit, .merge, .rebase, .cherryPick:
+            return false
+        default:
+            return remoteSyncProvider != nil
+        }
+    }
+
+    var canPerformPrimaryAction: Bool {
+        guard remoteSyncProvider != nil, selectedRepository != nil else { return false }
+        switch primaryAction {
+        case .commit, .merge, .rebase, .cherryPick, .publishRepository, .publishBranch:
+            return false
+        default:
+            return true
+        }
+    }
+
+    var showForcePushOption: Bool {
+        guard remoteSyncProvider != nil, remoteName != nil else { return false }
+        switch primaryAction {
+        case .push, .sync:
             return true
         default:
             return false
@@ -133,7 +157,8 @@ final class RepositoryStoreViewModel {
         stashProvider: StashProviding? = nil,
         branchProvider: BranchProviding? = nil,
         branchOperator: BranchOperating? = nil,
-        statusProvider: StatusProviding? = nil
+        statusProvider: StatusProviding? = nil,
+        remoteSyncProvider: RemoteSyncProviding? = nil
     ) {
         self.inspector = inspector
         self.screenRepository = screenRepository
@@ -146,6 +171,7 @@ final class RepositoryStoreViewModel {
         self.branchProvider = branchProvider
         self.branchOperator = branchOperator
         self.statusProvider = statusProvider
+        self.remoteSyncProvider = remoteSyncProvider
         self.diffHandler = DiffHandler(diffProvider: diffProvider)
     }
 
@@ -155,6 +181,7 @@ final class RepositoryStoreViewModel {
         isLoading = true
         errorMessage = nil
         selectedRepository = Repository(url: url)
+        resetPerRepositoryState()
         defer { isLoading = false }
 
         do {
@@ -167,6 +194,22 @@ final class RepositoryStoreViewModel {
 
         await refreshRepositoryScreenData()
         await loadSavedRepositories()
+    }
+
+    private func resetPerRepositoryState() {
+        changedFiles = []
+        commits = []
+        tip = .unknown
+        primaryAction = .publishRepository
+        remoteName = nil
+        forcePushNeeded = false
+        lastFetched = nil
+        stashEntry = nil
+        errorMessage = nil
+        diffHandler.clearSelection()
+        historyHandler.selectCommit(at: 0)
+        changedFilesHandler.deselectAll()
+        commitForm.reset()
     }
 
     func bootstrapRepositorySelectionOnLaunch() async {
@@ -439,6 +482,70 @@ final class RepositoryStoreViewModel {
         errorMessage = nil
         do {
             try await stashProvider.dropStash(in: repository.url)
+            await refreshRepositoryScreenData()
+        } catch {
+            errorMessage = error.localizedDescription
+        }
+    }
+
+    // MARK: - Remote sync
+
+    func performPrimaryAction() async {
+        guard canPerformPrimaryAction,
+              let provider = remoteSyncProvider,
+              let repository = selectedRepository else { return }
+
+        isSyncInProgress = true
+        errorMessage = nil
+        defer { isSyncInProgress = false }
+
+        do {
+            switch primaryAction {
+            case .fetch(let remote):
+                try await provider.fetch(remote: remote, in: repository.url)
+                lastFetched = Date()
+
+            case .pull:
+                try await provider.pull(in: repository.url)
+                lastFetched = Date()
+
+            case .push(let remote, _):
+                try await provider.push(remote: remote, in: repository.url)
+
+            case .forcePush(let remote, _):
+                try await provider.pushForceSafely(remote: remote, in: repository.url)
+
+            case .sync(let remote, _, _):
+                try await provider.pull(in: repository.url)
+                try await provider.push(remote: remote, in: repository.url)
+                lastFetched = Date()
+
+            case .publishBranch(let remote):
+                guard case .valid(let summary) = tip else { return }
+                try await provider.publishBranch(named: summary.name, remote: remote, in: repository.url)
+
+            case .publishRepository, .commit, .merge, .rebase, .cherryPick:
+                return
+            }
+
+            await refreshRepositoryScreenData()
+        } catch {
+            errorMessage = error.localizedDescription
+        }
+    }
+
+    func performForcePush() async {
+        guard let provider = remoteSyncProvider,
+              let remote = remoteName,
+              let repository = selectedRepository,
+              !isSyncInProgress else { return }
+
+        isSyncInProgress = true
+        errorMessage = nil
+        defer { isSyncInProgress = false }
+
+        do {
+            try await provider.pushForceSafely(remote: remote, in: repository.url)
             await refreshRepositoryScreenData()
         } catch {
             errorMessage = error.localizedDescription

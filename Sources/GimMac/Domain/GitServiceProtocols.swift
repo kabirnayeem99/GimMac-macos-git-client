@@ -154,3 +154,13 @@ protocol LFSProviding: Sendable {
 protocol DefaultBranchRenaming: Sendable {
     func renameCurrentBranch(from oldName: String, to newName: String, in repositoryURL: URL) async throws
 }
+
+// MARK: - Remote Sync
+
+protocol RemoteSyncProviding: Sendable {
+    func fetch(remote: String, in repositoryURL: URL) async throws
+    func pull(in repositoryURL: URL) async throws
+    func push(remote: String, in repositoryURL: URL) async throws
+    func pushForceSafely(remote: String, in repositoryURL: URL) async throws
+    func publishBranch(named branch: String, remote: String, in repositoryURL: URL) async throws
+}
