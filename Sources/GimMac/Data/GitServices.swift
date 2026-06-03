@@ -35,9 +35,11 @@ final class GitStatusProvider: StatusProviding, Sendable {
 
 final class GitCommitProvider: CommitProviding, Sendable {
     private let client: GitClientProtocol
+    private let logger: any AppLogging
 
-    init(client: GitClientProtocol) {
+    init(client: GitClientProtocol, logger: any AppLogging) {
         self.client = client
+        self.logger = logger
     }
 
     func commit(
@@ -48,32 +50,42 @@ final class GitCommitProvider: CommitProviding, Sendable {
         options: CommitOptions
     ) async throws {
         let normalizedPaths = Array(Set(paths)).sorted()
-        guard options.isAmend || !normalizedPaths.isEmpty else {
-            return
+        guard options.isAmend || !normalizedPaths.isEmpty else { return }
+
+        logger.info(
+            "Staging \(normalizedPaths.count) file(s)",
+            category: .staging,
+            metadata: ["repository": repositoryURL.lastPathComponent, "amend": "\(options.isAmend)"]
+        )
+
+        var stagedPaths: [String] = []
+        for path in normalizedPaths {
+            do {
+                _ = try await client.run(["add", "-A", "--", path], in: repositoryURL, timeout: 15)
+                stagedPaths.append(path)
+                logger.debug("Staged", category: .staging, metadata: ["path": path])
+            } catch {
+                logger.warning(
+                    "Skipping unstage-able path",
+                    category: .staging,
+                    metadata: ["path": path, "reason": error.localizedDescription]
+                )
+            }
         }
 
-        if !normalizedPaths.isEmpty {
-            _ = try await client.run(["add", "-A", "--"] + normalizedPaths, in: repositoryURL, timeout: 15)
-        }
+        logger.info(
+            "Staged \(stagedPaths.count) of \(normalizedPaths.count) file(s)",
+            category: .staging,
+            metadata: ["files": stagedPaths.joined(separator: ", ")]
+        )
 
-        var commitArguments = ["commit", "-m", summary]
-        if let description, !description.isEmpty {
-            commitArguments += ["-m", description]
-        }
-        if options.isAmend {
-            commitArguments.append("--amend")
-        }
-        if options.skipHooks {
-            commitArguments.append("--no-verify")
-        }
-        if options.signOff {
-            commitArguments.append("--signoff")
-        }
-        if !normalizedPaths.isEmpty {
-            commitArguments += ["--"] + normalizedPaths
-        }
+        var args = ["commit", "-m", summary]
+        if let description, !description.isEmpty { args += ["-m", description] }
+        if options.isAmend    { args.append("--amend") }
+        if options.skipHooks  { args.append("--no-verify") }
+        if options.signOff    { args.append("--signoff") }
 
-        _ = try await client.run(commitArguments, in: repositoryURL, timeout: 20)
+        _ = try await client.run(args, in: repositoryURL, timeout: 20)
     }
 
     func undoLastCommit(in repositoryURL: URL) async throws {
@@ -89,7 +101,9 @@ final class GitCommitInspector: CommitInspecting, Sendable {
     }
 
     func fetchFiles(for commitSHA: String, in repositoryURL: URL) async throws -> [CommitFile] {
-        let arguments = ["diff-tree", "--no-commit-id", "-r", "--name-status", commitSHA]
+        // -m expands merge commits to show a diff per parent (instead of a combined diff
+        // that is empty for clean merges). --root handles the initial commit (no parent).
+        let arguments = ["diff-tree", "--no-commit-id", "-r", "--name-status", "--root", "-m", commitSHA]
         let result = try await client.run(arguments, in: repositoryURL, timeout: 10)
         return Self.parse(result.stdout)
     }
@@ -97,6 +111,7 @@ final class GitCommitInspector: CommitInspecting, Sendable {
     static func parse(_ output: String) -> [CommitFile] {
         let lines = output.split(whereSeparator: { $0 == "\n" || $0 == "\r\n" })
         var files: [CommitFile] = []
+        var seen = Set<String>()
         files.reserveCapacity(lines.count)
         for raw in lines {
             let trimmed = String(raw).trimmingCharacters(in: .whitespaces)
@@ -116,6 +131,8 @@ final class GitCommitInspector: CommitInspecting, Sendable {
             } else {
                 path = parts[1]
             }
+            // -m can produce the same path from multiple parent diffs; keep first occurrence.
+            guard seen.insert(path).inserted else { continue }
             files.append(CommitFile(path: path, status: status))
         }
         return files
@@ -194,5 +211,88 @@ final class GitStashProvider: StashProviding, Sendable {
             }
         }
         return nil
+    }
+}
+
+// MARK: - Squash
+
+final class GitSquashProvider: SquashProviding, Sendable {
+    private let client: GitClientProtocol
+
+    init(client: GitClientProtocol) {
+        self.client = client
+    }
+
+    func squash(commits: [Commit], message: String, in repositoryURL: URL) async throws {
+        guard commits.count >= 2 else { return }
+
+        // commits is newest-first. The oldest commit is the squashOnto (gets `pick`).
+        // All other selected commits get `squash`.
+        let squashOnto = commits.last!
+        let toSquashIDs = Set(commits.dropLast().map(\.id))
+
+        // Find the parent of squashOnto — this is the rebase base.
+        let parentResult = try await client.run(
+            ["log", "--format=%P", "-n", "1", squashOnto.id],
+            in: repositoryURL,
+            timeout: 10
+        )
+        let parentSHA = parentResult.stdout
+            .components(separatedBy: .whitespacesAndNewlines)
+            .first { !$0.isEmpty } ?? ""
+
+        // Fetch ALL commits in the rebase range, oldest→newest.
+        // Without this, an `--root` rebase would drop every commit not in the todo.
+        let logArgs: [String] = parentSHA.isEmpty
+            ? ["log", "--format=%H%x00%s", "--reverse", "HEAD"]
+            : ["log", "--format=%H%x00%s", "--reverse", "\(parentSHA)..HEAD"]
+        let rangeResult = try await client.run(logArgs, in: repositoryURL, timeout: 15)
+
+        // Build the full todo: unselected commits keep `pick`, toSquash commits get `squash`.
+        // squashOnto is not in toSquashIDs, so it also gets `pick`.
+        var todoLines: [String] = []
+        for rawLine in rangeResult.stdout.split(whereSeparator: { $0 == "\n" || $0 == "\r\n" }) {
+            let line = String(rawLine)
+            guard !line.isEmpty else { continue }
+            let parts = line.components(separatedBy: "\0")
+            let sha = parts[0]
+            let summary = (parts.count > 1 ? parts[1] : "")
+                .replacingOccurrences(of: "\n", with: " ")
+            let action = toSquashIDs.contains(sha) ? "squash" : "pick"
+            todoLines.append("\(action) \(sha) \(summary)")
+        }
+        let todoContent = todoLines.joined(separator: "\n") + "\n"
+
+        let tempDir = FileManager.default.temporaryDirectory
+        let runID = UUID().uuidString
+        let todoURL = tempDir.appendingPathComponent("gimmac-squash-todo-\(runID)")
+        let messageURL = tempDir.appendingPathComponent("gimmac-squash-msg-\(runID)")
+
+        defer {
+            try? FileManager.default.removeItem(at: todoURL)
+            try? FileManager.default.removeItem(at: messageURL)
+        }
+
+        try todoContent.write(to: todoURL, atomically: true, encoding: .utf8)
+        let trimmedMessage = message.trimmingCharacters(in: .whitespacesAndNewlines)
+        try trimmedMessage.write(to: messageURL, atomically: true, encoding: .utf8)
+
+        let todoPath = todoURL.path
+        let messagePath = messageURL.path
+
+        // GIT_SEQUENCE_EDITOR: copies our todo over git's rebase-todo file.
+        // GIT_EDITOR: copies our message over git's squash-commit-message file.
+        // Both work because git invokes them via `sh -c`, so the `>` redirect is honored.
+        let extraEnv: [String: String] = [
+            "GIT_SEQUENCE_EDITOR": "cat \"\(todoPath)\" >",
+            "GIT_EDITOR": "cat \"\(messagePath)\" >",
+            "GIT_TERMINAL_PROMPT": "0"
+        ]
+
+        let rebaseArgs: [String] = parentSHA.isEmpty
+            ? ["rebase", "-i", "--root"]
+            : ["rebase", "-i", parentSHA]
+
+        _ = try await client.run(rebaseArgs, in: repositoryURL, extraEnvironment: extraEnv, timeout: 120)
     }
 }

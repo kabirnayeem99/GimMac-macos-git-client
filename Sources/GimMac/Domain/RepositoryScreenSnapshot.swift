@@ -111,4 +111,5 @@ struct RepositoryScreenSnapshot: Equatable {
     let primaryAction: RepositoryPrimaryAction
     let remoteName: String?
     let forcePushNeeded: Bool
+    let unpushedSHAs: Set<String>
 }

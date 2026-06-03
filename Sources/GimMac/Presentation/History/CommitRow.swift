@@ -4,6 +4,7 @@ struct CommitRow: View {
     let title: String
     let subtitle: String
     let selected: Bool
+    let isUnpushed: Bool
 
     var body: some View {
         HStack(spacing: 9) {
@@ -29,18 +30,21 @@ struct CommitRow: View {
 
             Spacer()
 
-            if selected {
+            if isUnpushed {
                 Image(systemName: "arrow.up")
                     .font(.system(size: 11, weight: .bold))
+                    .foregroundStyle(selected ? Color.white : Color.accentColor)
                     .padding(5)
-                    .background(.white.opacity(0.18))
+                    .background(selected ? Color.white.opacity(0.18) : Color.accentColor.opacity(0.12))
                     .clipShape(Circle())
+                    .help("This commit has not been pushed to the remote")
             }
         }
         .padding(.horizontal, 10)
         .frame(height: 58)
         .background(selected ? Color.accentColor : Color.clear)
         .clipShape(RoundedRectangle(cornerRadius: 8, style: .continuous))
+        .contentShape(Rectangle())
         .padding(.horizontal, 6)
         .padding(.vertical, 2)
     }

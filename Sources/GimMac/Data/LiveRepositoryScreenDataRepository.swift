@@ -40,6 +40,7 @@ final class LiveRepositoryScreenDataRepository: RepositoryScreenDataProviding, S
         let remoteName = try? await remoteNameTask
 
         let upstream = await resolveUpstream(for: repository.url, remoteName: remoteName)
+        let unpushedSHAs = await readUnpushedSHAs(in: repository.url, upstream: upstream, remoteName: remoteName)
 
         let forcePushNeeded: Bool
         if aheadBehind.0 > 0 && aheadBehind.1 > 0, let remote = remoteName {
@@ -69,7 +70,8 @@ final class LiveRepositoryScreenDataRepository: RepositoryScreenDataProviding, S
             userProfile: user,
             primaryAction: primaryAction,
             remoteName: remoteName,
-            forcePushNeeded: forcePushNeeded
+            forcePushNeeded: forcePushNeeded,
+            unpushedSHAs: unpushedSHAs
         )
     }
 
@@ -130,6 +132,18 @@ final class LiveRepositoryScreenDataRepository: RepositoryScreenDataProviding, S
         return result?.exitCode == 1
     }
 
+    private func readUnpushedSHAs(in repositoryURL: URL, upstream: String?, remoteName: String?) async -> Set<String> {
+        guard remoteName != nil else { return [] }
+        let args: [String]
+        if let upstream {
+            args = ["log", "\(upstream)..HEAD", "--format=%H"]
+        } else {
+            args = ["log", "HEAD", "--not", "--remotes", "--format=%H"]
+        }
+        guard let result = try? await gitClient.run(args, in: repositoryURL, timeout: 5) else { return [] }
+        return Set(result.stdout.split(whereSeparator: \.isNewline).map(String.init).filter { !$0.isEmpty })
+    }
+
     private func derivePrimaryAction(
         changedFilesCount: Int,
         ahead: Int,
@@ -170,10 +184,6 @@ final class LiveRepositoryScreenDataRepository: RepositoryScreenDataProviding, S
             return .pull(remote: remote, behind: behind)
         }
 
-        if changedFilesCount > 0 {
-            return .commit
-        }
-
         return .fetch(remote: remote)
     }
 }
@@ -201,7 +211,8 @@ private extension RepositoryScreenSnapshot {
             userProfile: GitUserProfile(name: "Naimul Kabir", email: "naimul@example.com"),
             primaryAction: .push(remote: "origin", ahead: 1),
             remoteName: nil,
-            forcePushNeeded: false
+            forcePushNeeded: false,
+            unpushedSHAs: ["18ac194aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"]
         )
     }
 }

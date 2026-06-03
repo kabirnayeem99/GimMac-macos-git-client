@@ -1,8 +1,11 @@
+import AppKit
 import SwiftUI
 
 struct CommitHistorySidebar: View {
     @Binding var selectedTab: Int
     let viewModel: RepositoryStoreViewModel
+
+    @State private var showingSquashSheet = false
 
     var body: some View {
         VStack(spacing: 0) {
@@ -40,13 +43,19 @@ struct CommitHistorySidebar: View {
 
             List(viewModel.commits.indices, id: \.self) { index in
                 let commit = viewModel.commits[index]
+                let isSelected = viewModel.selectedHistoryCommitIndices.contains(index)
                 CommitRow(
                     title: commit.summary,
                     subtitle: "\(commit.authorDisplayName) • \(relativeString(for: commit.date))",
-                    selected: index == viewModel.selectedHistoryCommitIndex
+                    selected: isSelected,
+                    isUnpushed: viewModel.unpushedSHAs.contains(commit.id)
                 )
                 .onTapGesture {
-                    viewModel.selectHistoryCommit(at: index)
+                    let shiftHeld = NSEvent.modifierFlags.contains(.shift)
+                    viewModel.selectHistoryCommit(at: index, isShiftExtending: shiftHeld)
+                }
+                .contextMenu {
+                    multiSelectContextMenu(for: index)
                 }
                 .listRowInsets(EdgeInsets())
                 .listRowSeparator(.hidden)
@@ -56,6 +65,32 @@ struct CommitHistorySidebar: View {
             .scrollContentBackground(.hidden)
         }
         .background(.thinMaterial)
+        .sheet(isPresented: $showingSquashSheet) {
+            SquashCommitsSheet(
+                commits: viewModel.selectedHistoryCommits,
+                onConfirm: { message in
+                    await viewModel.squashSelectedCommits(message: message)
+                    showingSquashSheet = false
+                },
+                onCancel: {
+                    showingSquashSheet = false
+                }
+            )
+        }
+    }
+
+    @ViewBuilder
+    private func multiSelectContextMenu(for tappedIndex: Int) -> some View {
+        let selectedCommits = viewModel.selectedHistoryCommits
+        let count = selectedCommits.count
+
+        if count > 1 {
+            Button("Cherry-pick \(count) Commits…") {}
+            Button("Squash \(count) Commits…") {
+                showingSquashSheet = true
+            }
+            Button("Reorder \(count) Commits…") {}
+        }
     }
 
     private func relativeString(for date: Date) -> String {

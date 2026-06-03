@@ -7,7 +7,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     private var settingsWindowController: SettingsWindowController?
     private var repositorySettingsWindowController: RepositorySettingsWindowController?
     private var onboardingWindowController: OnboardingWindowController?
-    private let gitClient = ProcessGitClient()
+    private let logger = GimMacLogger()
+    private lazy var gitClient = ProcessGitClient(logger: logger)
     private let editorService = NSWorkspaceExternalEditorService()
     private lazy var remoteService = GitRemoteService(client: gitClient)
     private lazy var lfsService = GitLFSService(client: gitClient)
@@ -18,6 +19,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     private lazy var repositoryPersistence = CoreDataRepositoryPersistence(gitClient: gitClient)
 
     private lazy var repositoryStoreViewModel: RepositoryStoreViewModel = RepositoryStoreViewModel(
+        logger: logger,
         inspector: repositoryInspector,
         screenRepository: LiveRepositoryScreenDataRepository(
             statusProvider: GitStatusProvider(client: gitClient),
@@ -27,7 +29,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         ),
         diffProvider: GitDiffProvider(client: gitClient),
         commitInspector: GitCommitInspector(client: gitClient),
-        commitProvider: GitCommitProvider(client: gitClient),
+        commitProvider: GitCommitProvider(client: gitClient, logger: logger),
         repositoryPersistence: repositoryPersistence,
         discardProvider: GitDiscardProvider(client: gitClient),
         stashProvider: GitStashProvider(client: gitClient),
@@ -36,7 +38,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         statusProvider: GitStatusProvider(client: gitClient),
         remoteSyncProvider: GitRemoteSyncService(client: gitClient),
         compareProvider: GitBranchCompareReader(client: gitClient),
-        updateFromDefaultProvider: GitUpdateFromDefaultService(client: gitClient)
+        updateFromDefaultProvider: GitUpdateFromDefaultService(client: gitClient),
+        squashProvider: GitSquashProvider(client: gitClient)
     )
 
     // MARK: - Lifecycle

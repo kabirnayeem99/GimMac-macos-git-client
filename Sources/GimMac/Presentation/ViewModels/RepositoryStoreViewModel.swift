@@ -9,6 +9,7 @@ import Observation
 @MainActor
 @Observable
 final class RepositoryStoreViewModel {
+    private let logger: any AppLogging
     private let inspector: RepositoryInspecting
     private let screenRepository: RepositoryScreenDataProviding
     private let diffProvider: DiffProviding
@@ -23,11 +24,13 @@ final class RepositoryStoreViewModel {
     private let remoteSyncProvider: RemoteSyncProviding?
     private let compareProvider: BranchCompareProviding?
     private let updateFromDefaultProvider: UpdateFromDefaultProviding?
+    private let squashProvider: SquashProviding?
 
     let commitForm = CommitFormHandler()
     let changedFilesHandler = ChangedFilesHandler()
     let diffHandler: DiffHandler
     let historyHandler = HistoryHandler()
+    private var historyLoadTask: Task<Void, Never>?
 
     private(set) var selectedRepository: Repository?
     private(set) var tip: TipState = .unknown
@@ -41,6 +44,7 @@ final class RepositoryStoreViewModel {
     private(set) var isSyncInProgress = false
     private(set) var changedFiles: [ChangedFile] = []
     private(set) var commits: [Commit] = []
+    private(set) var unpushedSHAs: Set<String> = []
     private(set) var currentGitUser = GitUserProfile(name: "Unknown User", email: "unknown@example.com")
     private(set) var savedRepositories: [StoredRepository] = []
 
@@ -70,6 +74,8 @@ final class RepositoryStoreViewModel {
         set { commitForm.signOff = newValue }
     }
     var selectedHistoryCommitIndex: Int { historyHandler.selectedIndex }
+    var selectedHistoryCommitIndices: [Int] { historyHandler.selectedIndices }
+    var selectedHistoryCommits: [Commit] { historyHandler.selectedCommits(in: commits) }
     var historyFiles: [CommitFile] { historyHandler.commitFiles }
     var isLoadingHistoryFiles: Bool { historyHandler.isLoadingCommitFiles }
     var selectedHistoryFilePath: String? { historyHandler.selectedCommitFilePath }
@@ -149,6 +155,7 @@ final class RepositoryStoreViewModel {
     // MARK: - Init
 
     init(
+        logger: any AppLogging,
         inspector: RepositoryInspecting,
         screenRepository: RepositoryScreenDataProviding,
         diffProvider: DiffProviding,
@@ -162,8 +169,10 @@ final class RepositoryStoreViewModel {
         statusProvider: StatusProviding? = nil,
         remoteSyncProvider: RemoteSyncProviding? = nil,
         compareProvider: BranchCompareProviding? = nil,
-        updateFromDefaultProvider: UpdateFromDefaultProviding? = nil
+        updateFromDefaultProvider: UpdateFromDefaultProviding? = nil,
+        squashProvider: SquashProviding? = nil
     ) {
+        self.logger = logger
         self.inspector = inspector
         self.screenRepository = screenRepository
         self.diffProvider = diffProvider
@@ -178,6 +187,7 @@ final class RepositoryStoreViewModel {
         self.remoteSyncProvider = remoteSyncProvider
         self.compareProvider = compareProvider
         self.updateFromDefaultProvider = updateFromDefaultProvider
+        self.squashProvider = squashProvider
         self.diffHandler = DiffHandler(diffProvider: diffProvider)
     }
 
@@ -203,8 +213,11 @@ final class RepositoryStoreViewModel {
     }
 
     private func resetPerRepositoryState() {
+        historyLoadTask?.cancel()
+        historyLoadTask = nil
         changedFiles = []
         commits = []
+        unpushedSHAs = []
         tip = .unknown
         primaryAction = .publishRepository
         remoteName = nil
@@ -260,6 +273,7 @@ final class RepositoryStoreViewModel {
             forcePushNeeded = snapshot.forcePushNeeded
             changedFiles = snapshot.changedFiles
             commits = snapshot.commits
+            unpushedSHAs = snapshot.unpushedSHAs
             currentGitUser = snapshot.userProfile
 
             changedFilesHandler.syncWith(changedFiles)
@@ -268,8 +282,8 @@ final class RepositoryStoreViewModel {
                 diffHandler.selectFile(first)
             }
 
-            if let commit = selectedCommit {
-                commitForm.prefill(summary: commit.summary, body: commit.body)
+            if historyHandler.commitFiles.isEmpty, !commits.isEmpty {
+                selectHistoryCommit(at: historyHandler.selectedIndex)
             }
 
             if let repository = selectedRepository {
@@ -289,16 +303,20 @@ final class RepositoryStoreViewModel {
 
     // MARK: - Delegated to handlers
 
-    func selectHistoryCommit(at index: Int) {
-        historyHandler.selectCommit(at: index)
+    func selectHistoryCommit(at index: Int, isShiftExtending: Bool = false) {
+        historyHandler.selectCommit(at: index, extending: isShiftExtending)
+        // When extending a range, the anchor commit's files are already loaded — skip reload.
+        guard !isShiftExtending else { return }
+        historyLoadTask?.cancel()
         guard let repository = selectedRepository,
               let sha = selectedCommit?.id else { return }
         let inspector = commitInspector
         let provider = diffProvider
         let url = repository.url
-        Task { [weak self] in
+        historyLoadTask = Task { [weak self] in
             guard let self else { return }
             await self.historyHandler.loadFiles(for: sha, using: inspector, in: url)
+            guard !Task.isCancelled else { return }
             if let firstPath = self.historyHandler.selectedCommitFilePath {
                 await self.historyHandler.loadDiff(
                     for: firstPath,
@@ -325,6 +343,29 @@ final class RepositoryStoreViewModel {
         }
     }
 
+    // MARK: - Squash
+
+    private(set) var isSquashing = false
+
+    func squashSelectedCommits(message: String) async {
+        guard let repository = selectedRepository,
+              let squashProvider,
+              selectedHistoryCommits.count >= 2 else { return }
+
+        let commitsToSquash = selectedHistoryCommits
+        isSquashing = true
+        errorMessage = nil
+        defer { isSquashing = false }
+
+        do {
+            try await squashProvider.squash(commits: commitsToSquash, message: message, in: repository.url)
+            historyHandler.selectCommit(at: 0)
+            await refreshRepositoryScreenData()
+        } catch {
+            errorMessage = error.localizedDescription
+        }
+    }
+
     func selectChangedFile(path: String) {
         diffHandler.selectFile(path)
         guard let repository = selectedRepository else { return }
@@ -344,11 +385,34 @@ final class RepositoryStoreViewModel {
     // MARK: - Commit
 
     func commitChanges() async {
-        guard canCommitChanges, !hasCheckedConflicts, let repository = selectedRepository else { return }
+        guard canCommitChanges, !hasCheckedConflicts, let repository = selectedRepository else {
+            logger.warning(
+                "Commit guard failed — nothing to do",
+                category: .commit,
+                metadata: [
+                    "canCommit": "\(canCommitChanges)",
+                    "hasConflicts": "\(hasCheckedConflicts)",
+                    "hasRepository": "\(selectedRepository != nil)"
+                ]
+            )
+            return
+        }
 
         let summary = commitForm.trimmedSummary
         let description = commitForm.trimmedDescription
         let pathsToCommit = changedFilesHandler.checkedPaths.sorted()
+
+        logger.info(
+            "Commit started",
+            category: .commit,
+            metadata: [
+                "repository": repository.url.lastPathComponent,
+                "files": "\(pathsToCommit.count)",
+                "amend": "\(commitForm.isAmendMode)",
+                "skipHooks": "\(commitForm.skipHooks)",
+                "signOff": "\(commitForm.signOff)"
+            ]
+        )
 
         commitForm.setCommitting(true)
         errorMessage = nil
@@ -368,9 +432,15 @@ final class RepositoryStoreViewModel {
                 description: description.isEmpty ? nil : description,
                 options: options
             )
+            logger.info("Commit succeeded", category: .commit)
             commitForm.reset()
             await refreshRepositoryScreenData()
         } catch {
+            logger.error(
+                "Commit failed",
+                category: .commit,
+                metadata: ["error": error.localizedDescription]
+            )
             errorMessage = error.localizedDescription
         }
     }
@@ -587,6 +657,7 @@ final class RepositoryStoreViewModel {
 
     func toggleAmendMode() {
         commitForm.toggleAmend()
+        logger.info("Amend mode toggled", category: .commit, metadata: ["enabled": "\(commitForm.isAmendMode)"])
         if commitForm.isAmendMode, let last = commits.first {
             commitForm.reset()
             commitForm.prefill(summary: last.summary, body: last.body)

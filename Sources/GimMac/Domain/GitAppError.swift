@@ -11,6 +11,7 @@ enum GitAppError: Error, Equatable, LocalizedError {
     case invalidOutput(command: [String], details: String)
     case bareRepository
     case unsafeRepository(path: String)
+    case signingFailed
 
     var errorDescription: String? {
         switch self {
@@ -35,6 +36,8 @@ enum GitAppError: Error, Equatable, LocalizedError {
             return "This is a bare Git repository and cannot be opened."
         case let .unsafeRepository(path):
             return "Git refused to open \(path) due to unsafe ownership. Run: git config --global --add safe.directory \(path)"
+        case .signingFailed:
+            return "Git could not sign the commit. Check that gpg (or your configured signing tool) is installed and your signing key is available."
         }
     }
 }

@@ -17,7 +17,13 @@ enum GitAppErrorMapper {
             return .permissionDenied
         }
 
-        if normalized.contains("no such file or directory") || normalized.contains("could not open") {
+        if normalized.contains("gpg failed to sign") || normalized.contains("cannot run gpg")
+            || normalized.contains("secret key not available") || normalized.contains("failed to write commit object") {
+            return .signingFailed
+        }
+
+        if (normalized.contains("no such file or directory") && normalized.contains(".git"))
+            || normalized.contains("could not open '.git") {
             return .repositoryNotFound
         }
 

@@ -69,6 +69,12 @@ struct CommitBox: View {
                     .foregroundStyle(.yellow)
             }
 
+            if let error = viewModel.errorMessage {
+                Label(error, systemImage: "xmark.circle.fill")
+                    .font(.system(size: 11))
+                    .foregroundStyle(.red)
+            }
+
             HStack(spacing: 6) {
                 Button {
                     Task {

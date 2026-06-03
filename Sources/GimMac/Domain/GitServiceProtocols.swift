@@ -164,3 +164,12 @@ protocol RemoteSyncProviding: Sendable {
     func pushForceSafely(remote: String, in repositoryURL: URL) async throws
     func publishBranch(named branch: String, remote: String, in repositoryURL: URL) async throws
 }
+
+// MARK: - Squash
+
+protocol SquashProviding: Sendable {
+    /// Squash `commits` into a single commit with `message`.
+    /// `commits` must be in newest-first order (as returned by HistoryHandler).
+    /// The oldest commit becomes the squash target; all others are folded into it.
+    func squash(commits: [Commit], message: String, in repositoryURL: URL) async throws
+}
