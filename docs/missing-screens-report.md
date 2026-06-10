@@ -14,7 +14,7 @@ Scope: pure-Git operations only (no GitHub API/auth), per the source inventory.
 | 1 | Welcome / Onboarding | ✅ Done | identity config, clone, create (`git init`), add existing — `Onboarding/`, `CloneRepositoryWindowController`, `GitRepositoryCreationService` |
 | 2 | Repository Selector | ✅ Done | switch/add/remove/recent — `RepositoryStoreViewModel`, `CoreDataRepositoryPersistence` |
 | 3 | Changes Screen | ✅ Done | whole-file staging, commit (amend/sign-off/skip-hooks), discard, `.gitignore` (file/folder/`*.ext`), co-author trailer. Hunk/line staging is V1 per locked decisions |
-| 4 | History Screen | 🟡 Partial | view/diff/compare done; right-click actions mostly missing |
+| 4 | History Screen | 🟡 Partial | view/diff/compare + revert ✅ + cherry-pick ✅ wired; reset/tag/create-branch still missing |
 | 5 | Branches Screen | ✅ Done | create/switch/delete/rename/compare/update-from-default all wired |
 | 6 | Fetch/Pull/Push bar | ✅ Done | + force-push-with-lease, publish — `TopToolbar`, `GitRemoteSyncService` |
 | 7 | **Merge Conflict Resolution** | ❌ Missing | detects conflicts + blocks commit, but tells user *"run continue/skip/abort from the terminal"* (`BranchDialogPresenter.swift:228`). No resolution UI |
@@ -24,7 +24,7 @@ Scope: pure-Git operations only (no GitHub API/auth), per the source inventory.
 | 11 | Repository Settings | ✅ Done | remote URL, default branch rename, LFS, open in editor/terminal |
 | 12 | External Editor | ✅ Done | `NSWorkspaceExternalEditorService` |
 | 13 | Compare Before Merge | ✅ Done | `BranchCompareViewModel`, `CompareBranchWindowController` |
-| 14 | Advanced History Editing | 🟡 Partial | squash ✅ wired; reorder + drag-drop cherry-pick = empty stubs |
+| 14 | Advanced History Editing | 🟡 Partial | squash ✅ + cherry-pick ✅ wired; reorder = empty stub |
 
 ---
 
@@ -40,8 +40,8 @@ Scope: pure-Git operations only (no GitHub API/auth), per the source inventory.
 
 ### ❌ Missing History right-click actions (doc §4)
 
-- **Revert commit** (`git revert`) — no service, no UI
-- **Cherry-pick** — UI button exists but empty `{}` stub (`CommitHistorySidebar.swift:88`), no service
+- **Revert commit** (`git revert`) — ✅ `RevertProviding` / `GitRevertProvider`, single-commit context-menu "Revert This Commit", conflict-aborts to clean tree
+- **Cherry-pick** — ✅ `CherryPickProviding` / `GitCherryPickProvider`, wired for single + multi-select context menu, conflict-aborts to clean tree
 - **Create branch from commit** — not wired to context menu
 - **Reset to commit** (`git reset --soft|mixed|hard`) — only internal undo/discard use it, not exposed
 - **Tag commit** (`git tag`) — completely absent (domain, data, UI)
@@ -54,8 +54,7 @@ Scope: pure-Git operations only (no GitHub API/auth), per the source inventory.
 
 ### 🟡 Stub-only (UI present, no logic)
 
-- Reorder commits (`CommitHistorySidebar.swift:90`)
-- Cherry-pick N commits (`CommitHistorySidebar.swift:88`)
+- Reorder commits (`CommitHistorySidebar.swift`)
 
 ### 🟡 Create Repository
 
@@ -69,5 +68,5 @@ Highest-value gaps vs the inventory:
 
 1. Merge conflict resolution screen (currently delegates to terminal)
 2. Tag commit
-3. Revert + cherry-pick context-menu actions (wire the existing stubs)
+3. ~~Revert + cherry-pick context-menu actions~~ ✅ done
 4. Stash management screen

@@ -309,3 +309,50 @@ final class GitSquashProvider: SquashProviding, Sendable {
         _ = try await client.run(rebaseArgs, in: repositoryURL, extraEnvironment: extraEnv, timeout: 120)
     }
 }
+
+// MARK: - Revert
+
+final class GitRevertProvider: RevertProviding, Sendable {
+    private let client: GitClientProtocol
+
+    init(client: GitClientProtocol) {
+        self.client = client
+    }
+
+    func revert(commit: Commit, in repositoryURL: URL) async throws {
+        do {
+            _ = try await client.run(["revert", "--no-edit", commit.id], in: repositoryURL, timeout: 60)
+        } catch {
+            // Conflict or failure leaves the repo mid-revert. Abort so the
+            // working tree returns to a clean state, then surface the error.
+            _ = try? await client.run(["revert", "--abort"], in: repositoryURL, timeout: 15)
+            throw error
+        }
+    }
+}
+
+// MARK: - Cherry-pick
+
+final class GitCherryPickProvider: CherryPickProviding, Sendable {
+    private let client: GitClientProtocol
+
+    init(client: GitClientProtocol) {
+        self.client = client
+    }
+
+    func cherryPick(commits: [Commit], in repositoryURL: URL) async throws {
+        guard !commits.isEmpty else { return }
+
+        // commits is newest-first; cherry-pick applies arguments left→right, so
+        // reverse to oldest-first to preserve original commit order on HEAD.
+        let shas = commits.reversed().map(\.id)
+        do {
+            _ = try await client.run(["cherry-pick"] + shas, in: repositoryURL, timeout: 120)
+        } catch {
+            // Conflict or failure leaves the repo mid-cherry-pick. Abort so the
+            // working tree returns to a clean state, then surface the error.
+            _ = try? await client.run(["cherry-pick", "--abort"], in: repositoryURL, timeout: 15)
+            throw error
+        }
+    }
+}

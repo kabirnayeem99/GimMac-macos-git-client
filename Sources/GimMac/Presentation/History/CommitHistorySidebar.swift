@@ -85,11 +85,20 @@ struct CommitHistorySidebar: View {
         let count = selectedCommits.count
 
         if count > 1 {
-            Button("Cherry-pick \(count) Commits…") {}
+            Button("Cherry-pick \(count) Commits") {
+                Task { await viewModel.cherryPickSelectedCommits() }
+            }
             Button("Squash \(count) Commits…") {
                 showingSquashSheet = true
             }
             Button("Reorder \(count) Commits…") {}
+        } else {
+            Button("Cherry-pick Commit") {
+                Task { await viewModel.cherryPickSelectedCommits() }
+            }
+            Button("Revert This Commit") {
+                Task { await viewModel.revertSelectedCommit() }
+            }
         }
     }
 

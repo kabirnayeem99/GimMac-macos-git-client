@@ -42,7 +42,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         updateFromDefaultProvider: GitUpdateFromDefaultService(client: gitClient),
         squashProvider: GitSquashProvider(client: gitClient),
         repositoryInitProvider: GitRepositoryInitService(client: gitClient),
-        repositoryCloneProvider: GitRepositoryCloneService(client: gitClient)
+        repositoryCloneProvider: GitRepositoryCloneService(client: gitClient),
+        revertProvider: GitRevertProvider(client: gitClient),
+        cherryPickProvider: GitCherryPickProvider(client: gitClient)
     )
 
     // MARK: - Lifecycle

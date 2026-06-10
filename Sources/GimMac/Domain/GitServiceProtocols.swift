@@ -259,3 +259,26 @@ protocol SquashProviding: Sendable {
     /// The oldest commit becomes the squash target; all others are folded into it.
     func squash(commits: [Commit], message: String, in repositoryURL: URL) async throws
 }
+
+// MARK: - Revert
+
+/// Revert a commit. Native equivalent of GitHub Desktop's `revert-commit` menu
+/// event (`revert.ts`). Creates a new commit that undoes the target's changes.
+protocol RevertProviding: Sendable {
+    /// `git revert --no-edit <sha>`. On conflict the operation is aborted
+    /// (`git revert --abort`) and a `GitAppError` is thrown, leaving the working
+    /// tree clean.
+    func revert(commit: Commit, in repositoryURL: URL) async throws
+}
+
+// MARK: - Cherry-pick
+
+/// Cherry-pick commits onto the current HEAD. Native equivalent of GitHub
+/// Desktop's `cherry-pick` flow (`cherry-pick.ts`).
+protocol CherryPickProviding: Sendable {
+    /// Apply `commits` onto HEAD. `commits` must be in newest-first order (as
+    /// returned by HistoryHandler); they are applied oldest→newest. On conflict
+    /// the operation is aborted (`git cherry-pick --abort`) and a `GitAppError`
+    /// is thrown, leaving the working tree clean.
+    func cherryPick(commits: [Commit], in repositoryURL: URL) async throws
+}

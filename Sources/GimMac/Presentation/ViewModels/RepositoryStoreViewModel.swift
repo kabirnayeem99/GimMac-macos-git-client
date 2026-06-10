@@ -34,6 +34,8 @@ final class RepositoryStoreViewModel {
     let squashProvider: SquashProviding?
     let repositoryInitProvider: RepositoryInitProviding?
     let repositoryCloneProvider: RepositoryCloneProviding?
+    let revertProvider: RevertProviding?
+    let cherryPickProvider: CherryPickProviding?
 
     let commitForm = CommitFormHandler()
     let changedFilesHandler = ChangedFilesHandler()
@@ -57,6 +59,8 @@ final class RepositoryStoreViewModel {
     var currentGitUser = GitUserProfile(name: "Unknown User", email: "unknown@example.com")
     var savedRepositories: [StoredRepository] = []
     var isSquashing = false
+    var isReverting = false
+    var isCherryPicking = false
     var stashEntry: StashEntry?
 
     /// Which top-level screen tab is shown: 0 = Changes, 1 = History.
@@ -198,7 +202,9 @@ final class RepositoryStoreViewModel {
         updateFromDefaultProvider: UpdateFromDefaultProviding? = nil,
         squashProvider: SquashProviding? = nil,
         repositoryInitProvider: RepositoryInitProviding? = nil,
-        repositoryCloneProvider: RepositoryCloneProviding? = nil
+        repositoryCloneProvider: RepositoryCloneProviding? = nil,
+        revertProvider: RevertProviding? = nil,
+        cherryPickProvider: CherryPickProviding? = nil
     ) {
         self.logger = logger
         self.inspector = inspector
@@ -219,6 +225,8 @@ final class RepositoryStoreViewModel {
         self.squashProvider = squashProvider
         self.repositoryInitProvider = repositoryInitProvider
         self.repositoryCloneProvider = repositoryCloneProvider
+        self.revertProvider = revertProvider
+        self.cherryPickProvider = cherryPickProvider
         self.diffHandler = DiffHandler(diffProvider: diffProvider)
     }
 }

@@ -62,4 +62,41 @@ extension RepositoryStoreViewModel {
             errorMessage = error.localizedDescription
         }
     }
+
+    func revertSelectedCommit() async {
+        guard let repository = selectedRepository,
+              let revertProvider,
+              let commit = selectedCommit else { return }
+
+        isReverting = true
+        errorMessage = nil
+        defer { isReverting = false }
+
+        do {
+            try await revertProvider.revert(commit: commit, in: repository.url)
+            historyHandler.selectCommit(at: 0)
+            await refreshRepositoryScreenData()
+        } catch {
+            errorMessage = error.localizedDescription
+        }
+    }
+
+    func cherryPickSelectedCommits() async {
+        guard let repository = selectedRepository,
+              let cherryPickProvider,
+              !selectedHistoryCommits.isEmpty else { return }
+
+        let commitsToPick = selectedHistoryCommits
+        isCherryPicking = true
+        errorMessage = nil
+        defer { isCherryPicking = false }
+
+        do {
+            try await cherryPickProvider.cherryPick(commits: commitsToPick, in: repository.url)
+            historyHandler.selectCommit(at: 0)
+            await refreshRepositoryScreenData()
+        } catch {
+            errorMessage = error.localizedDescription
+        }
+    }
 }
