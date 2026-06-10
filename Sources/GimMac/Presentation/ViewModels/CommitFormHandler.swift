@@ -10,6 +10,7 @@ final class CommitFormHandler {
     private(set) var isAmendMode = false
     var skipHooks = false
     var signOff = false
+    private(set) var coAuthors: [CommitAuthor] = []
 
     var trimmedSummary: String { commitSummary.trimmingCharacters(in: .whitespacesAndNewlines) }
     var trimmedDescription: String { commitDescription.trimmingCharacters(in: .whitespacesAndNewlines) }
@@ -26,6 +27,17 @@ final class CommitFormHandler {
         commitSummary = ""
         commitDescription = ""
         isAmendMode = false
+        coAuthors = []
+    }
+
+    /// Add a co-author, ignoring exact duplicates.
+    func addCoAuthor(_ author: CommitAuthor) {
+        guard !coAuthors.contains(author) else { return }
+        coAuthors.append(author)
+    }
+
+    func removeCoAuthor(_ author: CommitAuthor) {
+        coAuthors.removeAll { $0 == author }
     }
 
     func setCommitting(_ value: Bool) {

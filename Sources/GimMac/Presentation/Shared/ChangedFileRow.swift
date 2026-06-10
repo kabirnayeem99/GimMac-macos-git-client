@@ -11,7 +11,16 @@ struct ChangedFileRow: View {
     var onOpenWithDefault: () -> Void = {}
     var onCopyPath: () -> Void = {}
     var onCopyRelativePath: () -> Void = {}
-    var editorName: String? = nil
+    var onIgnoreFile: () -> Void = {}
+    var onIgnoreFolder: (String) -> Void = { _ in }
+    var onIgnoreExtension: () -> Void = {}
+    var editorName: String?
+
+    private var ignoreFolders: [String] { GitIgnoreRule.ancestorFolders(ofRelativePath: file.path) }
+    private var ignorableExtension: String? { GitIgnoreRule.fileExtension(ofRelativePath: file.path) }
+    private var isGitignoreFile: Bool {
+        (file.path.split(separator: "/").last.map(String.init) ?? file.path) == ".gitignore"
+    }
 
     private var statusIcon: String {
         switch file.status {
@@ -89,6 +98,22 @@ struct ChangedFileRow: View {
             Divider()
             Button("Copy File Path", action: onCopyPath)
             Button("Copy Relative File Path", action: onCopyRelativePath)
+            if !isGitignoreFile {
+                Divider()
+                Menu("Ignore") {
+                    Button("Ignore File (Add to .gitignore)", action: onIgnoreFile)
+                    if !ignoreFolders.isEmpty {
+                        Menu("Ignore Folder (Add to .gitignore)") {
+                            ForEach(ignoreFolders, id: \.self) { folder in
+                                Button(folder) { onIgnoreFolder(folder) }
+                            }
+                        }
+                    }
+                    if let ext = ignorableExtension {
+                        Button("Ignore All *.\(ext) Files (Add to .gitignore)", action: onIgnoreExtension)
+                    }
+                }
+            }
             Divider()
             Button("Discard Changes…", role: .destructive, action: onDiscardChanges)
         }

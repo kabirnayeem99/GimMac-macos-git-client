@@ -81,9 +81,16 @@ final class GitCommitProvider: CommitProviding, Sendable {
 
         var args = ["commit", "-m", summary]
         if let description, !description.isEmpty { args += ["-m", description] }
-        if options.isAmend    { args.append("--amend") }
-        if options.skipHooks  { args.append("--no-verify") }
-        if options.signOff    { args.append("--signoff") }
+        // Co-authors as a trailing `-m` paragraph. Git keeps each `-m` as its own
+        // paragraph (blank-line separated); the trailer lines land in the final
+        // paragraph, which is the trailer block git recognises.
+        if !options.coAuthors.isEmpty {
+            let trailer = options.coAuthors.map(\.trailerLine).joined(separator: "\n")
+            args += ["-m", trailer]
+        }
+        if options.isAmend { args.append("--amend") }
+        if options.skipHooks { args.append("--no-verify") }
+        if options.signOff { args.append("--signoff") }
 
         _ = try await client.run(args, in: repositoryURL, timeout: 20)
     }
@@ -210,12 +217,10 @@ final class GitStashProvider: StashProviding, Sendable {
     private static func parseBranchName(from message: String) -> String? {
         // "WIP on branch: ..." or "On branch: ..."
         let scanners = ["WIP on ", "On "]
-        for prefix in scanners {
-            if message.hasPrefix(prefix) {
-                let rest = message.dropFirst(prefix.count)
-                if let colon = rest.firstIndex(of: ":") {
-                    return String(rest[..<colon])
-                }
+        for prefix in scanners where message.hasPrefix(prefix) {
+            let rest = message.dropFirst(prefix.count)
+            if let colon = rest.firstIndex(of: ":") {
+                return String(rest[..<colon])
             }
         }
         return nil

@@ -179,45 +179,11 @@ struct Sidebar: View {
 
             Divider()
 
-            List(filteredFiles) { file in
-                ChangedFileRow(
-                    file: file,
-                    selected: file.path == viewModel.selectedChangedFilePath,
-                    checked: viewModel.isChangedFileChecked(path: file.path),
-                    onToggleChecked: {
-                        viewModel.toggleChangedFileChecked(path: file.path)
-                    },
-                    onDiscardChanges: {
-                        pendingDiscardPath = file.path
-                    },
-                    onRevealInFinder: {
-                        viewModel.revealInFinder(path: file.path)
-                    },
-                    onOpenInEditor: {
-                        viewModel.openInExternalEditor(path: file.path)
-                    },
-                    onOpenWithDefault: {
-                        viewModel.openWithDefaultProgram(path: file.path)
-                    },
-                    onCopyPath: {
-                        viewModel.copyFilePath(path: file.path)
-                    },
-                    onCopyRelativePath: {
-                        viewModel.copyRelativeFilePath(path: file.path)
-                    },
-                    editorName: viewModel.selectedEditorName
-                )
-                .frame(maxWidth: .infinity, alignment: .leading)
-                .contentShape(Rectangle())
-                .onTapGesture {
-                    viewModel.selectChangedFile(path: file.path)
-                }
-                .listRowInsets(EdgeInsets())
-                .listRowSeparator(.hidden)
-                .listRowBackground(Color.clear)
-            }
-            .listStyle(.plain)
-            .scrollContentBackground(.hidden)
+            ChangedFilesListView(
+                viewModel: viewModel,
+                files: filteredFiles,
+                onRequestDiscard: { pendingDiscardPath = $0 }
+            )
 
             if let stash = viewModel.stashEntry {
                 StashPanel(
@@ -278,6 +244,43 @@ struct Sidebar: View {
         }
 
         return nextState
+    }
+}
+
+/// The scrollable list of changed files. Extracted from `Sidebar` so each
+/// row's callback wiring lives in its own view body.
+private struct ChangedFilesListView: View {
+    let viewModel: RepositoryStoreViewModel
+    let files: [ChangedFile]
+    let onRequestDiscard: (String) -> Void
+
+    var body: some View {
+        List(files) { file in
+            ChangedFileRow(
+                file: file,
+                selected: file.path == viewModel.selectedChangedFilePath,
+                checked: viewModel.isChangedFileChecked(path: file.path),
+                onToggleChecked: { viewModel.toggleChangedFileChecked(path: file.path) },
+                onDiscardChanges: { onRequestDiscard(file.path) },
+                onRevealInFinder: { viewModel.revealInFinder(path: file.path) },
+                onOpenInEditor: { viewModel.openInExternalEditor(path: file.path) },
+                onOpenWithDefault: { viewModel.openWithDefaultProgram(path: file.path) },
+                onCopyPath: { viewModel.copyFilePath(path: file.path) },
+                onCopyRelativePath: { viewModel.copyRelativeFilePath(path: file.path) },
+                onIgnoreFile: { Task { await viewModel.ignoreFile(path: file.path) } },
+                onIgnoreFolder: { folder in Task { await viewModel.ignoreFolder(folder) } },
+                onIgnoreExtension: { Task { await viewModel.ignoreExtension(forPath: file.path) } },
+                editorName: viewModel.selectedEditorName
+            )
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .contentShape(Rectangle())
+            .onTapGesture { viewModel.selectChangedFile(path: file.path) }
+            .listRowInsets(EdgeInsets())
+            .listRowSeparator(.hidden)
+            .listRowBackground(Color.clear)
+        }
+        .listStyle(.plain)
+        .scrollContentBackground(.hidden)
     }
 }
 

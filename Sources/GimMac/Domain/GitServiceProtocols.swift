@@ -21,6 +21,8 @@ struct CommitOptions: Equatable, Sendable {
     var skipHooks: Bool = false
     var signOff: Bool = false
     var isAmend: Bool = false
+    /// Co-authors appended as `Co-authored-by:` trailers in the commit message.
+    var coAuthors: [CommitAuthor] = []
 }
 
 protocol CommitProviding: Sendable {
@@ -33,6 +35,15 @@ protocol CommitProviding: Sendable {
     ) async throws
 
     func undoLastCommit(in repositoryURL: URL) async throws
+}
+
+/// Append rules to the repository's root `.gitignore`. Native equivalent of
+/// GitHub Desktop's `appendIgnoreFile` / `appendIgnoreRule` (`gitignore.ts`).
+/// Pure file write — no git command involved.
+protocol GitIgnoreProviding: Sendable {
+    /// Append the given rules to `<repo>/.gitignore`, de-duplicating against
+    /// existing lines. Callers pass rules already built via `GitIgnoreRule`.
+    func appendIgnoreEntries(_ entries: [String], in repositoryURL: URL) async throws
 }
 
 protocol RepositoryPersistenceProviding: Sendable {

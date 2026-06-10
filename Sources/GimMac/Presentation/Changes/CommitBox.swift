@@ -4,6 +4,9 @@ import Observation
 struct CommitBox: View {
     @Bindable var viewModel: RepositoryStoreViewModel
     @State private var isShowingProfile = false
+    @State private var showCoAuthorField = false
+    @State private var coAuthorDraft = ""
+    @State private var coAuthorError: String?
 
     private var commitButtonLabel: String {
         if viewModel.isCommitting { return "Committing\u{2026}" }
@@ -57,6 +60,8 @@ struct CommitBox: View {
                 .lineLimit(4...8)
                 .frame(maxWidth: .infinity)
 
+            coAuthorSection
+
             if viewModel.hasCheckedConflicts {
                 Label("Resolve all conflicts before committing.", systemImage: "exclamationmark.triangle.fill")
                     .font(.system(size: 11))
@@ -73,6 +78,7 @@ struct CommitBox: View {
                 Label(error, systemImage: "xmark.circle.fill")
                     .font(.system(size: 11))
                     .foregroundStyle(.red)
+                    .accessibilityIdentifier("statusLabel")
             }
 
             HStack(spacing: 6) {
@@ -136,6 +142,76 @@ struct CommitBox: View {
         .background(.bar)
         .overlay(alignment: .top) {
             Divider()
+        }
+    }
+
+    // MARK: - Co-authors
+
+    private var coAuthorSection: some View {
+        VStack(alignment: .leading, spacing: 6) {
+            HStack(spacing: 6) {
+                Button {
+                    withAnimation(.easeInOut(duration: 0.12)) { showCoAuthorField.toggle() }
+                    if !showCoAuthorField { coAuthorError = nil }
+                } label: {
+                    Label("Add co-authors", systemImage: "person.badge.plus")
+                        .font(.system(size: 11))
+                }
+                .buttonStyle(.borderless)
+                .controlSize(.small)
+                .help("Attribute this commit to additional authors")
+
+                Spacer()
+            }
+
+            ForEach(viewModel.commitCoAuthors) { author in
+                HStack(spacing: 4) {
+                    Image(systemName: "person.crop.circle")
+                        .font(.system(size: 10))
+                        .foregroundStyle(.secondary)
+                    Text(author.display)
+                        .font(.system(size: 11))
+                        .lineLimit(1)
+                        .truncationMode(.middle)
+                    Spacer(minLength: 4)
+                    Button {
+                        viewModel.removeCoAuthor(author)
+                    } label: {
+                        Image(systemName: "xmark.circle.fill")
+                            .font(.system(size: 11))
+                            .foregroundStyle(.secondary)
+                    }
+                    .buttonStyle(.plain)
+                    .help("Remove co-author")
+                }
+                .padding(.horizontal, 8)
+                .padding(.vertical, 3)
+                .background(.quaternary, in: Capsule())
+            }
+
+            if showCoAuthorField {
+                TextField("Name <email>", text: $coAuthorDraft)
+                    .textFieldStyle(.roundedBorder)
+                    .controlSize(.small)
+                    .onSubmit(submitCoAuthor)
+
+                if let coAuthorError {
+                    Text(coAuthorError)
+                        .font(.system(size: 10))
+                        .foregroundStyle(.red)
+                }
+            }
+        }
+    }
+
+    private func submitCoAuthor() {
+        let token = coAuthorDraft.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !token.isEmpty else { return }
+        if viewModel.addCoAuthor(from: token) {
+            coAuthorDraft = ""
+            coAuthorError = nil
+        } else {
+            coAuthorError = "Use the format: Name <email>"
         }
     }
 }
