@@ -43,9 +43,10 @@ This is the GitHub Desktop source (Electron + TypeScript). **Do not copy its cod
 ## Mandatory Task Sequence
 
 1. Read the relevant source-of-truth doc for the area you are touching
-2. Select the right sub-agent (table below)
-3. Make changes — sub-agent reads code via lean-ctx + jcodemunch
-4. After changes: update relevant doc + agent `.md` if behavior changed
+2. Invoke the matching skill (table below) if the task hits one
+3. Select the right sub-agent (table below)
+4. Make changes — sub-agent reads code via lean-ctx + jcodemunch
+5. After changes: update relevant doc + agent `.md` if behavior changed
 
 ---
 
@@ -76,6 +77,39 @@ Rules:
 | Tech debt, architecture violations, test coverage gaps, data-source tracing | `tech-debt-tracker` |
 | AppKit components, SwiftUI screens, HIG, accessibility, system colors | `design-system` |
 | Xcode project, xcodegen, SwiftLint, CI/GitHub Actions, build scripts | `xcode-build` |
+
+---
+
+## Skill Selection Guide
+
+Project skills live in `.claude/skills/`. Invoke the matching skill (via the Skill tool, or
+`/<skill-name>`) **before** writing code in that area — skills carry platform rules, HIG
+guidance, and review checklists the sub-agents must follow. Skills and sub-agents compose:
+skill supplies domain knowledge, sub-agent does the wiring.
+
+| Task / Trigger | Skill |
+|---|---|
+| Swift 6+ language patterns, concurrency, actors, value types | `swift` |
+| macOS code review, AppKit bridging, macOS 26 APIs, platform best practices | `macos` |
+| AppKit/SwiftUI design, Liquid Glass, animations, visual polish | `design` |
+| SwiftUI secondary screens (per locked decisions) | `swiftui` |
+| Main-thread, diff rendering, debounce, large-file handling | `performance` |
+| TDD, characterization tests, snapshot tests, test infra | `testing` |
+| Secure storage, biometric/Keychain, network security review | `security` |
+| Pre-release / App Store submission critical review | `release-review` |
+| App Store listing, screenshots, ASO, marketing copy | `app-store` |
+| Pricing, tiers, trials, monetization strategy | `monetization` |
+| Privacy policy, EULA, GDPR/CCPA, App Store legal | `legal` |
+| Market research, PRD, UX specs, product planning | `product` |
+| User acquisition, analytics, press outreach, indie growth | `growth` |
+| Scaffold logging/analytics/settings/persistence/etc. boilerplate | `generators` |
+| SwiftData persistence patterns | `swiftdata` |
+
+Out of scope for GimMac (macOS Git client) unless a feature explicitly calls for it:
+`ios`, `watchos`, `visionos`, `mapkit`, `core-ml`, `apple-intelligence`.
+
+Always-available global skills: `/code-review`, `/simplify`, `/verify`, `/run`,
+`/security-review` — use for diff review, cleanup, and manual verification.
 
 ---
 
@@ -113,6 +147,7 @@ Never change without also updating `PLAN.md` and `DESIGN.md`:
 User Prompt
     ↓
 Claude Code (Sonnet) — reads CLAUDE.md + memory
+    ↓ (if task matches a skill → invoke skill for domain rules)
     ↓ (if task matches a specialized agent)
 Spawns sub-agent (Opus) with agent .md as system prompt
     ↓ (optionally in isolated git worktree)
