@@ -14,7 +14,7 @@ Scope: pure-Git operations only (no GitHub API/auth), per the source inventory.
 | 1 | Welcome / Onboarding | ✅ Done | identity config, clone, create (`git init`), add existing — `Onboarding/`, `CloneRepositoryWindowController`, `GitRepositoryCreationService` |
 | 2 | Repository Selector | ✅ Done | switch/add/remove/recent — `RepositoryStoreViewModel`, `CoreDataRepositoryPersistence` |
 | 3 | Changes Screen | ✅ Done | whole-file staging, commit (amend/sign-off/skip-hooks), discard, `.gitignore` (file/folder/`*.ext`), co-author trailer. Hunk/line staging is V1 per locked decisions |
-| 4 | History Screen | 🟡 Partial | view/diff/compare + revert ✅ + cherry-pick ✅ wired; reset/tag/create-branch still missing |
+| 4 | History Screen | 🟡 Partial | view/diff/compare + revert ✅ + cherry-pick ✅ + tag ✅ + create-branch-from-commit ✅ wired; reset-to-commit still missing |
 | 5 | Branches Screen | ✅ Done | create/switch/delete/rename/compare/update-from-default all wired |
 | 6 | Fetch/Pull/Push bar | ✅ Done | + force-push-with-lease, publish — `TopToolbar`, `GitRemoteSyncService` |
 | 7 | **Merge Conflict Resolution** | ❌ Missing | detects conflicts + blocks commit, but tells user *"run continue/skip/abort from the terminal"* (`BranchDialogPresenter.swift:228`). No resolution UI |
@@ -42,9 +42,9 @@ Scope: pure-Git operations only (no GitHub API/auth), per the source inventory.
 
 - **Revert commit** (`git revert`) — ✅ `RevertProviding` / `GitRevertProvider`, single-commit context-menu "Revert This Commit", conflict-aborts to clean tree
 - **Cherry-pick** — ✅ `CherryPickProviding` / `GitCherryPickProvider`, wired for single + multi-select context menu, conflict-aborts to clean tree
-- **Create branch from commit** — not wired to context menu
+- **Create branch from commit** — ✅ `CreateBranchFromCommitSheet` + context-menu "Create Branch from Commit…", reuses `BranchOperating.createBranch(from: .commit)`
 - **Reset to commit** (`git reset --soft|mixed|hard`) — only internal undo/discard use it, not exposed
-- **Tag commit** (`git tag`) — completely absent (domain, data, UI)
+- **Tag commit** (`git tag`) — ✅ `TagProviding` / `GitTagProvider` (lightweight + annotated), `CreateTagSheet` + context-menu "Create Tag…"
 
 ### Changes-screen features (doc §3)
 
@@ -67,6 +67,7 @@ Scope: pure-Git operations only (no GitHub API/auth), per the source inventory.
 Highest-value gaps vs the inventory:
 
 1. Merge conflict resolution screen (currently delegates to terminal)
-2. Tag commit
+2. ~~Tag commit~~ ✅ done
 3. ~~Revert + cherry-pick context-menu actions~~ ✅ done
+4. Reset-to-commit (destructive — needs mode picker + confirm) + Reorder commits (rebase-todo, like squash)
 4. Stash management screen

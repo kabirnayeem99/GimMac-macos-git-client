@@ -99,4 +99,49 @@ extension RepositoryStoreViewModel {
             errorMessage = error.localizedDescription
         }
     }
+
+    func createTagOnSelectedCommit(named name: String, message: String?) async {
+        guard let repository = selectedRepository,
+              let tagProvider,
+              let commit = selectedCommit else { return }
+
+        let trimmedName = name.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !trimmedName.isEmpty else { return }
+
+        isTagging = true
+        errorMessage = nil
+        defer { isTagging = false }
+
+        do {
+            try await tagProvider.createTag(named: trimmedName, message: message, at: commit, in: repository.url)
+            await refreshRepositoryScreenData()
+        } catch {
+            errorMessage = error.localizedDescription
+        }
+    }
+
+    func createBranchFromSelectedCommit(named name: String) async {
+        guard let repository = selectedRepository,
+              let branchOperator,
+              let commit = selectedCommit else { return }
+
+        let trimmedName = name.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !trimmedName.isEmpty else { return }
+
+        isCreatingBranchFromCommit = true
+        errorMessage = nil
+        defer { isCreatingBranchFromCommit = false }
+
+        do {
+            try await branchOperator.createBranch(
+                named: trimmedName,
+                from: .commit(sha: commit.id),
+                noTrack: false,
+                in: repository.url
+            )
+            await refreshRepositoryScreenData()
+        } catch {
+            errorMessage = error.localizedDescription
+        }
+    }
 }

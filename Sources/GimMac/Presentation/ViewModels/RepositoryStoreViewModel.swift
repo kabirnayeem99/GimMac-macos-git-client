@@ -36,6 +36,7 @@ final class RepositoryStoreViewModel {
     let repositoryCloneProvider: RepositoryCloneProviding?
     let revertProvider: RevertProviding?
     let cherryPickProvider: CherryPickProviding?
+    let tagProvider: TagProviding?
 
     let commitForm = CommitFormHandler()
     let changedFilesHandler = ChangedFilesHandler()
@@ -61,6 +62,8 @@ final class RepositoryStoreViewModel {
     var isSquashing = false
     var isReverting = false
     var isCherryPicking = false
+    var isTagging = false
+    var isCreatingBranchFromCommit = false
     var stashEntry: StashEntry?
 
     /// Which top-level screen tab is shown: 0 = Changes, 1 = History.
@@ -204,7 +207,8 @@ final class RepositoryStoreViewModel {
         repositoryInitProvider: RepositoryInitProviding? = nil,
         repositoryCloneProvider: RepositoryCloneProviding? = nil,
         revertProvider: RevertProviding? = nil,
-        cherryPickProvider: CherryPickProviding? = nil
+        cherryPickProvider: CherryPickProviding? = nil,
+        tagProvider: TagProviding? = nil
     ) {
         self.logger = logger
         self.inspector = inspector
@@ -227,6 +231,7 @@ final class RepositoryStoreViewModel {
         self.repositoryCloneProvider = repositoryCloneProvider
         self.revertProvider = revertProvider
         self.cherryPickProvider = cherryPickProvider
+        self.tagProvider = tagProvider
         self.diffHandler = DiffHandler(diffProvider: diffProvider)
     }
 }

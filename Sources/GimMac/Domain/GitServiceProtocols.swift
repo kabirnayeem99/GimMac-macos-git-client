@@ -282,3 +282,13 @@ protocol CherryPickProviding: Sendable {
     /// is thrown, leaving the working tree clean.
     func cherryPick(commits: [Commit], in repositoryURL: URL) async throws
 }
+
+// MARK: - Tag
+
+/// Create a tag pointing at a commit. Native equivalent of GitHub Desktop's
+/// `create-tag` flow (`create-tag.ts`).
+protocol TagProviding: Sendable {
+    /// `git tag <name> <sha>` (lightweight) when `message` is nil/empty, or
+    /// `git tag -a <name> -m <message> <sha>` (annotated) otherwise.
+    func createTag(named name: String, message: String?, at commit: Commit, in repositoryURL: URL) async throws
+}

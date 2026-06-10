@@ -5,7 +5,12 @@ struct CommitHistorySidebar: View {
     @Binding var selectedTab: Int
     let viewModel: RepositoryStoreViewModel
 
-    @State private var showingSquashSheet = false
+    @State private var activeSheet: HistorySheet?
+
+    private enum HistorySheet: Int, Identifiable {
+        case squash, createTag, createBranch
+        var id: Int { rawValue }
+    }
 
     var body: some View {
         VStack(spacing: 0) {
@@ -65,17 +70,40 @@ struct CommitHistorySidebar: View {
             .scrollContentBackground(.hidden)
         }
         .background(.thinMaterial)
-        .sheet(isPresented: $showingSquashSheet) {
-            SquashCommitsSheet(
-                commits: viewModel.selectedHistoryCommits,
-                onConfirm: { message in
-                    await viewModel.squashSelectedCommits(message: message)
-                    showingSquashSheet = false
-                },
-                onCancel: {
-                    showingSquashSheet = false
+        .sheet(item: $activeSheet) { sheet in
+            switch sheet {
+            case .squash:
+                SquashCommitsSheet(
+                    commits: viewModel.selectedHistoryCommits,
+                    onConfirm: { message in
+                        await viewModel.squashSelectedCommits(message: message)
+                        activeSheet = nil
+                    },
+                    onCancel: { activeSheet = nil }
+                )
+            case .createTag:
+                if let commit = viewModel.selectedCommit {
+                    CreateTagSheet(
+                        commit: commit,
+                        onConfirm: { name, message in
+                            await viewModel.createTagOnSelectedCommit(named: name, message: message)
+                            activeSheet = nil
+                        },
+                        onCancel: { activeSheet = nil }
+                    )
                 }
-            )
+            case .createBranch:
+                if let commit = viewModel.selectedCommit {
+                    CreateBranchFromCommitSheet(
+                        commit: commit,
+                        onConfirm: { name in
+                            await viewModel.createBranchFromSelectedCommit(named: name)
+                            activeSheet = nil
+                        },
+                        onCancel: { activeSheet = nil }
+                    )
+                }
+            }
         }
     }
 
@@ -89,7 +117,7 @@ struct CommitHistorySidebar: View {
                 Task { await viewModel.cherryPickSelectedCommits() }
             }
             Button("Squash \(count) Commits…") {
-                showingSquashSheet = true
+                activeSheet = .squash
             }
             Button("Reorder \(count) Commits…") {}
         } else {
@@ -98,6 +126,13 @@ struct CommitHistorySidebar: View {
             }
             Button("Revert This Commit") {
                 Task { await viewModel.revertSelectedCommit() }
+            }
+            Divider()
+            Button("Create Branch from Commit…") {
+                activeSheet = .createBranch
+            }
+            Button("Create Tag…") {
+                activeSheet = .createTag
             }
         }
     }
