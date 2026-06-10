@@ -4,7 +4,14 @@ struct RepositoryScreen: View {
     let viewModel: RepositoryStoreViewModel
     let openRepositoryAction: () -> Void
     let selectSavedRepositoryAction: (UUID) -> Void
-    @State private var selectedTab = 0
+
+    /// Bridged to `RepositoryStoreViewModel.viewTab` so the AppKit menu bar
+    /// (View → Show Changes/History) can drive tab selection through the
+    /// responder chain. Keep this as a computed Binding — using `@State` would
+    /// fork the source of truth and the menu commands would silently no-op.
+    private var selectedTab: Binding<Int> {
+        Binding(get: { viewModel.viewTab }, set: { viewModel.viewTab = $0 })
+    }
 
     var body: some View {
         VStack(spacing: 0) {
@@ -17,10 +24,10 @@ struct RepositoryScreen: View {
                     selectRepositoryAction: selectSavedRepositoryAction
                 )
 
-                if selectedTab == 0 {
+                if viewModel.viewTab == 0 {
                     HStack(spacing: 0) {
                         Sidebar(
-                            selectedTab: $selectedTab,
+                            selectedTab: selectedTab,
                             viewModel: viewModel
                         )
                         .frame(width: 320)
@@ -37,7 +44,7 @@ struct RepositoryScreen: View {
                     }
                 } else {
                     HistoryRepositoryScreen(
-                        selectedTab: $selectedTab,
+                        selectedTab: selectedTab,
                         viewModel: viewModel
                     )
                 }

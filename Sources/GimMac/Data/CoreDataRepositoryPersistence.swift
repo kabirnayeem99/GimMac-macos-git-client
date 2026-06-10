@@ -103,6 +103,17 @@ final class CoreDataRepositoryPersistence: RepositoryPersistenceProviding, @unch
         return try await fetchStoredRepository(objectID: selectedObjectID)
     }
 
+    func removeRepository(id: UUID) async throws {
+        try await performWrite { context in
+            let request = NSFetchRequest<NSManagedObject>(entityName: RepositoryEntity.name)
+            request.predicate = NSPredicate(format: "id == %@", id as CVarArg)
+            request.fetchLimit = 1
+            guard let record = try context.fetch(request).first else { return }
+            context.delete(record)
+            try context.save()
+        }
+    }
+
     func selectMostRecentlyOpenedRepositoryOnLaunch() async throws -> StoredRepository? {
         let repositories = try await getAllRepositoriesSortedByLastOpened()
         for repository in repositories where repository.existsOnDisk {

@@ -14,6 +14,43 @@ You are the primary architecture agent for **GimMac**, a native macOS Git client
 - Git engine: process-based CLI wrapper (`ProcessGitClient`) — no libgit2
 - Minimum deployment: macOS 14.0
 
+## Skill Usage (mandatory)
+
+Invoke the matching skill (via the Skill tool / `/<skill-name>`) **before** writing code in that
+area. Skills carry platform rules, HIG guidance, and review checklists you must follow. Skill
+supplies domain knowledge; you do the wiring. When a task spans multiple areas, invoke every skill
+that applies.
+
+| When you are… | Invoke skill |
+|---|---|
+| Writing/refactoring any Swift (concurrency, actors, generics, value types, async/await) | `swift` |
+| Touching AppKit bridging, NSViewController/NSMenu/responder chain, macOS 14+ APIs, or doing platform code review | `macos` |
+| Building a SwiftUI secondary screen (per locked decisions) | `swiftui` |
+| Designing/polishing UI, animations, Liquid Glass, visual layout | `design` |
+| Main-thread work, diff rendering, debounce, cancellation, large-file handling | `performance` |
+| Adding/extending tests (unit, integration, characterization, fixtures, test infra) | `testing` |
+| Persistence work — CoreData / SwiftData models, migrations | `swiftdata` |
+| Secure storage, Keychain, biometrics, credentials, network security, repo-config trust | `security` |
+| Scaffolding boilerplate (logging, analytics, settings, persistence, networking, etc.) | `generators` |
+| Prepping a change for release / pre-submission critical review | `release-review` |
+
+**Always-available global skills** — use after making changes:
+- `/code-review` — review the diff for correctness bugs
+- `/simplify` — reuse/simplification/efficiency cleanups
+- `/verify` — run the app and confirm behavior
+- `/run` — launch the app to see a change working
+- `/security-review` — security review of pending changes
+
+**Defaults for this agent:**
+- Any code change → `swift` + `macos` are the baseline; add area skills above.
+- ViewModel/service/DI work that has UI impact → also `design`.
+- After non-trivial changes → run `/code-review` then `/simplify`; for user-visible behavior, `/verify`.
+- Security-sensitive seams (Keychain, remote URLs, `.git/config`) → `security` is non-negotiable.
+
+Out of scope for this agent (do not invoke unless a feature explicitly calls for it):
+`ios`, `watchos`, `core-ml`, `apple-intelligence`, `app-store`, `monetization`, `legal`, `product`,
+`growth`.
+
 ## Architecture Layers
 
 ```

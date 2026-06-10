@@ -9,6 +9,10 @@ import Observation
 final class BranchesViewController: NSViewController {
 
     private let viewModel: BranchesViewModel
+    private lazy var dialogPresenter = BranchDialogPresenter(
+        viewModel: viewModel,
+        windowProvider: { [weak self] in self?.view.window }
+    )
 
     private let tabControl = NSSegmentedControl()
     private let searchField = NSSearchField()
@@ -197,15 +201,7 @@ final class BranchesViewController: NSViewController {
     }
 
     @objc private func presentCreateBranch(_ sender: Any?) {
-        let existing = (viewModel.localBranches + viewModel.remoteBranches).map(\.name)
-        let controller = CreateBranchWindowController(
-            existingNames: existing,
-            availableBranches: viewModel.localBranches
-        ) { [weak self] name, startPoint, noTrack in
-            guard let self else { return }
-            Task { await self.viewModel.createBranch(named: name, from: startPoint, noTrack: noTrack) }
-        }
-        presentAsSheet(controller.viewController)
+        dialogPresenter.presentCreateBranch()
     }
 
     @objc private func rowDoubleClicked(_ sender: Any?) {
@@ -244,58 +240,23 @@ final class BranchesViewController: NSViewController {
     }
 
     @objc private func menuRenameBranch(_ sender: Any?) {
-        guard let branch = clickedOrSelectedBranch(), branch.isLocal else { return }
-        let existing = viewModel.localBranches.map(\.name)
-        let controller = RenameBranchWindowController(
-            branch: branch,
-            existingNames: existing
-        ) { [weak self] newName, force in
-            Task { await self?.viewModel.renameBranch(branch, to: newName, force: force) }
-        }
-        presentAsSheet(controller.viewController)
+        guard let branch = clickedOrSelectedBranch() else { return }
+        dialogPresenter.presentRenameBranch(for: branch)
     }
 
     @objc private func menuDeleteBranch(_ sender: Any?) {
         guard let branch = clickedOrSelectedBranch() else { return }
-        let controller = DeleteBranchWindowController(branch: branch) { [weak self] deleteRemote in
-            guard let self else { return }
-            if branch.isLocal {
-                Task { await self.viewModel.deleteLocalBranch(branch, force: true) }
-                if deleteRemote, let upstream = branch.upstream {
-                    let remote = upstream.split(separator: "/").first.map(String.init) ?? "origin"
-                    Task { await self.viewModel.deleteRemoteBranch(branch, remote: remote) }
-                }
-            } else if let remote = branch.remoteName {
-                Task { await self.viewModel.deleteRemoteBranch(branch, remote: remote) }
-            }
-        }
-        presentAsSheet(controller.viewController)
+        dialogPresenter.presentDeleteBranch(for: branch)
     }
 
     @objc private func menuCompareBranch(_ sender: Any?) {
-        guard let compareBranch = clickedOrSelectedBranch(),
-              let compareProvider = viewModel.compareProvider,
-              let repositoryURL = viewModel.repositoryURL else { return }
-        let currentName = viewModel.currentBranchName ?? ""
-        guard let baseBranch = viewModel.localBranches.first(where: { $0.name == currentName })
-                ?? viewModel.remoteBranches.first(where: { $0.nameWithoutRemote == currentName })
-        else { return }
-        let controller = CompareBranchWindowController(
-            baseBranch: baseBranch,
-            compareBranch: compareBranch,
-            compareProvider: compareProvider,
-            repositoryURL: repositoryURL
-        )
-        presentAsSheet(controller.viewController)
+        guard let compareBranch = clickedOrSelectedBranch() else { return }
+        dialogPresenter.presentCompareToBranch(for: compareBranch)
     }
 
     @objc private func menuUpdateFromDefault(_ sender: Any?) {
         guard let branch = clickedOrSelectedBranch() ?? localCurrentBranch() else { return }
-        let controller = UpdateFromDefaultSheetController(branch: branch) { [weak self] rebase in
-            guard let self else { return }
-            Task { await self.viewModel.updateBranchFromDefault(branch, rebase: rebase) }
-        }
-        presentAsSheet(controller.viewController)
+        dialogPresenter.presentUpdateFromDefault(for: branch)
     }
 
     private func localCurrentBranch() -> Branch? {

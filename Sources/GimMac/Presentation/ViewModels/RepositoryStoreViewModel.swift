@@ -25,6 +25,8 @@ final class RepositoryStoreViewModel {
     private let compareProvider: BranchCompareProviding?
     private let updateFromDefaultProvider: UpdateFromDefaultProviding?
     private let squashProvider: SquashProviding?
+    private let repositoryInitProvider: RepositoryInitProviding?
+    private let repositoryCloneProvider: RepositoryCloneProviding?
 
     let commitForm = CommitFormHandler()
     let changedFilesHandler = ChangedFilesHandler()
@@ -47,6 +49,11 @@ final class RepositoryStoreViewModel {
     private(set) var unpushedSHAs: Set<String> = []
     private(set) var currentGitUser = GitUserProfile(name: "Unknown User", email: "unknown@example.com")
     private(set) var savedRepositories: [StoredRepository] = []
+
+    /// Which top-level screen tab is shown: 0 = Changes, 1 = History.
+    /// Bridged from SwiftUI `@State` so the menu bar (View → Show Changes/History)
+    /// can drive tab selection from the responder chain.
+    var viewTab: Int = 0
 
     // MARK: - Forwarded from handlers (views bind through these)
 
@@ -170,7 +177,9 @@ final class RepositoryStoreViewModel {
         remoteSyncProvider: RemoteSyncProviding? = nil,
         compareProvider: BranchCompareProviding? = nil,
         updateFromDefaultProvider: UpdateFromDefaultProviding? = nil,
-        squashProvider: SquashProviding? = nil
+        squashProvider: SquashProviding? = nil,
+        repositoryInitProvider: RepositoryInitProviding? = nil,
+        repositoryCloneProvider: RepositoryCloneProviding? = nil
     ) {
         self.logger = logger
         self.inspector = inspector
@@ -188,6 +197,8 @@ final class RepositoryStoreViewModel {
         self.compareProvider = compareProvider
         self.updateFromDefaultProvider = updateFromDefaultProvider
         self.squashProvider = squashProvider
+        self.repositoryInitProvider = repositoryInitProvider
+        self.repositoryCloneProvider = repositoryCloneProvider
         self.diffHandler = DiffHandler(diffProvider: diffProvider)
     }
 
@@ -628,6 +639,70 @@ final class RepositoryStoreViewModel {
         }
     }
 
+    /// Explicit fetch — drives the File/Repository → Fetch menu item.
+    /// Falls back to "origin" when no upstream remote has been resolved yet.
+    func fetch() async {
+        guard let provider = remoteSyncProvider,
+              let repository = selectedRepository,
+              !isSyncInProgress else { return }
+
+        let remote = remoteName ?? "origin"
+        isSyncInProgress = true
+        errorMessage = nil
+        defer { isSyncInProgress = false }
+
+        do {
+            try await provider.fetch(remote: remote, in: repository.url)
+            lastFetched = Date()
+            await refreshRepositoryScreenData()
+        } catch {
+            errorMessage = error.localizedDescription
+        }
+    }
+
+    /// Explicit pull — drives the Repository → Pull menu item.
+    func pull() async {
+        guard let provider = remoteSyncProvider,
+              let repository = selectedRepository,
+              !isSyncInProgress else { return }
+
+        isSyncInProgress = true
+        errorMessage = nil
+        defer { isSyncInProgress = false }
+
+        do {
+            try await provider.pull(in: repository.url)
+            lastFetched = Date()
+            await refreshRepositoryScreenData()
+        } catch {
+            errorMessage = error.localizedDescription
+        }
+    }
+
+    /// Stash all working-tree changes (Branch → Stash All Changes).
+    func stashAllChanges() async {
+        guard let repository = selectedRepository, let stashProvider else { return }
+        errorMessage = nil
+        do {
+            try await stashProvider.pushStash(in: repository.url, message: nil)
+            await refreshRepositoryScreenData()
+        } catch {
+            errorMessage = error.localizedDescription
+        }
+    }
+
+    /// Discard every change in the working tree (Branch → Discard All Changes).
+    func discardAllChanges() async {
+        guard let repository = selectedRepository, let discardProvider else { return }
+        errorMessage = nil
+        do {
+            try await discardProvider.discardAllChanges(in: repository.url)
+            await refreshRepositoryScreenData()
+        } catch {
+            errorMessage = error.localizedDescription
+        }
+    }
+
     // MARK: - Amend
 
     // MARK: - Branches
@@ -653,6 +728,96 @@ final class RepositoryStoreViewModel {
     private var currentBranchName: String? {
         if case .valid(let summary) = tip { return summary.name }
         return nil
+    }
+
+    // MARK: - Create / Clone / Remove
+
+    /// `git init` a new repository in `directoryURL`, then select it. Native
+    /// equivalent of GitHub Desktop's `create-repository` menu event.
+    func createRepository(at directoryURL: URL) async {
+        guard let provider = repositoryInitProvider else {
+            errorMessage = "Repository init service is unavailable."
+            return
+        }
+        errorMessage = nil
+        do {
+            try await provider.initRepository(at: directoryURL)
+            await selectRepository(at: directoryURL)
+        } catch {
+            logger.error(
+                "Repository init failed",
+                category: .repository,
+                metadata: ["error": error.localizedDescription]
+            )
+            errorMessage = error.localizedDescription
+        }
+    }
+
+    /// `git clone` `url` into `destinationURL`, then select it. Native
+    /// equivalent of GitHub Desktop's `clone-repository` menu event.
+    func cloneRepository(from url: String, to destinationURL: URL) async {
+        guard let provider = repositoryCloneProvider else {
+            errorMessage = "Clone service is unavailable."
+            return
+        }
+        isLoading = true
+        errorMessage = nil
+        do {
+            try await provider.clone(from: url, to: destinationURL)
+            isLoading = false
+            await selectRepository(at: destinationURL)
+        } catch {
+            isLoading = false
+            logger.error(
+                "Repository clone failed",
+                category: .repository,
+                metadata: ["error": error.localizedDescription]
+            )
+            errorMessage = error.localizedDescription
+        }
+    }
+
+    /// Forget the currently selected repository. Does not delete files on
+    /// disk — mirrors GitHub Desktop's `remove-repository` menu item.
+    func removeSelectedRepository() async {
+        guard let repo = selectedRepository else { return }
+        let canonicalPath = URL(fileURLWithPath: repo.url.path, isDirectory: true)
+            .resolvingSymlinksInPath()
+            .standardizedFileURL
+            .path
+        guard let stored = savedRepositories.first(where: {
+            let storedPath = URL(fileURLWithPath: $0.path, isDirectory: true)
+                .resolvingSymlinksInPath()
+                .standardizedFileURL
+                .path
+            return storedPath == canonicalPath
+        }) else { return }
+
+        errorMessage = nil
+        do {
+            try await repositoryPersistence.removeRepository(id: stored.id)
+            selectedRepository = nil
+            resetPerRepositoryState()
+            await loadSavedRepositories()
+            // Promote the next most-recently-opened repository, if any.
+            if let next = savedRepositories.first(where: { $0.existsOnDisk }) {
+                await selectPersistedRepository(id: next.id)
+            }
+        } catch {
+            errorMessage = error.localizedDescription
+        }
+    }
+
+    /// Open the selected repository in Terminal.app.
+    ///
+    /// Architecture note: AppKit's `NSWorkspace` is used here to launch the
+    /// system Terminal at the repo path — a one-line OS integration that
+    /// matches the existing `revealInFinder` pattern.
+    func openInShell() {
+        guard let repo = selectedRepository else { return }
+        let terminalURL = URL(fileURLWithPath: "/System/Applications/Utilities/Terminal.app")
+        let config = NSWorkspace.OpenConfiguration()
+        NSWorkspace.shared.open([repo.url], withApplicationAt: terminalURL, configuration: config)
     }
 
     func toggleAmendMode() {

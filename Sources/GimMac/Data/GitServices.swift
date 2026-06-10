@@ -156,6 +156,14 @@ final class GitDiscardProvider: DiscardProviding, Sendable {
         }
         _ = try await client.run(arguments, in: repositoryURL, timeout: 15)
     }
+
+    func discardAllChanges(in repositoryURL: URL) async throws {
+        // Revert tracked changes (staged + unstaged), then remove untracked
+        // files and directories. Two steps because `reset --hard` leaves
+        // untracked files in place.
+        _ = try await client.run(["reset", "--hard", "HEAD"], in: repositoryURL, timeout: 30)
+        _ = try await client.run(["clean", "-fd"], in: repositoryURL, timeout: 30)
+    }
 }
 
 final class GitStashProvider: StashProviding, Sendable {

@@ -66,7 +66,7 @@ actor MockRunner: GitCommandRunning {
         self.delayNanoseconds = delayNanoseconds
     }
 
-    func execute(id: UUID, arguments: [String], repositoryURL: URL) async throws -> GitCommandResult {
+    func execute(id: UUID, arguments: [String], repositoryURL: URL, extraEnvironment: [String: String]) async throws -> GitCommandResult {
         if delayNanoseconds > 0 {
             try await Task.sleep(nanoseconds: delayNanoseconds)
         }

@@ -148,6 +148,13 @@ private actor MockRepositoryPersistence: RepositoryPersistenceProviding {
         return repositories.first(where: { $0.id == id })
     }
 
+    func removeRepository(id: UUID) async throws {
+        repositories.removeAll { $0.id == id }
+        if selectedID == id {
+            selectedID = nil
+        }
+    }
+
     func selectMostRecentlyOpenedRepositoryOnLaunch() async throws -> StoredRepository? {
         guard let chosen = repositories
             .sorted(by: { $0.lastOpenedAt > $1.lastOpenedAt })
@@ -183,7 +190,8 @@ private extension RepositoryScreenSnapshot {
             userProfile: GitUserProfile(name: "Test User", email: "test@example.com"),
             primaryAction: .publishRepository,
             remoteName: nil,
-            forcePushNeeded: false
+            forcePushNeeded: false,
+            unpushedSHAs: []
         )
     }
 }
@@ -195,6 +203,7 @@ final class RepositoryStoreViewModelTests: XCTestCase {
             result: .success(.valid(branch: BranchSummary(name: "main", upstream: nil, sha: "abc1234")))
         )
         let sut = RepositoryStoreViewModel(
+            logger: GimMacLogger(),
             inspector: inspector,
             screenRepository: MockRepositoryScreenDataProvider(snapshot: .testSnapshot),
             diffProvider: MockDiffProvider(),
@@ -214,6 +223,7 @@ final class RepositoryStoreViewModelTests: XCTestCase {
         enum TestError: Error { case failed }
         let inspector = MockRepositoryInspector(result: .failure(TestError.failed))
         let sut = RepositoryStoreViewModel(
+            logger: GimMacLogger(),
             inspector: inspector,
             screenRepository: MockRepositoryScreenDataProvider(snapshot: .testSnapshot),
             diffProvider: MockDiffProvider(),
@@ -280,6 +290,7 @@ final class RepositoryStoreViewModelTests: XCTestCase {
 
         let inspector = MockRepositoryInspector(result: .success(.valid(branch: BranchSummary(name: "main", upstream: nil, sha: "abc1234"))))
         let sut = RepositoryStoreViewModel(
+            logger: GimMacLogger(),
             inspector: inspector,
             screenRepository: MockRepositoryScreenDataProvider(snapshot: .testSnapshot),
             diffProvider: MockDiffProvider(),

@@ -54,9 +54,12 @@ final class ArchitectureBoundaryTests: XCTestCase {
         let directory = repoRoot.appendingPathComponent(relativeDirectory).path
 
         let fileManager = FileManager.default
-        let items = try fileManager.contentsOfDirectory(atPath: directory)
+        guard let enumerator = fileManager.enumerator(atPath: directory) else {
+            return []
+        }
 
-        return items
+        return enumerator
+            .compactMap { $0 as? String }
             .filter { $0.hasSuffix(".swift") }
             .map { "\(directory)/\($0)" }
             .sorted()

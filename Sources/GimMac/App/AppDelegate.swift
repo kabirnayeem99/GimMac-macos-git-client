@@ -39,7 +39,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         remoteSyncProvider: GitRemoteSyncService(client: gitClient),
         compareProvider: GitBranchCompareReader(client: gitClient),
         updateFromDefaultProvider: GitUpdateFromDefaultService(client: gitClient),
-        squashProvider: GitSquashProvider(client: gitClient)
+        squashProvider: GitSquashProvider(client: gitClient),
+        repositoryInitProvider: GitRepositoryInitService(client: gitClient),
+        repositoryCloneProvider: GitRepositoryCloneService(client: gitClient)
     )
 
     // MARK: - Lifecycle
@@ -133,7 +135,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         window.isReleasedWhenClosed = false
 
         window.contentViewController = MainSplitViewController(
-            viewModel: repositoryStoreViewModel
+            viewModel: repositoryStoreViewModel,
+            mergeService: GitMergeService(client: gitClient),
+            rebaseService: GitRebaseService(client: gitClient)
         )
 
         return NSWindowController(window: window)

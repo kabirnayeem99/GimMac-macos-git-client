@@ -41,6 +41,10 @@ protocol RepositoryPersistenceProviding: Sendable {
     func getCurrentlySelectedRepository() async throws -> StoredRepository?
     func selectRepository(id: UUID) async throws -> StoredRepository?
     func selectMostRecentlyOpenedRepositoryOnLaunch() async throws -> StoredRepository?
+    /// Remove a repository from the app's saved list. Does not touch the
+    /// working directory on disk — mirrors GitHub Desktop's "Remove repository"
+    /// menu item (`remove-repository`), which only forgets the bookmark.
+    func removeRepository(id: UUID) async throws
 }
 
 protocol RepositoryScreenDataProviding: Sendable {
@@ -53,6 +57,10 @@ protocol BranchUpstreamProviding: Sendable {
 
 protocol DiscardProviding: Sendable {
     func discardChanges(in repositoryURL: URL, for path: String, status: GitFileStatus) async throws
+
+    /// Discard every change in the working tree: revert tracked files and remove
+    /// untracked ones. Native equivalent of GitHub Desktop's `discard-all-changes`.
+    func discardAllChanges(in repositoryURL: URL) async throws
 }
 
 protocol StashProviding: Sendable {
@@ -163,6 +171,73 @@ protocol RemoteSyncProviding: Sendable {
     func push(remote: String, in repositoryURL: URL) async throws
     func pushForceSafely(remote: String, in repositoryURL: URL) async throws
     func publishBranch(named branch: String, remote: String, in repositoryURL: URL) async throws
+}
+
+// MARK: - Repository Creation
+
+/// `git init` a new repository. Native equivalent of GitHub Desktop's
+/// `create-repository` menu event (`init.ts`).
+protocol RepositoryInitProviding: Sendable {
+    /// Initialize a repository in an existing directory. Resolves the default
+    /// branch via `init.defaultBranch` global config (falling back to "main").
+    func initRepository(at directoryURL: URL) async throws
+}
+
+/// `git clone` a remote repository. Native equivalent of GitHub Desktop's
+/// `clone-repository` menu event (`clone.ts`).
+protocol RepositoryCloneProviding: Sendable {
+    /// `git clone --recursive --progress -- <url> <destination>`.
+    func clone(from url: String, to destinationURL: URL) async throws
+}
+
+// MARK: - Merge
+
+/// Outcome of a merge attempt. Mirrors GitHub Desktop's `MergeResult`.
+enum MergeOutcome: Sendable, Equatable {
+    /// The merge completed (fast-forward or new merge commit).
+    case success
+    /// Nothing to do — current branch already contains the merged branch.
+    case alreadyUpToDate
+    /// Merge stopped with conflicts the user must resolve.
+    case conflicts
+}
+
+/// Generic merge of an arbitrary branch into the current branch. Native
+/// equivalent of GitHub Desktop's `merge-branch` / `squash-and-merge-branch`
+/// menu events (`merge.ts`). Distinct from `UpdateFromDefaultProviding`, which
+/// only merges the default branch.
+protocol MergeBranchProviding: Sendable {
+    /// `git merge [--no-verify] <branch>`.
+    func merge(branch: String, noVerify: Bool, in repositoryURL: URL) async throws -> MergeOutcome
+
+    /// `git merge --squash <branch>` then `git commit --no-edit`.
+    func squashMerge(branch: String, noVerify: Bool, in repositoryURL: URL) async throws -> MergeOutcome
+
+    /// `git merge --abort` — back out of a conflicted merge.
+    func abortMerge(in repositoryURL: URL) async throws
+}
+
+// MARK: - Rebase
+
+/// Outcome of a rebase step. A conflicted step leaves the repository mid-rebase
+/// awaiting `continueRebase`/`skipCommit`/`abortRebase`.
+enum RebaseOutcome: Sendable, Equatable {
+    case completed
+    case conflicts
+}
+
+/// Rebase the current branch onto a base. Native equivalent of GitHub Desktop's
+/// `rebase-branch` menu event (`rebase.ts`), including the
+/// continue/skip/abort state machine.
+protocol RebaseProviding: Sendable {
+    /// `git rebase <base> <target>`.
+    func rebase(base: String, target: String, in repositoryURL: URL) async throws -> RebaseOutcome
+    /// `git rebase --continue` after resolving conflicts.
+    func continueRebase(in repositoryURL: URL) async throws -> RebaseOutcome
+    /// `git rebase --skip` to drop the conflicting commit.
+    func skipCommit(in repositoryURL: URL) async throws -> RebaseOutcome
+    /// `git rebase --abort` to restore the pre-rebase state.
+    func abortRebase(in repositoryURL: URL) async throws
 }
 
 // MARK: - Squash
