@@ -292,3 +292,36 @@ protocol TagProviding: Sendable {
     /// `git tag -a <name> -m <message> <sha>` (annotated) otherwise.
     func createTag(named name: String, message: String?, at commit: Commit, in repositoryURL: URL) async throws
 }
+
+// MARK: - Reset
+
+/// How `git reset` treats the index and working tree.
+enum ResetMode: Sendable, Equatable {
+    /// `--soft`: move HEAD only; index and working tree untouched.
+    case soft
+    /// `--mixed`: move HEAD and reset the index; working tree untouched (default).
+    case mixed
+    /// `--hard`: move HEAD, reset the index AND discard all working-tree changes.
+    /// Destructive — callers must confirm with the user first.
+    case hard
+}
+
+/// Move the current branch HEAD to a commit. Native equivalent of GitHub
+/// Desktop's `reset.ts`. `--hard` is destructive; the UI must confirm.
+protocol ResetProviding: Sendable {
+    /// `git reset --soft|--mixed|--hard <sha>`.
+    func reset(to commit: Commit, mode: ResetMode, in repositoryURL: URL) async throws
+}
+
+// MARK: - Reorder
+
+/// Reorder commits via an interactive rebase. Native equivalent of GitHub
+/// Desktop's `reorder.ts`.
+protocol ReorderProviding: Sendable {
+    /// Rewrite history so the selected commits appear in `orderedCommits` order
+    /// (newest-first, as the UI lists them). They must be a subset of the
+    /// commits reachable from HEAD; every other commit keeps its position. On
+    /// conflict the rebase is aborted (`git rebase --abort`) and a `GitAppError`
+    /// is thrown, leaving the working tree clean.
+    func reorder(orderedCommits: [Commit], in repositoryURL: URL) async throws
+}

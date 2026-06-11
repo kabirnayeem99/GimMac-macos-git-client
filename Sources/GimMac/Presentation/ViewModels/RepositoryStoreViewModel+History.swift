@@ -144,4 +144,40 @@ extension RepositoryStoreViewModel {
             errorMessage = error.localizedDescription
         }
     }
+
+    func resetToSelectedCommit(mode: ResetMode) async {
+        guard let repository = selectedRepository,
+              let resetProvider,
+              let commit = selectedCommit else { return }
+
+        isResetting = true
+        errorMessage = nil
+        defer { isResetting = false }
+
+        do {
+            try await resetProvider.reset(to: commit, mode: mode, in: repository.url)
+            historyHandler.selectCommit(at: 0)
+            await refreshRepositoryScreenData()
+        } catch {
+            errorMessage = error.localizedDescription
+        }
+    }
+
+    func reorderCommits(_ orderedCommits: [Commit]) async {
+        guard let repository = selectedRepository,
+              let reorderProvider,
+              orderedCommits.count >= 2 else { return }
+
+        isReordering = true
+        errorMessage = nil
+        defer { isReordering = false }
+
+        do {
+            try await reorderProvider.reorder(orderedCommits: orderedCommits, in: repository.url)
+            historyHandler.selectCommit(at: 0)
+            await refreshRepositoryScreenData()
+        } catch {
+            errorMessage = error.localizedDescription
+        }
+    }
 }

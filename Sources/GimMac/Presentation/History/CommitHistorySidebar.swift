@@ -8,7 +8,7 @@ struct CommitHistorySidebar: View {
     @State private var activeSheet: HistorySheet?
 
     private enum HistorySheet: Int, Identifiable {
-        case squash, createTag, createBranch
+        case squash, createTag, createBranch, reset, reorder
         var id: Int { rawValue }
     }
 
@@ -103,6 +103,26 @@ struct CommitHistorySidebar: View {
                         onCancel: { activeSheet = nil }
                     )
                 }
+            case .reset:
+                if let commit = viewModel.selectedCommit {
+                    ResetToCommitSheet(
+                        commit: commit,
+                        onConfirm: { mode in
+                            await viewModel.resetToSelectedCommit(mode: mode)
+                            activeSheet = nil
+                        },
+                        onCancel: { activeSheet = nil }
+                    )
+                }
+            case .reorder:
+                ReorderCommitsSheet(
+                    commits: viewModel.selectedHistoryCommits,
+                    onConfirm: { ordered in
+                        await viewModel.reorderCommits(ordered)
+                        activeSheet = nil
+                    },
+                    onCancel: { activeSheet = nil }
+                )
             }
         }
     }
@@ -119,7 +139,9 @@ struct CommitHistorySidebar: View {
             Button("Squash \(count) Commits…") {
                 activeSheet = .squash
             }
-            Button("Reorder \(count) Commits…") {}
+            Button("Reorder \(count) Commits…") {
+                activeSheet = .reorder
+            }
         } else {
             Button("Cherry-pick Commit") {
                 Task { await viewModel.cherryPickSelectedCommits() }
@@ -133,6 +155,9 @@ struct CommitHistorySidebar: View {
             }
             Button("Create Tag…") {
                 activeSheet = .createTag
+            }
+            Button("Reset to Commit…") {
+                activeSheet = .reset
             }
         }
     }

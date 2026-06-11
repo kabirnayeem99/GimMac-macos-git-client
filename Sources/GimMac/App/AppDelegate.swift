@@ -45,7 +45,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         repositoryCloneProvider: GitRepositoryCloneService(client: gitClient),
         revertProvider: GitRevertProvider(client: gitClient),
         cherryPickProvider: GitCherryPickProvider(client: gitClient),
-        tagProvider: GitTagProvider(client: gitClient)
+        tagProvider: GitTagProvider(client: gitClient),
+        resetProvider: GitResetProvider(client: gitClient),
+        reorderProvider: GitReorderProvider(client: gitClient)
     )
 
     // MARK: - Lifecycle
