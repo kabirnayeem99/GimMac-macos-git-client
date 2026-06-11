@@ -37,6 +37,13 @@ final class GitMergeService: MergeBranchProviding, Sendable {
         _ = try await client.run(["merge", "--abort"], in: repositoryURL, timeout: 30)
     }
 
+    func createMergeCommit(in repositoryURL: URL) async throws {
+        // Finalize a conflict-resolved merge. Like GitHub Desktop, a plain
+        // `git commit --no-edit` records the merge using the prepared MERGE_MSG
+        // rather than `git merge --continue`.
+        _ = try await client.run(["commit", "--no-edit"], in: repositoryURL, timeout: 30)
+    }
+
     /// Runs a merge, translating git's exit-code semantics into `MergeOutcome`.
     /// A conflicted merge exits non-zero with "CONFLICT" on stdout; an
     /// up-to-date merge succeeds with "Already up to date".

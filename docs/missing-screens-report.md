@@ -17,7 +17,7 @@ Scope: pure-Git operations only (no GitHub API/auth), per the source inventory.
 | 4 | History Screen | ✅ Done | view/diff/compare + revert + cherry-pick + tag + create-branch-from-commit + reset-to-commit (soft/mixed/hard) all wired |
 | 5 | Branches Screen | ✅ Done | create/switch/delete/rename/compare/update-from-default all wired |
 | 6 | Fetch/Pull/Push bar | ✅ Done | + force-push-with-lease, publish — `TopToolbar`, `GitRemoteSyncService` |
-| 7 | **Merge Conflict Resolution** | ❌ Missing | detects conflicts + blocks commit, but tells user *"run continue/skip/abort from the terminal"* (`BranchDialogPresenter.swift:228`). No resolution UI |
+| 7 | Merge Conflict Resolution | ✅ Done | `ConflictsDialogView` sheet: per-file resolve (ours/theirs), open-in-editor, mark-resolved, merge-tool launch, continue/abort for merge+rebase+cherry-pick. `ConflictResolutionProviding` / `GitConflictService`. Replaces former punt-to-terminal |
 | 8 | **Stash Screen** | ❌ Missing | only auto-stash-on-switch (`StashAndSwitchSheetController`). No stash list/manage screen. Backend supports single stash only (`fetchStash` returns one) |
 | 9 | Clone Dialog | ✅ Done | `CloneRepositoryWindowController` |
 | 10 | Create Repository | 🟡 Partial | `git init` done. No README / .gitignore template / license options |
@@ -32,11 +32,21 @@ Scope: pure-Git operations only (no GitHub API/auth), per the source inventory.
 
 ### ❌ Fully missing screens
 
-1. **Merge Conflict Resolution screen** — largest gap. Backend has `abortMerge` /
-   `continueRebase` / `skipCommit` (`MergeBranchProviding`, `RebaseProviding`) but
-   no UI; punts the user to the terminal.
-2. **Stash management screen** — list stashes, apply/pop/drop from UI. Only
+1. **Stash management screen** — list stashes, apply/pop/drop from UI. Only
    single-stash backend + auto-stash-on-switch exists.
+
+### ✅ Merge Conflict Resolution (closed)
+
+`ConflictsDialogView` (SwiftUI sheet) + `ConflictResolutionProviding` /
+`GitConflictService`: classifies unmerged files by porcelain `XY` code, counts
+markers via `git diff --check`, resolves per file (`checkout --ours/--theirs`
++ `add`, or `rm`), launches the global merge tool (`git mergetool`, repo-local
+tool overrides refused), and drives continue/abort for merge
+(`git commit --no-edit`), rebase, and cherry-pick. Replaces the former
+punt-to-terminal alerts in `BranchDialogPresenter`.
+
+Out of scope (V1): in-app 3-way merge editor (`DiffDocument` conflict line
+kind); undo-resolution.
 
 ### ❌ Missing History right-click actions (doc §4)
 
@@ -66,8 +76,8 @@ Scope: pure-Git operations only (no GitHub API/auth), per the source inventory.
 
 Highest-value gaps vs the inventory:
 
-1. Merge conflict resolution screen (currently delegates to terminal) — **now the top remaining gap**
+1. ~~Merge conflict resolution screen~~ ✅ done — screen #7 closed
 2. ~~Tag commit~~ ✅ done
 3. ~~Revert + cherry-pick context-menu actions~~ ✅ done
 4. ~~Reset-to-commit + Reorder commits~~ ✅ done — screens #4 and #14 fully closed
-4. Stash management screen
+5. Stash management screen — **now the top remaining gap**

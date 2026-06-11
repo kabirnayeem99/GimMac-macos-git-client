@@ -355,6 +355,31 @@ final class GitCherryPickProvider: CherryPickProviding, Sendable {
             throw error
         }
     }
+
+    func continueCherryPick(in repositoryURL: URL) async throws -> RebaseOutcome {
+        do {
+            // Force a no-op editor so the prepared commit message is accepted
+            // non-interactively (matches `continueRebase`).
+            _ = try await client.run(
+                ["-c", "core.editor=true", "cherry-pick", "--continue"],
+                in: repositoryURL, timeout: 120
+            )
+            return .completed
+        } catch let error as GitAppError {
+            if case let .commandFailed(_, _, stdout, stderr) = error {
+                let output = stdout + "\n" + stderr
+                if output.localizedCaseInsensitiveContains("conflict")
+                    || output.localizedCaseInsensitiveContains("could not apply") {
+                    return .conflicts
+                }
+            }
+            throw error
+        }
+    }
+
+    func abortCherryPick(in repositoryURL: URL) async throws {
+        _ = try await client.run(["cherry-pick", "--abort"], in: repositoryURL, timeout: 15)
+    }
 }
 
 // MARK: - Tag

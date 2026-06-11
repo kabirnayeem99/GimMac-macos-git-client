@@ -14,7 +14,12 @@ final class GitRebaseService: RebaseProviding, Sendable {
     }
 
     func continueRebase(in repositoryURL: URL) async throws -> RebaseOutcome {
-        try await runRebase(["rebase", "--continue"], in: repositoryURL, timeout: 120)
+        // `rebase --continue` re-commits the resolved step and would otherwise
+        // launch an interactive editor for the message. Force a no-op editor so
+        // the prepared commit message is accepted non-interactively.
+        try await runRebase(
+            ["-c", "core.editor=true", "rebase", "--continue"], in: repositoryURL, timeout: 120
+        )
     }
 
     func skipCommit(in repositoryURL: URL) async throws -> RebaseOutcome {

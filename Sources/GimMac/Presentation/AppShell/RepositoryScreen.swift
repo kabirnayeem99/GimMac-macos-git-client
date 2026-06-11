@@ -52,6 +52,12 @@ struct RepositoryScreen: View {
         }
         .background(Color(NSColor.windowBackgroundColor))
         .frame(minWidth: 1180, minHeight: 740)
+        .sheet(isPresented: Binding(
+            get: { viewModel.isResolvingConflicts },
+            set: { if !$0 { viewModel.cancelConflictResolution() } }
+        )) {
+            ConflictsDialogView(viewModel: viewModel)
+        }
         .task {
             await viewModel.refreshRepositoryScreenData()
             await viewModel.loadSavedRepositories()

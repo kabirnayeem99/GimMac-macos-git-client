@@ -38,7 +38,14 @@ extension RepositoryStoreViewModel {
                 guard case .valid(let summary) = tip else { return }
                 try await provider.publishBranch(named: summary.name, remote: remote, in: repository.url)
 
-            case .publishRepository, .commit, .merge, .rebase, .cherryPick:
+            case .merge, .rebase, .cherryPick:
+                // Mid-conflict: the primary button ("Continue Merge/Rebase/
+                // Cherry-Pick") opens the conflict resolution sheet.
+                isSyncInProgress = false
+                await beginConflictResolution()
+                return
+
+            case .publishRepository, .commit:
                 return
             }
 

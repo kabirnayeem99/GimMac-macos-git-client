@@ -47,7 +47,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         cherryPickProvider: GitCherryPickProvider(client: gitClient),
         tagProvider: GitTagProvider(client: gitClient),
         resetProvider: GitResetProvider(client: gitClient),
-        reorderProvider: GitReorderProvider(client: gitClient)
+        reorderProvider: GitReorderProvider(client: gitClient),
+        conflictResolver: GitConflictService(client: gitClient),
+        mergeService: GitMergeService(client: gitClient),
+        rebaseService: GitRebaseService(client: gitClient)
     )
 
     // MARK: - Lifecycle

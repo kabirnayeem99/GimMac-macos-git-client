@@ -226,6 +226,11 @@ protocol MergeBranchProviding: Sendable {
 
     /// `git merge --abort` — back out of a conflicted merge.
     func abortMerge(in repositoryURL: URL) async throws
+
+    /// `git commit --no-edit` — finalize a merge after its conflicts have been
+    /// resolved and staged. GitHub Desktop's `createMergeCommit` (`commit.ts`)
+    /// uses a plain commit rather than `git merge --continue`.
+    func createMergeCommit(in repositoryURL: URL) async throws
 }
 
 // MARK: - Rebase
@@ -281,6 +286,51 @@ protocol CherryPickProviding: Sendable {
     /// the operation is aborted (`git cherry-pick --abort`) and a `GitAppError`
     /// is thrown, leaving the working tree clean.
     func cherryPick(commits: [Commit], in repositoryURL: URL) async throws
+
+    /// `git cherry-pick --continue` after resolving conflicts. A step that stops
+    /// on a further conflict reports `.conflicts`.
+    func continueCherryPick(in repositoryURL: URL) async throws -> RebaseOutcome
+
+    /// `git cherry-pick --abort` — restore the pre-cherry-pick state.
+    func abortCherryPick(in repositoryURL: URL) async throws
+}
+
+// MARK: - Conflict resolution
+
+/// Per-file conflict resolution for an in-progress merge / rebase / cherry-pick.
+/// Native equivalent of GitHub Desktop's `stage.ts` + `diff-check.ts` plumbing
+/// behind the conflicts dialog. The continue/abort half of the state machine
+/// lives on `MergeBranchProviding` / `RebaseProviding` / `CherryPickProviding`.
+protocol ConflictResolutionProviding: Sendable {
+    /// Unmerged files from `git status` porcelain, classified by `XY` code, with
+    /// marker counts (`git diff --check`) attached to marker-based conflicts.
+    func conflictedFiles(in repositoryURL: URL) async throws -> [ConflictedFileStatus]
+
+    /// Resolve a file by choosing a side. For an updated/added side:
+    /// `git checkout --ours|--theirs -- <path>` then `git add -- <path>`.
+    /// For a deleted side: `git rm -- <path>`.
+    func stageManualConflictResolution(
+        _ path: String,
+        summary: UnmergedEntrySummary,
+        resolution: ManualConflictResolution,
+        in repositoryURL: URL
+    ) async throws
+
+    /// `git add -- <path>` — mark a hand-edited file as resolved.
+    func markResolved(_ path: String, in repositoryURL: URL) async throws
+
+    /// `git rm -- <path>` — accept a deletion (both-deleted conflicts).
+    func removeConflictedFile(_ path: String, in repositoryURL: URL) async throws
+
+    /// The configured external merge tool name (`git config merge.tool`), or
+    /// `nil` when none is configured. Used to label / gate the "Open in Merge
+    /// Tool" action.
+    func mergeToolName(in repositoryURL: URL) async -> String?
+
+    /// `git mergetool --no-prompt -- <path>` against the globally configured
+    /// tool. Refuses to honor a repository-local merge-tool override (untrusted
+    /// `.git/config` executable) and throws instead.
+    func openInMergeTool(_ path: String, in repositoryURL: URL) async throws
 }
 
 // MARK: - Tag

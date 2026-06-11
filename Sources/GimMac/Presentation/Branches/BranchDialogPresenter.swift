@@ -223,10 +223,7 @@ final class BranchDialogPresenter {
             await repositoryStore?.refreshRepositoryScreenData()
             await viewModel.loadBranches()
             if outcome == .conflicts {
-                showError(
-                    title: "Rebase paused",
-                    message: "Resolve conflicts, then run continue/skip/abort from the terminal."
-                )
+                await repositoryStore?.beginConflictResolution()
             }
         } catch {
             showError(title: "Rebase failed", message: error.localizedDescription)
@@ -240,10 +237,7 @@ final class BranchDialogPresenter {
         case .alreadyUpToDate:
             showInfo(title: "Already up to date", message: "Nothing to merge from \(branch).")
         case .conflicts:
-            showError(
-                title: "Merge has conflicts",
-                message: "Resolve conflicts in the working tree, then commit or abort."
-            )
+            Task { await repositoryStore?.beginConflictResolution() }
         }
     }
 

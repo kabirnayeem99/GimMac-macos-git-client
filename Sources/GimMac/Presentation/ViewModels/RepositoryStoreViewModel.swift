@@ -39,6 +39,9 @@ final class RepositoryStoreViewModel {
     let tagProvider: TagProviding?
     let resetProvider: ResetProviding?
     let reorderProvider: ReorderProviding?
+    let conflictResolver: ConflictResolutionProviding?
+    let mergeService: MergeBranchProviding?
+    let rebaseService: RebaseProviding?
 
     let commitForm = CommitFormHandler()
     let changedFilesHandler = ChangedFilesHandler()
@@ -69,6 +72,15 @@ final class RepositoryStoreViewModel {
     var isResetting = false
     var isReordering = false
     var stashEntry: StashEntry?
+
+    // Merge-conflict resolution sheet state. `isResolvingConflicts` drives the
+    // sheet; `conflictedFiles` is the live unresolved set; `initialConflictCount`
+    // anchors the "X of N resolved" banner.
+    var isResolvingConflicts = false
+    var conflictedFiles: [ConflictedFileStatus] = []
+    var initialConflictCount = 0
+    var conflictMergeToolName: String?
+    var isConflictActionInProgress = false
 
     /// Which top-level screen tab is shown: 0 = Changes, 1 = History.
     /// Bridged from SwiftUI `@State` so the menu bar (View → Show Changes/History)
@@ -214,7 +226,10 @@ final class RepositoryStoreViewModel {
         cherryPickProvider: CherryPickProviding? = nil,
         tagProvider: TagProviding? = nil,
         resetProvider: ResetProviding? = nil,
-        reorderProvider: ReorderProviding? = nil
+        reorderProvider: ReorderProviding? = nil,
+        conflictResolver: ConflictResolutionProviding? = nil,
+        mergeService: MergeBranchProviding? = nil,
+        rebaseService: RebaseProviding? = nil
     ) {
         self.logger = logger
         self.inspector = inspector
@@ -240,6 +255,9 @@ final class RepositoryStoreViewModel {
         self.tagProvider = tagProvider
         self.resetProvider = resetProvider
         self.reorderProvider = reorderProvider
+        self.conflictResolver = conflictResolver
+        self.mergeService = mergeService
+        self.rebaseService = rebaseService
         self.diffHandler = DiffHandler(diffProvider: diffProvider)
     }
 }
