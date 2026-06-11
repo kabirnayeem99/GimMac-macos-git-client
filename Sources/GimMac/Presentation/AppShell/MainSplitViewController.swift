@@ -190,27 +190,17 @@ final class MainSplitViewController: NSViewController {
     }
 
     @objc func menuNewRepository(_ sender: Any?) {
-        let panel = NSOpenPanel()
-        panel.title = "New Repository"
-        panel.message = "Choose or create an empty folder. GimMac will run `git init` here."
-        panel.prompt = "Create"
-        panel.canChooseFiles = false
-        panel.canChooseDirectories = true
-        panel.canCreateDirectories = true
-        panel.allowsMultipleSelection = false
-        panel.directoryURL = FileManager.default.homeDirectoryForCurrentUser
-
-        let handle: (NSApplication.ModalResponse) -> Void = { [weak self] response in
-            guard response == .OK, let url = panel.url else { return }
-            Task { [weak self] in
-                await self?.viewModel.createRepository(at: url)
+        let controller = CreateRepositoryWindowController(
+            loadTemplates: { [weak self] in
+                await self?.viewModel.loadRepositoryCreationTemplates() ?? ([], [])
+            },
+            onCreate: { [weak self] options, destination in
+                Task { [weak self] in
+                    await self?.viewModel.createRepository(with: options, at: destination)
+                }
             }
-        }
-        if let window = view.window {
-            panel.beginSheetModal(for: window, completionHandler: handle)
-        } else {
-            handle(panel.runModal())
-        }
+        )
+        presentAsSheet(controller.viewController)
     }
 
     @objc func menuCloneRepository(_ sender: Any?) {

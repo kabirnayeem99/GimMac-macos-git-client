@@ -1,0 +1,7 @@
+[
+  { "name": "MIT License", "featured": true, "file": "mit.txt" },
+  { "name": "BSD 3-Clause License", "featured": true, "file": "bsd-3-clause.txt" },
+  { "name": "ISC License", "featured": true, "file": "isc.txt" },
+  { "name": "BSD 2-Clause License", "featured": false, "file": "bsd-2-clause.txt" },
+  { "name": "The Unlicense", "featured": false, "file": "unlicense.txt" }
+]

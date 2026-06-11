@@ -30,6 +30,41 @@ extension RepositoryStoreViewModel {
         }
     }
 
+    /// Load picker data for the Create Repository sheet from the template
+    /// catalog: `( .gitignore template names, licenses )`. Empty when no
+    /// catalog is wired.
+    func loadRepositoryCreationTemplates() async -> ([String], [LicenseTemplate]) {
+        guard let catalog = templateCatalog else { return ([], []) }
+        async let names = catalog.gitIgnoreTemplateNames()
+        async let licenses = catalog.licenses()
+        return await (names, licenses)
+    }
+
+    /// Run the full create-repository pipeline (`git init` → scaffold chosen
+    /// files → "Initial commit"), then select the new repository. Native
+    /// equivalent of GitHub Desktop's `createRepository` form submit.
+    func createRepository(with options: RepositoryCreationOptions, at directoryURL: URL) async {
+        guard let creator = repositoryCreator else {
+            errorMessage = "Repository creation service is unavailable."
+            return
+        }
+        isLoading = true
+        errorMessage = nil
+        do {
+            try await creator.createRepository(with: options, at: directoryURL)
+            isLoading = false
+            await selectRepository(at: directoryURL)
+        } catch {
+            isLoading = false
+            logger.error(
+                "Repository creation failed",
+                category: .repository,
+                metadata: ["error": error.localizedDescription]
+            )
+            errorMessage = error.localizedDescription
+        }
+    }
+
     /// `git clone` `url` into `destinationURL`, then select it. Native
     /// equivalent of GitHub Desktop's `clone-repository` menu event.
     func cloneRepository(from url: String, to destinationURL: URL) async {

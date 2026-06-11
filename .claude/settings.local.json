@@ -5,7 +5,9 @@
       "mcp__lean-ctx__ctx_read",
       "mcp__lean-ctx__ctx_search",
       "mcp__lean-ctx__ctx_shell",
-      "mcp__jcodemunch__resolve_repo"
+      "mcp__jcodemunch__resolve_repo",
+      "Skill(macos)",
+      "Skill(macos:*)"
     ]
   }
 }

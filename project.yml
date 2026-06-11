@@ -35,6 +35,13 @@ targets:
     platform: macOS
     sources:
       - path: Sources/GimMac
+        excludes:
+          - "Resources/Templates"
+      # Folder reference (blue) — preserves the GitIgnore/ and Licenses/
+      # subdirectory layout in the app bundle so the catalog can enumerate them.
+      - path: Sources/GimMac/Resources/Templates
+        type: folder
+        buildPhase: resources
     settings:
       base:
         PRODUCT_BUNDLE_IDENTIFIER: io.github.kabirnayeem99.gimmac

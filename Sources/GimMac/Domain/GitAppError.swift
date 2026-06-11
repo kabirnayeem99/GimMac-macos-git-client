@@ -12,6 +12,9 @@ enum GitAppError: Error, Equatable, LocalizedError {
     case bareRepository
     case unsafeRepository(path: String)
     case signingFailed
+    /// A scaffold file (README, .gitignore, LICENSE, …) could not be written
+    /// while creating a new repository.
+    case scaffoldingFailed(file: String, reason: String)
 
     var errorDescription: String? {
         switch self {
@@ -38,6 +41,8 @@ enum GitAppError: Error, Equatable, LocalizedError {
             return "Git refused to open \(path) due to unsafe ownership. Run: git config --global --add safe.directory \(path)"
         case .signingFailed:
             return "Git could not sign the commit. Check that gpg (or your configured signing tool) is installed and your signing key is available."
+        case let .scaffoldingFailed(file, reason):
+            return "Could not write \(file) while creating the repository: \(reason)"
         }
     }
 }

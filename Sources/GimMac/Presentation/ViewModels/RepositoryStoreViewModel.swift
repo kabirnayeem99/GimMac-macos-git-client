@@ -42,6 +42,8 @@ final class RepositoryStoreViewModel {
     let conflictResolver: ConflictResolutionProviding?
     let mergeService: MergeBranchProviding?
     let rebaseService: RebaseProviding?
+    let repositoryCreator: RepositoryCreating?
+    let templateCatalog: RepositoryTemplateCatalog?
 
     let commitForm = CommitFormHandler()
     let changedFilesHandler = ChangedFilesHandler()
@@ -229,7 +231,9 @@ final class RepositoryStoreViewModel {
         reorderProvider: ReorderProviding? = nil,
         conflictResolver: ConflictResolutionProviding? = nil,
         mergeService: MergeBranchProviding? = nil,
-        rebaseService: RebaseProviding? = nil
+        rebaseService: RebaseProviding? = nil,
+        repositoryCreator: RepositoryCreating? = nil,
+        templateCatalog: RepositoryTemplateCatalog? = nil
     ) {
         self.logger = logger
         self.inspector = inspector
@@ -258,6 +262,8 @@ final class RepositoryStoreViewModel {
         self.conflictResolver = conflictResolver
         self.mergeService = mergeService
         self.rebaseService = rebaseService
+        self.repositoryCreator = repositoryCreator
+        self.templateCatalog = templateCatalog
         self.diffHandler = DiffHandler(diffProvider: diffProvider)
     }
 }
