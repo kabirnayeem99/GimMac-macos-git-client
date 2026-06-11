@@ -139,4 +139,5 @@ private struct StubTemplateCatalog: RepositoryTemplateCatalog {
 private struct StubConfigReader: GitConfigReading {
     func globalUserName() async throws -> String? { "Ada Lovelace" }
     func globalUserEmail() async throws -> String? { "ada@example.com" }
+    func globalDefaultBranch() async throws -> String? { "main" }
 }

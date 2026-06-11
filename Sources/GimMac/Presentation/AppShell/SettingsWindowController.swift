@@ -2,9 +2,8 @@ import AppKit
 
 @MainActor
 private enum SettingsPane: String, CaseIterable {
-    case integrations = "Integrations"
-    case copilot = "Copilot"
     case git = "Git"
+    case integrations = "Integrations"
     case appearance = "Appearance"
     case notifications = "Notifications"
     case prompts = "Prompts"
@@ -13,9 +12,8 @@ private enum SettingsPane: String, CaseIterable {
 
     var symbolName: String {
         switch self {
-        case .integrations: return "square.stack.3d.up"
-        case .copilot: return "sparkles"
         case .git: return "point.topleft.down.curvedto.point.bottomright.up"
+        case .integrations: return "square.stack.3d.up"
         case .appearance: return "paintbrush"
         case .notifications: return "bell"
         case .prompts: return "questionmark.circle"
@@ -27,8 +25,8 @@ private enum SettingsPane: String, CaseIterable {
 
 @MainActor
 final class SettingsWindowController: NSWindowController {
-    init(editorService: any ExternalEditorServiceProtocol) {
-        let rootViewController = SettingsRootViewController(editorService: editorService)
+    init(environment: SettingsEnvironment) {
+        let rootViewController = SettingsRootViewController(environment: environment)
         let window = NSWindow(contentViewController: rootViewController)
         window.title = "Settings"
         window.setContentSize(NSSize(width: 960, height: 620))
@@ -50,23 +48,29 @@ final class SettingsWindowController: NSWindowController {
 
 @MainActor
 private final class SettingsRootViewController: NSSplitViewController {
-    private let supportsCopilot = false
-    private lazy var panes: [SettingsPane] = {
-        SettingsPane.allCases.filter { supportsCopilot || $0 != .copilot }
-    }()
-
-    private let editorService: any ExternalEditorServiceProtocol
+    private let panes = SettingsPane.allCases
+    private let environment: SettingsEnvironment
     private let sidebarController = SidebarViewController()
-    private lazy var detailController = SettingsDetailViewController(editorService: editorService)
+    private let detailContainer = NSViewController()
 
-    init(editorService: any ExternalEditorServiceProtocol) {
-        self.editorService = editorService
+    /// Pane view controllers are built lazily and cached so state (e.g. loaded
+    /// Git config, custom-integration forms) survives re-selection.
+    private var paneControllers: [SettingsPane: NSViewController] = [:]
+    private var currentPaneController: NSViewController?
+
+    init(environment: SettingsEnvironment) {
+        self.environment = environment
         super.init(nibName: nil, bundle: nil)
     }
 
     @available(*, unavailable)
     required init?(coder: NSCoder) {
         fatalError("init(coder:) has not been implemented")
+    }
+
+    override func loadView() {
+        super.loadView()
+        detailContainer.view = NSView()
     }
 
     override func viewDidLoad() {
@@ -79,18 +83,59 @@ private final class SettingsRootViewController: NSSplitViewController {
         sidebarItem.canCollapse = false
         addSplitViewItem(sidebarItem)
 
-        let detailItem = NSSplitViewItem(viewController: detailController)
+        let detailItem = NSSplitViewItem(viewController: detailContainer)
         detailItem.minimumThickness = 520
         detailItem.canCollapse = false
         addSplitViewItem(detailItem)
 
         sidebarController.onSelectionChanged = { [weak self] index in
             guard let self, panes.indices.contains(index) else { return }
-            detailController.configure(for: panes[index])
+            show(panes[index])
         }
         sidebarController.configure(with: panes)
-        detailController.configure(for: panes.first ?? .integrations)
         sidebarController.selectFirstItem()
+    }
+
+    private func show(_ pane: SettingsPane) {
+        let controller = paneControllers[pane] ?? {
+            let created = makeController(for: pane)
+            paneControllers[pane] = created
+            return created
+        }()
+        guard controller !== currentPaneController else { return }
+
+        currentPaneController?.view.removeFromSuperview()
+        currentPaneController?.removeFromParent()
+
+        addChild(controller)
+        controller.view.translatesAutoresizingMaskIntoConstraints = false
+        detailContainer.view.addSubview(controller.view)
+        NSLayoutConstraint.activate([
+            controller.view.topAnchor.constraint(equalTo: detailContainer.view.topAnchor),
+            controller.view.leadingAnchor.constraint(equalTo: detailContainer.view.leadingAnchor),
+            controller.view.trailingAnchor.constraint(equalTo: detailContainer.view.trailingAnchor),
+            controller.view.bottomAnchor.constraint(equalTo: detailContainer.view.bottomAnchor)
+        ])
+        currentPaneController = controller
+    }
+
+    private func makeController(for pane: SettingsPane) -> NSViewController {
+        switch pane {
+        case .git:
+            return GitSettingsPaneController(viewModel: environment.makeGitViewModel())
+        case .integrations:
+            return IntegrationsSettingsPaneController(viewModel: environment.makeIntegrationsViewModel())
+        case .appearance:
+            return AppearanceSettingsPaneController(viewModel: environment.makeAppearanceViewModel())
+        case .notifications:
+            return NotificationsSettingsPaneController(viewModel: environment.makeNotificationsViewModel())
+        case .prompts:
+            return PromptsSettingsPaneController(viewModel: environment.makePromptsViewModel())
+        case .advanced:
+            return AdvancedSettingsPaneController(viewModel: environment.makeAdvancedViewModel())
+        case .accessibility:
+            return AccessibilitySettingsPaneController(viewModel: environment.makeAccessibilityViewModel())
+        }
     }
 }
 
@@ -184,269 +229,5 @@ private final class SidebarViewController: NSViewController, NSTableViewDataSour
     @objc
     private func selectionDidChange() {
         onSelectionChanged?(tableView.selectedRow)
-    }
-}
-
-@MainActor
-private final class FlippedStackView: NSStackView {
-    override var isFlipped: Bool { true }
-}
-
-@MainActor
-private final class SettingsDetailViewController: NSViewController {
-    private let contentStack = FlippedStackView()
-    private let scrollView = NSScrollView()
-
-    private let editorService: any ExternalEditorServiceProtocol
-    private var availableEditors: [ExternalEditor] = []
-    private weak var editorPopupButton: NSPopUpButton?
-
-    init(editorService: any ExternalEditorServiceProtocol) {
-        self.editorService = editorService
-        super.init(nibName: nil, bundle: nil)
-    }
-
-    @available(*, unavailable)
-    required init?(coder: NSCoder) {
-        fatalError("init(coder:) has not been implemented")
-    }
-
-    override func loadView() {
-        view = NSView()
-        view.translatesAutoresizingMaskIntoConstraints = false
-
-        scrollView.translatesAutoresizingMaskIntoConstraints = false
-        scrollView.hasVerticalScroller = true
-        scrollView.drawsBackground = false
-        scrollView.autohidesScrollers = true
-
-        contentStack.orientation = .vertical
-        contentStack.alignment = .leading
-        contentStack.spacing = 16
-        contentStack.edgeInsets = NSEdgeInsets(top: 24, left: 24, bottom: 24, right: 24)
-        contentStack.translatesAutoresizingMaskIntoConstraints = false
-
-        scrollView.documentView = contentStack
-        view.addSubview(scrollView)
-
-        NSLayoutConstraint.activate([
-            scrollView.topAnchor.constraint(equalTo: view.topAnchor),
-            scrollView.leadingAnchor.constraint(equalTo: view.leadingAnchor),
-            scrollView.trailingAnchor.constraint(equalTo: view.trailingAnchor),
-            scrollView.bottomAnchor.constraint(equalTo: view.bottomAnchor),
-
-            contentStack.topAnchor.constraint(equalTo: scrollView.contentView.topAnchor),
-            contentStack.leadingAnchor.constraint(equalTo: scrollView.contentView.leadingAnchor),
-            contentStack.trailingAnchor.constraint(equalTo: scrollView.contentView.trailingAnchor),
-            contentStack.bottomAnchor.constraint(lessThanOrEqualTo: scrollView.contentView.bottomAnchor)
-        ])
-    }
-
-    func configure(for pane: SettingsPane) {
-        contentStack.arrangedSubviews.forEach { $0.removeFromSuperview() }
-        editorPopupButton = nil
-        contentStack.addArrangedSubview(makeHeader(title: pane.rawValue))
-
-        switch pane {
-        case .integrations:
-            buildIntegrationsPane()
-        case .copilot:
-            addGroup("Copilot", rows: [
-                .popUp("Models", ["GPT-5.2", "GPT-5.4"]),
-                .popUp("Providers", ["OpenAI", "Local Provider"]),
-                .popUp("Commit message generation model", ["GPT-5.2", "GPT-5.4"]),
-                .button("Add custom provider")
-            ])
-        case .git:
-            addGroup("Author", rows: [.text("Name"), .text("Email")])
-            addGroup("Default branch", rows: [.text("Default branch name for new repositories")])
-            addGroup("Hooks", rows: [
-                .check("Load shell environment for Git hooks"),
-                .check("Cache hook environment variables")
-            ])
-        case .appearance:
-            addGroup("Theme", rows: [.popUp("Theme", ["System", "Light", "Dark"])])
-            addGroup("Formatting", rows: [
-                .popUp("Date format", ["Locale default", "YYYY-MM-DD", "MM/DD/YYYY"]),
-                .popUp("Time format", ["Locale default", "24-hour", "12-hour"]),
-                .popUp("Number format", ["Locale default", "1,234.56", "1 234,56"]),
-                .check("Prefer absolute dates")
-            ])
-            addGroup("Diff", rows: [.stepper("Tab size", value: 4)])
-        case .notifications:
-            addGroup("Notifications", rows: [
-                .check("Enable desktop notifications"),
-                .note("Permission/settings hints")
-            ])
-        case .prompts:
-            addGroup("Prompts", rows: [
-                .check("Confirmation dialogs before destructive actions"),
-                .popUp("When switching branches with uncommitted changes", ["Ask every time", "Stash automatically", "Block switch"]),
-                .check("Commit length warning")
-            ])
-        case .advanced:
-            addGroup("Advanced", rows: [
-                .check("Background repository indicators"),
-                .check("Usage stats"),
-                .button("Network and credentials"),
-                .button("Git Credential Manager"),
-                .note("Windows OpenSSH option appears on Windows only")
-            ])
-        case .accessibility:
-            addGroup("Accessibility", rows: [
-                .check("Underline links"),
-                .check("Show check marks beside diff line numbers")
-            ])
-        }
-    }
-
-    private func buildIntegrationsPane() {
-        availableEditors = editorService.availableEditors()
-
-        let container = NSStackView()
-        container.orientation = .vertical
-        container.alignment = .leading
-        container.spacing = 10
-
-        let groupTitle = NSTextField(labelWithString: "External Editor")
-        groupTitle.font = .systemFont(ofSize: 15, weight: .semibold)
-        container.addArrangedSubview(groupTitle)
-
-        let row = NSStackView()
-        row.orientation = .horizontal
-        row.spacing = 12
-        row.addArrangedSubview(fixedLabel("Open with"))
-
-        let popup = NSPopUpButton()
-        popup.translatesAutoresizingMaskIntoConstraints = false
-        popup.widthAnchor.constraint(equalToConstant: 260).isActive = true
-
-        if availableEditors.isEmpty {
-            popup.addItem(withTitle: "No editors found")
-            popup.isEnabled = false
-        } else {
-            popup.addItems(withTitles: availableEditors.map { $0.name })
-            popup.target = self
-            popup.action = #selector(editorSelectionChanged(_:))
-
-            let savedID = UserDefaults.standard.string(forKey: ExternalEditorPreferences.selectedEditorKey)
-            if let savedID,
-               let index = availableEditors.firstIndex(where: { $0.bundleIdentifier == savedID }) {
-                popup.selectItem(at: index)
-            } else {
-                popup.selectItem(at: 0)
-            }
-        }
-
-        row.addArrangedSubview(popup)
-        editorPopupButton = popup
-        container.addArrangedSubview(row)
-
-        if availableEditors.isEmpty {
-            let note = NSTextField(labelWithString: "No supported editors found on this Mac.")
-            note.textColor = .secondaryLabelColor
-            container.addArrangedSubview(note)
-        }
-
-        container.setContentHuggingPriority(.defaultHigh, for: .vertical)
-        contentStack.addArrangedSubview(container)
-    }
-
-    @objc
-    private func editorSelectionChanged(_ sender: NSPopUpButton) {
-        let index = sender.indexOfSelectedItem
-        guard availableEditors.indices.contains(index) else { return }
-        let editor = availableEditors[index]
-        UserDefaults.standard.set(editor.bundleIdentifier, forKey: ExternalEditorPreferences.selectedEditorKey)
-    }
-
-    private enum Row {
-        case text(String)
-        case popUp(String, [String])
-        case check(String)
-        case stepper(String, value: Int)
-        case button(String)
-        case note(String)
-    }
-
-    private func makeHeader(title: String) -> NSView {
-        let label = NSTextField(labelWithString: title)
-        label.font = .systemFont(ofSize: 28, weight: .bold)
-        return label
-    }
-
-    private func addGroup(_ title: String, rows: [Row]) {
-        let container = NSStackView()
-        container.orientation = .vertical
-        container.alignment = .leading
-        container.spacing = 10
-
-        let groupTitle = NSTextField(labelWithString: title)
-        groupTitle.font = .systemFont(ofSize: 15, weight: .semibold)
-        container.addArrangedSubview(groupTitle)
-
-        for row in rows {
-            container.addArrangedSubview(makeRow(row))
-        }
-
-        container.setContentHuggingPriority(.defaultHigh, for: .vertical)
-        contentStack.addArrangedSubview(container)
-    }
-
-    private func makeRow(_ row: Row) -> NSView {
-        switch row {
-        case .text(let labelText):
-            let stack = NSStackView()
-            stack.orientation = .horizontal
-            stack.spacing = 12
-            stack.addArrangedSubview(fixedLabel(labelText))
-            let field = NSTextField(string: "")
-            field.placeholderString = labelText
-            field.controlSize = .large
-            field.translatesAutoresizingMaskIntoConstraints = false
-            field.widthAnchor.constraint(equalToConstant: 340).isActive = true
-            stack.addArrangedSubview(field)
-            return stack
-        case .popUp(let labelText, let values):
-            let stack = NSStackView()
-            stack.orientation = .horizontal
-            stack.spacing = 12
-            stack.addArrangedSubview(fixedLabel(labelText))
-            let popup = NSPopUpButton()
-            popup.addItems(withTitles: values)
-            popup.translatesAutoresizingMaskIntoConstraints = false
-            popup.widthAnchor.constraint(equalToConstant: 260).isActive = true
-            stack.addArrangedSubview(popup)
-            return stack
-        case .check(let labelText):
-            return NSButton(checkboxWithTitle: labelText, target: nil, action: nil)
-        case .stepper(let labelText, let value):
-            let stack = NSStackView()
-            stack.orientation = .horizontal
-            stack.spacing = 12
-            stack.addArrangedSubview(fixedLabel(labelText))
-            let field = NSTextField(labelWithString: "\(value)")
-            field.alignment = .center
-            field.translatesAutoresizingMaskIntoConstraints = false
-            field.widthAnchor.constraint(equalToConstant: 36).isActive = true
-            let stepper = NSStepper()
-            stepper.integerValue = value
-            stack.addArrangedSubview(field)
-            stack.addArrangedSubview(stepper)
-            return stack
-        case .button(let title):
-            return NSButton(title: title, target: nil, action: nil)
-        case .note(let text):
-            let label = NSTextField(labelWithString: text)
-            label.textColor = .secondaryLabelColor
-            return label
-        }
-    }
-
-    private func fixedLabel(_ text: String) -> NSTextField {
-        let label = NSTextField(labelWithString: text)
-        label.translatesAutoresizingMaskIntoConstraints = false
-        label.widthAnchor.constraint(equalToConstant: 280).isActive = true
-        return label
     }
 }

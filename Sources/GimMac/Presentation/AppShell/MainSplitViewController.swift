@@ -7,15 +7,18 @@ final class MainSplitViewController: NSViewController {
     private let viewModel: RepositoryStoreViewModel
     private let mergeService: MergeBranchProviding
     private let rebaseService: RebaseProviding
+    private let settingsStore: any AppSettingsStoring
 
     init(
         viewModel: RepositoryStoreViewModel,
         mergeService: MergeBranchProviding,
-        rebaseService: RebaseProviding
+        rebaseService: RebaseProviding,
+        settingsStore: any AppSettingsStoring
     ) {
         self.viewModel = viewModel
         self.mergeService = mergeService
         self.rebaseService = rebaseService
+        self.settingsStore = settingsStore
         super.init(nibName: nil, bundle: nil)
     }
 
@@ -214,6 +217,13 @@ final class MainSplitViewController: NSViewController {
 
     @objc func menuRemoveRepository(_ sender: Any?) {
         guard let repo = viewModel.selectedRepository else { return }
+
+        // Confirmation is gated by the Prompts setting (Settings → Prompts).
+        guard settingsStore.confirmRepositoryRemoval else {
+            Task { await viewModel.removeSelectedRepository() }
+            return
+        }
+
         let alert = NSAlert()
         alert.messageText = "Remove \(repo.displayName)?"
         alert.informativeText = "GimMac will forget this repository. Files on disk are not affected."
@@ -278,6 +288,12 @@ final class MainSplitViewController: NSViewController {
     }
 
     @objc func menuDiscardAllChanges(_ sender: Any?) {
+        // Confirmation is gated by the Prompts setting (Settings → Prompts).
+        guard settingsStore.confirmDiscardChanges else {
+            Task { await viewModel.discardAllChanges() }
+            return
+        }
+
         let alert = NSAlert()
         alert.messageText = "Discard all changes?"
         alert.informativeText = "All uncommitted changes in the working tree will be lost. This cannot be undone."

@@ -10,9 +10,16 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     private let logger = GimMacLogger()
     private lazy var gitClient = ProcessGitClient(logger: logger)
     private let editorService = NSWorkspaceExternalEditorService()
+    private let shellService = NSWorkspaceShellService()
     private lazy var remoteService = GitRemoteService(client: gitClient)
     private lazy var lfsService = GitLFSService(client: gitClient)
     private lazy var branchRenameService = GitBranchOperator(client: gitClient)
+
+    // Settings infrastructure (composition root).
+    private let settingsStore: any AppSettingsStoring = UserDefaultsAppSettingsStore()
+    private let themeApplier = AppKitThemeController()
+    private let notificationAuthorizer = UserNotificationAuthorizer()
+    private lazy var gitConfigService = GitConfigService(client: gitClient)
 
     private static let onboardingCompletedKey = "io.github.kabirnayeem99.gimmac.onboardingCompleted"
     private lazy var repositoryInspector = LocalGitRepositoryInspector(gitClient: gitClient)
@@ -72,6 +79,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         }
 
         NSApp.setActivationPolicy(.regular)
+        themeApplier.apply(settingsStore.selectedTheme)
         installMainMenu()
 
         if UserDefaults.standard.bool(forKey: Self.onboardingCompletedKey) {
@@ -157,7 +165,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         window.contentViewController = MainSplitViewController(
             viewModel: repositoryStoreViewModel,
             mergeService: GitMergeService(client: gitClient),
-            rebaseService: GitRebaseService(client: gitClient)
+            rebaseService: GitRebaseService(client: gitClient),
+            settingsStore: settingsStore
         )
 
         return NSWindowController(window: window)
@@ -187,7 +196,16 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     @objc
     func showSettingsWindow(_ sender: Any?) {
         if settingsWindowController == nil {
-            settingsWindowController = SettingsWindowController(editorService: editorService)
+            let environment = SettingsEnvironment(
+                settingsStore: settingsStore,
+                configReader: gitConfigService,
+                configWriter: gitConfigService,
+                editorService: editorService,
+                shellService: shellService,
+                themeApplier: themeApplier,
+                notificationAuthorizer: notificationAuthorizer
+            )
+            settingsWindowController = SettingsWindowController(environment: environment)
         }
         settingsWindowController?.showWindow(nil)
         settingsWindowController?.window?.makeKeyAndOrderFront(nil)

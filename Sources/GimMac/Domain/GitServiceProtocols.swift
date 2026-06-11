@@ -159,11 +159,16 @@ protocol UpdateFromDefaultProviding: Sendable {
 protocol GitConfigReading: Sendable {
     func globalUserName() async throws -> String?
     func globalUserEmail() async throws -> String?
+    /// `config --global --get init.defaultBranch` — nil when unset.
+    func globalDefaultBranch() async throws -> String?
 }
 
 protocol GitConfigWriting: Sendable {
     func setGlobalUserName(_ name: String) async throws
     func setGlobalUserEmail(_ email: String) async throws
+    /// `config --global init.defaultBranch <branch>` — the default branch name
+    /// honoured by `git init` for new repositories.
+    func setGlobalDefaultBranch(_ branch: String) async throws
 }
 
 // MARK: - Repository Settings
