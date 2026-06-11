@@ -75,12 +75,22 @@ protocol DiscardProviding: Sendable {
 }
 
 protocol StashProviding: Sendable {
+    /// The most recent stash (`stash@{0}`), or nil when the stack is empty.
     func fetchStash(in repositoryURL: URL) async throws -> StashEntry?
+    /// Every stash in the stack, newest-first (`stash@{0}` … `stash@{N}`).
+    /// Native equivalent of GitHub Desktop's `getStashes` (`git log -g refs/stash`).
+    func fetchAllStashes(in repositoryURL: URL) async throws -> [StashEntry]
     func applyStash(in repositoryURL: URL) async throws
     func dropStash(in repositoryURL: URL) async throws
     /// Push a new stash with the current working-tree changes (including untracked).
     /// Used by the stash-and-switch flow before swapping branches.
     func pushStash(in repositoryURL: URL, message: String?) async throws
+    /// `git stash apply <ref>` — restore the stash without removing it.
+    func applyStash(in repositoryURL: URL, ref: String) async throws
+    /// `git stash pop <ref>` — restore the stash and remove it from the stack.
+    func popStash(in repositoryURL: URL, ref: String) async throws
+    /// `git stash drop <ref>` — remove the stash without restoring it.
+    func dropStash(in repositoryURL: URL, ref: String) async throws
 }
 
 // MARK: - Branches

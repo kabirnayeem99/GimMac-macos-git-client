@@ -271,6 +271,12 @@ final class MainSplitViewController: NSViewController {
         Task { await viewModel.stashAllChanges() }
     }
 
+    @objc func menuManageStashes(_ sender: Any?) {
+        guard let stashVM = viewModel.makeStashManagementViewModel() else { return }
+        let controller = StashManagementViewController(viewModel: stashVM)
+        presentAsSheet(controller)
+    }
+
     @objc func menuDiscardAllChanges(_ sender: Any?) {
         let alert = NSAlert()
         alert.messageText = "Discard all changes?"
@@ -343,7 +349,8 @@ final class MainSplitViewController: NSViewController {
             return hasRepository && hasBranches
 
         case MainMenuFactory.stashAllChangesAction,
-             MainMenuFactory.discardAllChangesAction:
+             MainMenuFactory.discardAllChangesAction,
+             MainMenuFactory.manageStashesAction:
             return hasRepository
 
         case MainMenuFactory.showChangesAction:

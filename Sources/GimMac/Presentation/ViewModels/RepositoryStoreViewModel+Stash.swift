@@ -26,6 +26,16 @@ extension RepositoryStoreViewModel {
         }
     }
 
+    /// Factory for the stash-management sheet VM. Returns `nil` when the host
+    /// did not inject the stash service (e.g. preview / test scaffolding) or no
+    /// repository is selected — callers should disable the affordance then.
+    func makeStashManagementViewModel() -> StashManagementViewModel? {
+        guard let stashProvider, let repository = selectedRepository else { return nil }
+        let viewModel = StashManagementViewModel(stashProvider: stashProvider)
+        viewModel.repositoryURL = repository.url
+        return viewModel
+    }
+
     /// Stash all working-tree changes (Branch → Stash All Changes).
     func stashAllChanges() async {
         guard let repository = selectedRepository, let stashProvider else { return }

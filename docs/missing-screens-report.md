@@ -11,22 +11,16 @@ Scope: pure-Git operations only (no GitHub API/auth), per the source inventory.
 
 ## Yet to be implemented
 
-| # | Doc Screen | Status | Notes |
-|---|---|---|---|
-| 8 | **Stash Screen** | ❌ Missing | only auto-stash-on-switch (`StashAndSwitchSheetController`). No stash list/manage screen. Backend supports single stash only (`fetchStash` returns one) |
+_All tracked screens from the source inventory are now implemented._
 
 ---
 
 ## Detail
 
-### ❌ Stash management screen (doc §8)
+### ✅ Stash management screen (doc §8) — done 2026-06-11
 
-- List stashes, apply/pop/drop from UI.
-- Only single-stash backend + auto-stash-on-switch exists today.
-- `fetchStash` returns one stash — needs multi-stash listing.
-
----
-
-## Suggested priority
-
-1. **Stash management screen** — top remaining gap (multi-stash backend + list/apply/pop/drop UI)
+- Multi-stash backend: `StashProviding.fetchAllStashes` (`git stash list --format=%gd%x00%s%x00%ct`)
+  plus ref-targeted `applyStash(ref:)` / `popStash(ref:)` / `dropStash(ref:)` in `GitStashProvider`.
+- AppKit sheet `StashManagementViewController` (Branch → "Manage Stashes…") lists every stash
+  (message / branch / date) with Apply / Pop / Drop; Drop confirms via `NSAlert`.
+- Driven by `StashManagementViewModel`; integration coverage in `GitStashIntegrationTests`.
