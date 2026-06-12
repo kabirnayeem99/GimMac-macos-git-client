@@ -9,6 +9,8 @@ struct BranchesPopoverButton<Label: View>: NSViewRepresentable {
     let viewModelFactory: () -> BranchesViewModel?
     let label: () -> Label
 
+    @Environment(\.isEnabled) private var isEnabled
+
     func makeNSView(context: Context) -> NSView {
         let host = NSHostingView(rootView: label())
         host.translatesAutoresizingMaskIntoConstraints = false
@@ -24,7 +26,7 @@ struct BranchesPopoverButton<Label: View>: NSViewRepresentable {
         ])
 
         container.onClick = { [weak container] in
-            guard let container else { return }
+            guard let container, container.isEnabled else { return }
             context.coordinator.present(from: container)
         }
         return container
@@ -33,6 +35,10 @@ struct BranchesPopoverButton<Label: View>: NSViewRepresentable {
     func updateNSView(_ nsView: NSView, context: Context) {
         if let host = nsView.subviews.first as? NSHostingView<Label> {
             host.rootView = label()
+        }
+        if let container = nsView as? ClickableContainerView {
+            container.isEnabled = isEnabled
+            container.alphaValue = isEnabled ? 1.0 : 0.5
         }
         context.coordinator.viewModelFactory = viewModelFactory
     }
@@ -76,13 +82,19 @@ struct BranchesPopoverButton<Label: View>: NSViewRepresentable {
 /// because `NSButton` styling would override the SwiftUI label visuals.
 private final class ClickableContainerView: NSView {
     var onClick: (() -> Void)?
+    var isEnabled: Bool = true
 
     override func mouseDown(with event: NSEvent) {
+        guard isEnabled else { return }
         onClick?()
     }
 
     override func resetCursorRects() {
-        addCursorRect(bounds, cursor: .pointingHand)
+        if isEnabled {
+            addCursorRect(bounds, cursor: .pointingHand)
+        } else {
+            addCursorRect(bounds, cursor: .arrow)
+        }
     }
 
     override var isFlipped: Bool { false }

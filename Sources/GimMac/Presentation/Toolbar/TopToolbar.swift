@@ -51,19 +51,26 @@ struct TopToolbar: View {
                 )
             }
             .buttonStyle(.plain)
-            .menuIndicator(.hidden)
-            .frame(width: 300)
+            .menuIndicator(.hidden) // Manual chevron in ToolbarCard is better placed
 
             BranchesPopoverButton(
                 viewModelFactory: { [viewModel] in viewModel.makeBranchesViewModel() }
             ) {
-                ToolbarCard(
-                    icon: "point.3.connected.trianglepath.dotted",
-                    title: "Branch",
-                    value: RepositoryBranchDisplayFormatter.displayText(for: viewModel.tip)
-                )
+                if viewModel.makeBranchesViewModel() != nil {
+                    ToolbarCard(
+                        icon: "point.3.connected.trianglepath.dotted",
+                        title: "Branch",
+                        value: RepositoryBranchDisplayFormatter.displayText(for: viewModel.tip)
+                    )
+                } else {
+                    ToolbarCard(
+                        icon: "exclamationmark.triangle",
+                        title: "Branch",
+                        value: "Selector Unavailable"
+                    )
+                }
             }
-            .frame(width: 240, height: 40)
+            .disabled(viewModel.makeBranchesViewModel() == nil)
 
             if viewModel.showSyncBar {
                 Menu {
@@ -89,8 +96,7 @@ struct TopToolbar: View {
                     )
                 }
                 .buttonStyle(.plain)
-                .menuIndicator(.hidden)
-                .frame(width: 260)
+                .menuIndicator(.hidden) // Manual chevron in PushToolbarCard is better placed
                 .alert(
                     "Force Push to \(viewModel.remoteName ?? "origin")?",
                     isPresented: $showForcePushAlert

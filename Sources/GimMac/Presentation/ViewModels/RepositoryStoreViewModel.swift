@@ -155,7 +155,7 @@ final class RepositoryStoreViewModel {
 
     var lastFetchedDescription: String {
         guard let date = lastFetched else { return "Never fetched" }
-        return "Last fetched " + RelativeDateTimeFormatter().localizedString(for: date, relativeTo: Date())
+        return "Last fetched " + AppFormatters.relativeDate.localizedString(for: date, relativeTo: Date())
     }
 
     var canCommitChanges: Bool {

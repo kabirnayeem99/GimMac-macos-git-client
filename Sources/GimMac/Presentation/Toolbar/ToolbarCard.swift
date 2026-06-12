@@ -14,7 +14,7 @@ struct ToolbarCard: View {
 
             VStack(alignment: .leading, spacing: 2) {
                 Text(title)
-                    .font(.system(size: 10, weight: .medium))
+                    .font(.system(size: 11, weight: .medium))
                     .foregroundStyle(.secondary)
 
                 Text(value)
@@ -23,15 +23,19 @@ struct ToolbarCard: View {
                     .lineLimit(1)
             }
 
-            Spacer()
+            // Fixed spacing instead of Spacer() allows the button to shrink to content
+            // while maintaining a professional gap.
+            Rectangle()
+                .fill(.clear)
+                .frame(width: 8)
 
             Image(systemName: "chevron.down")
-                .font(.system(size: 9, weight: .semibold))
-                .foregroundStyle(.tertiary)
+                .font(.system(size: 10, weight: .bold))
+                .foregroundStyle(.secondary) // More prominent than tertiary
         }
         .padding(.horizontal, 12)
         .frame(height: 40)
-        .background(.regularMaterial)
-        .clipShape(RoundedRectangle(cornerRadius: 10, style: .continuous))
+        .toolbarItemStyle()
+        .help(title)
     }
 }

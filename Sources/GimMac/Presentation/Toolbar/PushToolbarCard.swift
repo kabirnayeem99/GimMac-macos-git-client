@@ -13,7 +13,7 @@ struct PushToolbarCard: View {
 
     private var fetchedDescription: String {
         guard let date = lastFetched else { return subtitle }
-        return "Last fetched " + RelativeDateTimeFormatter().localizedString(for: date, relativeTo: now)
+        return "Last fetched " + AppFormatters.relativeDate.localizedString(for: date, relativeTo: now)
     }
 
     var body: some View {
@@ -34,15 +34,19 @@ struct PushToolbarCard: View {
                     .font(.system(size: 13, weight: .semibold))
 
                 Text(fetchedDescription)
-                    .font(.system(size: 10))
+                    .font(.system(size: 11))
                     .foregroundStyle(.secondary)
             }
 
-            Spacer()
+            // Fixed spacing instead of Spacer() allows the button to shrink to content
+            // while maintaining a professional gap.
+            Rectangle()
+                .fill(.clear)
+                .frame(width: 8)
 
             if let badge, !isLoading {
                 Text(badge)
-                    .font(.system(size: 10, weight: .bold))
+                    .font(.system(size: 11, weight: .bold))
                     .padding(.horizontal, 7)
                     .padding(.vertical, 2)
                     .background(.quaternary)
@@ -50,13 +54,13 @@ struct PushToolbarCard: View {
             }
 
             Image(systemName: "chevron.down")
-                .font(.system(size: 9, weight: .semibold))
-                .foregroundStyle(.tertiary)
+                .font(.system(size: 10, weight: .bold))
+                .foregroundStyle(.secondary) // More prominent than tertiary
         }
         .padding(.horizontal, 12)
         .frame(height: 40)
-        .background(.regularMaterial)
-        .clipShape(RoundedRectangle(cornerRadius: 10, style: .continuous))
+        .toolbarItemStyle()
+        .help(label)
         .onReceive(ticker) { date in
             now = date
         }
