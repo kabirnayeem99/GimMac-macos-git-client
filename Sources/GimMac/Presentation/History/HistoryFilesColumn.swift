@@ -3,6 +3,20 @@ import SwiftUI
 struct HistoryFilesColumn: View {
     let viewModel: RepositoryStoreViewModel
 
+    // Bridges the view model's path-based selection onto the List's id-based
+    // selection (CommitFile.id == path). Native List selection provides keyboard
+    // arrow navigation, the focus ring, and the system highlight for free.
+    private var selection: Binding<CommitFile.ID?> {
+        Binding(
+            get: { viewModel.historyFiles.first { $0.path == viewModel.selectedHistoryFilePath }?.id },
+            set: { newValue in
+                guard let id = newValue,
+                      let file = viewModel.historyFiles.first(where: { $0.id == id }) else { return }
+                viewModel.selectHistoryFile(path: file.path)
+            }
+        )
+    }
+
     var body: some View {
         VStack(spacing: 0) {
             CommitDetailsHeader(viewModel: viewModel)
@@ -24,10 +38,9 @@ struct HistoryFilesColumn: View {
             .frame(height: 32)
             .background(.bar)
 
-            List(viewModel.historyFiles) { file in
+            List(viewModel.historyFiles, selection: selection) { file in
                 HistoryFileRow(
                     file: file,
-                    selected: file.path == viewModel.selectedHistoryFilePath,
                     onRevealInFinder: {
                         viewModel.revealInFinder(path: file.path)
                     },
@@ -46,16 +59,21 @@ struct HistoryFilesColumn: View {
                     editorName: viewModel.selectedEditorName
                 )
                 .frame(maxWidth: .infinity, alignment: .leading)
-                .contentShape(Rectangle())
-                .onTapGesture {
-                    viewModel.selectHistoryFile(path: file.path)
-                }
                 .listRowInsets(EdgeInsets())
                 .listRowSeparator(.hidden)
-                .listRowBackground(Color.clear)
+                .tag(file.id)
             }
             .listStyle(.plain)
             .scrollContentBackground(.hidden)
+            .overlay {
+                if viewModel.historyFiles.isEmpty {
+                    ContentUnavailableView(
+                        "No Changed Files",
+                        systemImage: "doc.text",
+                        description: Text("This commit has no file changes.")
+                    )
+                }
+            }
         }
         .background(Color(nsColor: .controlBackgroundColor))
     }
@@ -63,7 +81,6 @@ struct HistoryFilesColumn: View {
 
 struct HistoryFileRow: View {
     let file: CommitFile
-    let selected: Bool
     var onRevealInFinder: () -> Void = {}
     var onOpenInEditor: () -> Void = {}
     var onOpenWithDefault: () -> Void = {}
@@ -90,18 +107,30 @@ struct HistoryFileRow: View {
         }
     }
 
+    private var statusName: String {
+        switch file.status {
+        case .modified: return "Modified"
+        case .added, .untracked: return "Added"
+        case .deleted: return "Deleted"
+        case .renamed: return "Renamed"
+        case .unmerged: return "Conflicted"
+        case .ignored: return "Ignored"
+        case .unknown: return "Unknown"
+        }
+    }
+
     private var statusColor: Color {
         switch file.status {
         case .modified:
-            return .orange
+            return Color(.systemOrange)
         case .added, .untracked:
-            return .green
+            return Color(.systemGreen)
         case .deleted:
-            return .red
+            return Color(.systemRed)
         case .renamed:
-            return .blue
+            return Color(.systemBlue)
         case .unmerged:
-            return .yellow
+            return Color(.systemRed)
         case .ignored, .unknown:
             return .secondary
         }
@@ -110,25 +139,24 @@ struct HistoryFileRow: View {
     var body: some View {
         HStack(spacing: 8) {
             Text(file.path)
-                .font(.system(size: 12, weight: selected ? .semibold : .regular))
+                .font(.system(size: 12))
                 .lineLimit(1)
+                .truncationMode(.head)
 
             Spacer()
 
             Image(systemName: statusIcon)
                 .font(.system(size: 11, weight: .semibold))
-                .foregroundStyle(selected ? Color.white.opacity(0.9) : statusColor)
+                .foregroundStyle(statusColor)
                 .frame(width: 14, height: 14)
+                .accessibilityHidden(true)
         }
         .padding(.horizontal, 10)
         .frame(height: 36)
         .frame(maxWidth: .infinity, alignment: .leading)
-        .background(selected ? Color.accentColor : Color.clear)
-        .foregroundStyle(selected ? .white : .primary)
-        .clipShape(RoundedRectangle(cornerRadius: 7, style: .continuous))
-        .contentShape(RoundedRectangle(cornerRadius: 7, style: .continuous))
-        .padding(.horizontal, 6)
-        .padding(.vertical, 2)
+        .contentShape(Rectangle())
+        .accessibilityElement(children: .ignore)
+        .accessibilityLabel("\(statusName) — \(file.path)")
         .contextMenu {
             Button("Reveal in Finder", action: onRevealInFinder)
             if let name = editorName {

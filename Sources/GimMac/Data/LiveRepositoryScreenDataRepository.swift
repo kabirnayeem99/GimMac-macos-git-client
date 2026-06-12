@@ -24,7 +24,7 @@ final class LiveRepositoryScreenDataRepository: RepositoryScreenDataProviding, S
         }
 
         async let changedFilesTask = statusProvider.fetchStatus(in: repository.url)
-        async let commitsTask = historyProvider.fetchHistory(in: repository.url, maxCount: 50)
+        async let commitsTask = historyProvider.fetchHistory(in: repository.url, maxCount: HistoryPaging.pageSize, skip: 0)
         async let userNameTask = readConfig("user.name", in: repository.url)
         async let userEmailTask = readConfig("user.email", in: repository.url)
         async let aheadBehindTask = readAheadBehind(in: repository.url)
@@ -73,6 +73,10 @@ final class LiveRepositoryScreenDataRepository: RepositoryScreenDataProviding, S
             forcePushNeeded: forcePushNeeded,
             unpushedSHAs: unpushedSHAs
         )
+    }
+
+    func loadMoreCommits(for repository: Repository, skip: Int, maxCount: Int) async throws -> [Commit] {
+        try await historyProvider.fetchHistory(in: repository.url, maxCount: maxCount, skip: skip)
     }
 
     private func resolveUpstream(for repositoryURL: URL, remoteName: String?) async -> String? {

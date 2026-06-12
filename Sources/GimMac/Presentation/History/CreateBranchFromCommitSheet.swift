@@ -12,6 +12,10 @@ struct CreateBranchFromCommitSheet: View {
         name.trimmingCharacters(in: .whitespacesAndNewlines)
     }
 
+    private var validation: BranchNameValidation {
+        BranchesViewModel.validateBranchName(name)
+    }
+
     var body: some View {
         VStack(alignment: .leading, spacing: 14) {
             VStack(alignment: .leading, spacing: 4) {
@@ -25,6 +29,13 @@ struct CreateBranchFromCommitSheet: View {
 
             TextField("Branch name", text: $name)
                 .textFieldStyle(.roundedBorder)
+                .accessibilityLabel("Branch name")
+
+            if !trimmedName.isEmpty, let reason = validation.reason {
+                Text(reason)
+                    .font(.caption)
+                    .foregroundStyle(Color(.systemRed))
+            }
 
             HStack(spacing: 8) {
                 Spacer()
@@ -41,7 +52,7 @@ struct CreateBranchFromCommitSheet: View {
                     }
                 }
                 .keyboardShortcut(.return, modifiers: .command)
-                .disabled(trimmedName.isEmpty || isWorking)
+                .disabled(!validation.isValid || isWorking)
                 .buttonStyle(.borderedProminent)
             }
         }

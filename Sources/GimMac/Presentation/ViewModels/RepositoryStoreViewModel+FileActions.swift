@@ -76,4 +76,9 @@ extension RepositoryStoreViewModel {
         NSPasteboard.general.clearContents()
         NSPasteboard.general.setString(path, forType: .string)
     }
+
+    func copyCommitHash(_ hash: String) {
+        NSPasteboard.general.clearContents()
+        NSPasteboard.general.setString(hash, forType: .string)
+    }
 }

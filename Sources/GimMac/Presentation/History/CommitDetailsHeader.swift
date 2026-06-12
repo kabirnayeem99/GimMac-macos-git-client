@@ -21,37 +21,33 @@ struct CommitDetailsHeader: View {
                     .lineLimit(2)
 
                 Spacer()
-
-                Button {
-                } label: {
-                    Image(systemName: "arrow.up.and.down.and.arrow.left.and.right")
-                }
-                .buttonStyle(.borderless)
-                .foregroundStyle(.secondary)
             }
 
             HStack(spacing: 7) {
-                Circle()
-                    .fill(.quaternary)
-                    .frame(width: 22, height: 22)
-                    .overlay {
-                        Text(viewModel.currentGitUser.initials)
-                            .font(.system(size: 8, weight: .bold))
-                            .foregroundStyle(.secondary)
-                    }
-                    .onHover { isHovered in
-                        isShowingProfile = isHovered
-                    }
-                    .popover(isPresented: $isShowingProfile, arrowEdge: .top) {
-                        VStack(alignment: .leading, spacing: 4) {
-                            Text(viewModel.currentGitUser.name)
-                                .font(.system(size: 12, weight: .semibold))
-                            Text(viewModel.currentGitUser.email)
-                                .font(.system(size: 11))
+                Button {
+                    isShowingProfile.toggle()
+                } label: {
+                    Circle()
+                        .fill(.quaternary)
+                        .frame(width: 22, height: 22)
+                        .overlay {
+                            Text(viewModel.currentGitUser.initials)
+                                .font(.system(size: 8, weight: .bold))
                                 .foregroundStyle(.secondary)
                         }
-                        .padding(10)
+                }
+                .buttonStyle(.plain)
+                .accessibilityLabel("Author: \(viewModel.currentGitUser.name), \(viewModel.currentGitUser.email)")
+                .popover(isPresented: $isShowingProfile, arrowEdge: .top) {
+                    VStack(alignment: .leading, spacing: 4) {
+                        Text(viewModel.currentGitUser.name)
+                            .font(.system(size: 12, weight: .semibold))
+                        Text(viewModel.currentGitUser.email)
+                            .font(.system(size: 11))
+                            .foregroundStyle(.secondary)
                     }
+                    .padding(10)
+                }
 
                 Text(viewModel.selectedCommit?.authorDisplayName ?? viewModel.currentGitUser.name)
                     .font(.system(size: 11, weight: .medium))
@@ -60,12 +56,17 @@ struct CommitDetailsHeader: View {
                     .font(.system(size: 11, design: .monospaced))
                     .foregroundStyle(.secondary)
 
-                Button {
-                } label: {
-                    Image(systemName: "doc.on.doc")
-                        .font(.system(size: 10))
+                if let commit = viewModel.selectedCommit {
+                    Button {
+                        viewModel.copyCommitHash(commit.id)
+                    } label: {
+                        Image(systemName: "doc.on.doc")
+                            .font(.system(size: 10))
+                    }
+                    .buttonStyle(.borderless)
+                    .help("Copy commit hash")
+                    .accessibilityLabel("Copy commit hash")
                 }
-                .buttonStyle(.borderless)
             }
         }
         .padding(12)

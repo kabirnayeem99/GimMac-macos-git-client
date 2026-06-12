@@ -1,7 +1,13 @@
 import Foundation
 
+/// History is loaded one page at a time so a repository with thousands of
+/// commits doesn't block the UI or exhaust memory on the first load.
+enum HistoryPaging {
+    static let pageSize = 50
+}
+
 protocol HistoryProviding: Sendable {
-    func fetchHistory(in repositoryURL: URL, maxCount: Int?) async throws -> [Commit]
+    func fetchHistory(in repositoryURL: URL, maxCount: Int?, skip: Int) async throws -> [Commit]
 }
 
 protocol StatusProviding: Sendable {
@@ -60,6 +66,8 @@ protocol RepositoryPersistenceProviding: Sendable {
 
 protocol RepositoryScreenDataProviding: Sendable {
     func loadSnapshot(for repository: Repository?) async throws -> RepositoryScreenSnapshot
+    /// Fetch an additional page of commits below the ones already shown.
+    func loadMoreCommits(for repository: Repository, skip: Int, maxCount: Int) async throws -> [Commit]
 }
 
 protocol BranchUpstreamProviding: Sendable {

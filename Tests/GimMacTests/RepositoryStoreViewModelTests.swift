@@ -16,6 +16,10 @@ private struct MockRepositoryScreenDataProvider: RepositoryScreenDataProviding, 
     func loadSnapshot(for repository: Repository?) async throws -> RepositoryScreenSnapshot {
         snapshot
     }
+
+    func loadMoreCommits(for repository: Repository, skip: Int, maxCount: Int) async throws -> [Commit] {
+        []
+    }
 }
 
 private struct MockDiffProvider: DiffProviding, Sendable {

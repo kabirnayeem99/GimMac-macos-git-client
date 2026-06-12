@@ -26,8 +26,11 @@ extension RepositoryStoreViewModel {
     func resetPerRepositoryState() {
         historyLoadTask?.cancel()
         historyLoadTask = nil
+        historyFileDiffTask?.cancel()
+        historyFileDiffTask = nil
         changedFiles = []
         commits = []
+        canLoadMoreHistory = false
         unpushedSHAs = []
         tip = .unknown
         primaryAction = .publishRepository
@@ -37,7 +40,7 @@ extension RepositoryStoreViewModel {
         stashEntry = nil
         errorMessage = nil
         diffHandler.clearSelection()
-        historyHandler.selectCommit(at: 0)
+        historyHandler.clearSelection()
         changedFilesHandler.deselectAll()
         commitForm.reset()
     }
@@ -84,6 +87,7 @@ extension RepositoryStoreViewModel {
             forcePushNeeded = snapshot.forcePushNeeded
             changedFiles = snapshot.changedFiles
             commits = snapshot.commits
+            canLoadMoreHistory = snapshot.commits.count >= HistoryPaging.pageSize
             unpushedSHAs = snapshot.unpushedSHAs
             currentGitUser = snapshot.userProfile
 
@@ -94,7 +98,11 @@ extension RepositoryStoreViewModel {
             }
 
             if historyHandler.commitFiles.isEmpty, !commits.isEmpty {
-                selectHistoryCommit(at: historyHandler.selectedIndex)
+                // Re-establish the anchor: keep it if it still exists, else default
+                // to the newest commit. Loads that commit's files/diff.
+                let anchor = historyHandler.anchorSHA
+                let sha = (anchor.flatMap { a in commits.first(where: { $0.id == a })?.id }) ?? commits[0].id
+                selectHistoryCommit(sha: sha)
             }
 
             if let repository = selectedRepository {

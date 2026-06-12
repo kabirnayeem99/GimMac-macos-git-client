@@ -50,6 +50,7 @@ final class RepositoryStoreViewModel {
     let diffHandler: DiffHandler
     let historyHandler = HistoryHandler()
     var historyLoadTask: Task<Void, Never>?
+    var historyFileDiffTask: Task<Void, Never>?
 
     var selectedRepository: Repository?
     var tip: TipState = .unknown
@@ -74,6 +75,11 @@ final class RepositoryStoreViewModel {
     var isResetting = false
     var isReordering = false
     var stashEntry: StashEntry?
+
+    /// History pagination: `canLoadMoreHistory` is true while the last page came
+    /// back full (so more may exist); `isLoadingMoreHistory` guards re-entry.
+    var canLoadMoreHistory = false
+    var isLoadingMoreHistory = false
 
     // Merge-conflict resolution sheet state. `isResolvingConflicts` drives the
     // sheet; `conflictedFiles` is the live unresolved set; `initialConflictCount`
@@ -119,8 +125,7 @@ final class RepositoryStoreViewModel {
         set { commitForm.signOff = newValue }
     }
     var commitCoAuthors: [CommitAuthor] { commitForm.coAuthors }
-    var selectedHistoryCommitIndex: Int { historyHandler.selectedIndex }
-    var selectedHistoryCommitIndices: [Int] { historyHandler.selectedIndices }
+    var selectedHistoryCommitIDs: Set<Commit.ID> { historyHandler.selectedSHAs }
     var selectedHistoryCommits: [Commit] { historyHandler.selectedCommits(in: commits) }
     var historyFiles: [CommitFile] { historyHandler.commitFiles }
     var isLoadingHistoryFiles: Bool { historyHandler.isLoadingCommitFiles }

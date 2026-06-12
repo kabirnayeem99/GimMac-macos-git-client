@@ -53,6 +53,15 @@ struct ChangedFilesColumn: View {
             }
             .listStyle(.plain)
             .scrollContentBackground(.hidden)
+            .overlay {
+                if viewModel.changedFiles.isEmpty {
+                    ContentUnavailableView(
+                        "No Changes",
+                        systemImage: "checkmark.circle",
+                        description: Text("There are no uncommitted changes.")
+                    )
+                }
+            }
         }
         .background(Color(nsColor: .controlBackgroundColor))
     }

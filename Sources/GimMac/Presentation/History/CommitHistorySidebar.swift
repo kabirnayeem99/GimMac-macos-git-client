@@ -12,6 +12,15 @@ struct CommitHistorySidebar: View {
         var id: Int { rawValue }
     }
 
+    // Bridges the ViewModel's SHA-keyed selection to List(selection:). SwiftUI
+    // owns shift/Cmd-click; writes route through the ViewModel to load files.
+    private var historySelection: Binding<Set<Commit.ID>> {
+        Binding(
+            get: { viewModel.selectedHistoryCommitIDs },
+            set: { viewModel.updateHistorySelection($0) }
+        )
+    }
+
     var body: some View {
         VStack(spacing: 0) {
             Picker("", selection: $selectedTab) {
@@ -20,21 +29,22 @@ struct CommitHistorySidebar: View {
             }
             .pickerStyle(.segmented)
             .controlSize(.small)
+            .labelsHidden()
+            .accessibilityLabel("View mode")
             .padding(10)
 
             Button {
+                Task { await viewModel.performPrimaryAction() }
             } label: {
                 HStack(spacing: 7) {
                     Image(systemName: "point.3.connected.trianglepath.dotted")
                         .font(.system(size: 12))
+                        .accessibilityHidden(true)
 
                     Text(viewModel.primaryAction.label)
                         .font(.system(size: 12))
 
                     Spacer()
-
-                    Image(systemName: "chevron.down")
-                        .font(.system(size: 8, weight: .semibold))
                 }
                 .foregroundStyle(.secondary)
                 .padding(.horizontal, 10)
@@ -45,26 +55,38 @@ struct CommitHistorySidebar: View {
             .buttonStyle(.plain)
             .padding(.horizontal, 10)
             .padding(.bottom, 8)
+            .accessibilityLabel(viewModel.primaryAction.label)
 
-            List(viewModel.commits.indices, id: \.self) { index in
-                let commit = viewModel.commits[index]
-                let isSelected = viewModel.selectedHistoryCommitIndices.contains(index)
+            List(selection: historySelection) {
+              ForEach(viewModel.commits) { commit in
                 CommitRow(
                     title: commit.summary,
                     subtitle: "\(commit.authorDisplayName) • \(relativeString(for: commit.date))",
-                    selected: isSelected,
                     isUnpushed: viewModel.unpushedSHAs.contains(commit.id)
                 )
-                .onTapGesture {
-                    let shiftHeld = NSEvent.modifierFlags.contains(.shift)
-                    viewModel.selectHistoryCommit(at: index, isShiftExtending: shiftHeld)
-                }
                 .contextMenu {
-                    multiSelectContextMenu(for: index)
+                    multiSelectContextMenu()
                 }
                 .listRowInsets(EdgeInsets())
                 .listRowSeparator(.hidden)
-                .listRowBackground(Color.clear)
+                .onAppear {
+                    if commit.id == viewModel.commits.last?.id {
+                        Task { await viewModel.loadMoreHistory() }
+                    }
+                }
+              }
+
+              if viewModel.isLoadingMoreHistory {
+                  HStack {
+                      Spacer()
+                      ProgressView()
+                          .controlSize(.small)
+                      Spacer()
+                  }
+                  .listRowSeparator(.hidden)
+                  .listRowBackground(Color.clear)
+                  .accessibilityLabel("Loading more commits")
+              }
             }
             .listStyle(.sidebar)
             .scrollContentBackground(.hidden)
@@ -128,7 +150,7 @@ struct CommitHistorySidebar: View {
     }
 
     @ViewBuilder
-    private func multiSelectContextMenu(for tappedIndex: Int) -> some View {
+    private func multiSelectContextMenu() -> some View {
         let selectedCommits = viewModel.selectedHistoryCommits
         let count = selectedCommits.count
 
@@ -162,7 +184,9 @@ struct CommitHistorySidebar: View {
         }
     }
 
+    private static let relativeFormatter = RelativeDateTimeFormatter()
+
     private func relativeString(for date: Date) -> String {
-        RelativeDateTimeFormatter().localizedString(for: date, relativeTo: Date())
+        Self.relativeFormatter.localizedString(for: date, relativeTo: Date())
     }
 }

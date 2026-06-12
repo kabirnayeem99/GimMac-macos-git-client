@@ -4,13 +4,22 @@ import Foundation
 
 @MainActor
 extension RepositoryStoreViewModel {
-    func selectHistoryCommit(at index: Int, isShiftExtending: Bool = false) {
-        historyHandler.selectCommit(at: index, extending: isShiftExtending)
-        // When extending a range, the anchor commit's files are already loaded — skip reload.
-        guard !isShiftExtending else { return }
+    /// Driven by the List's `Set<Commit.ID>` selection binding. SwiftUI handles
+    /// shift/Cmd-click; we resolve the new anchor and load its files/diff.
+    func updateHistorySelection(_ newSelection: Set<Commit.ID>) {
+        guard let shaToLoad = historyHandler.applySelection(newSelection, in: commits) else { return }
+        loadHistoryFiles(forSHA: shaToLoad)
+    }
+
+    /// Single-select a commit by SHA and load its files (used post-refresh).
+    func selectHistoryCommit(sha: Commit.ID) {
+        historyHandler.selectSingle(sha)
+        loadHistoryFiles(forSHA: sha)
+    }
+
+    private func loadHistoryFiles(forSHA sha: Commit.ID) {
         historyLoadTask?.cancel()
-        guard let repository = selectedRepository,
-              let sha = selectedCommit?.id else { return }
+        guard let repository = selectedRepository else { return }
         let inspector = commitInspector
         let provider = diffProvider
         let url = repository.url
@@ -29,12 +38,40 @@ extension RepositoryStoreViewModel {
         }
     }
 
+    /// Append the next page of commits when the user scrolls to the bottom.
+    /// Re-entry-guarded; stops paging once a short (final) page comes back.
+    func loadMoreHistory() async {
+        guard canLoadMoreHistory, !isLoadingMoreHistory,
+              let repository = selectedRepository else { return }
+
+        isLoadingMoreHistory = true
+        defer { isLoadingMoreHistory = false }
+
+        do {
+            let more = try await screenRepository.loadMoreCommits(
+                for: repository,
+                skip: commits.count,
+                maxCount: HistoryPaging.pageSize
+            )
+            // A concurrent refresh may have rebuilt `commits` while we paged;
+            // drop any overlap so SHAs stay unique (List identity is the SHA).
+            let existing = Set(commits.map(\.id))
+            let fresh = more.filter { !existing.contains($0.id) }
+            commits.append(contentsOf: fresh)
+            canLoadMoreHistory = more.count >= HistoryPaging.pageSize
+        } catch {
+            errorMessage = error.localizedDescription
+            canLoadMoreHistory = false
+        }
+    }
+
     func selectHistoryFile(path: String) {
         guard let repository = selectedRepository,
               let sha = selectedCommit?.id else { return }
         let provider = diffProvider
         let url = repository.url
-        Task { [weak self] in
+        historyFileDiffTask?.cancel()
+        historyFileDiffTask = Task { [weak self] in
             await self?.historyHandler.loadDiff(
                 for: path,
                 commitSHA: sha,
@@ -56,7 +93,7 @@ extension RepositoryStoreViewModel {
 
         do {
             try await squashProvider.squash(commits: commitsToSquash, message: message, in: repository.url)
-            historyHandler.selectCommit(at: 0)
+            historyHandler.clearSelection()
             await refreshRepositoryScreenData()
         } catch {
             errorMessage = error.localizedDescription
@@ -74,7 +111,7 @@ extension RepositoryStoreViewModel {
 
         do {
             try await revertProvider.revert(commit: commit, in: repository.url)
-            historyHandler.selectCommit(at: 0)
+            historyHandler.clearSelection()
             await refreshRepositoryScreenData()
         } catch {
             errorMessage = error.localizedDescription
@@ -93,7 +130,7 @@ extension RepositoryStoreViewModel {
 
         do {
             try await cherryPickProvider.cherryPick(commits: commitsToPick, in: repository.url)
-            historyHandler.selectCommit(at: 0)
+            historyHandler.clearSelection()
             await refreshRepositoryScreenData()
         } catch {
             errorMessage = error.localizedDescription
@@ -156,7 +193,7 @@ extension RepositoryStoreViewModel {
 
         do {
             try await resetProvider.reset(to: commit, mode: mode, in: repository.url)
-            historyHandler.selectCommit(at: 0)
+            historyHandler.clearSelection()
             await refreshRepositoryScreenData()
         } catch {
             errorMessage = error.localizedDescription
@@ -174,7 +211,7 @@ extension RepositoryStoreViewModel {
 
         do {
             try await reorderProvider.reorder(orderedCommits: orderedCommits, in: repository.url)
-            historyHandler.selectCommit(at: 0)
+            historyHandler.clearSelection()
             await refreshRepositoryScreenData()
         } catch {
             errorMessage = error.localizedDescription

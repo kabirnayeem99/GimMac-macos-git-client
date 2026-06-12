@@ -13,6 +13,10 @@ struct CreateTagSheet: View {
         name.trimmingCharacters(in: .whitespacesAndNewlines)
     }
 
+    private var validation: BranchNameValidation {
+        BranchesViewModel.validateBranchName(name)
+    }
+
     var body: some View {
         VStack(alignment: .leading, spacing: 14) {
             VStack(alignment: .leading, spacing: 4) {
@@ -26,9 +30,17 @@ struct CreateTagSheet: View {
 
             TextField("Tag name (e.g. v1.0.0)", text: $name)
                 .textFieldStyle(.roundedBorder)
+                .accessibilityLabel("Tag name")
+
+            if !trimmedName.isEmpty, let reason = validation.reason {
+                Text(reason)
+                    .font(.caption)
+                    .foregroundStyle(Color(.systemRed))
+            }
 
             TextField("Message (optional — annotated tag)", text: $message)
                 .textFieldStyle(.roundedBorder)
+                .accessibilityLabel("Tag message")
 
             HStack(spacing: 8) {
                 Spacer()
@@ -46,7 +58,7 @@ struct CreateTagSheet: View {
                     }
                 }
                 .keyboardShortcut(.return, modifiers: .command)
-                .disabled(trimmedName.isEmpty || isWorking)
+                .disabled(!validation.isValid || isWorking)
                 .buttonStyle(.borderedProminent)
             }
         }
