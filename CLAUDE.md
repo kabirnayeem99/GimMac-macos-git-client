@@ -78,6 +78,18 @@ Rules:
 | AppKit components, SwiftUI screens, HIG, accessibility, system colors | `design-system` |
 | Xcode project, xcodegen, SwiftLint, CI/GitHub Actions, build scripts | `xcode-build` |
 
+### Model Tiering
+
+Match model to reasoning load — Opus is not free. Each agent pins its tier in its `.md` frontmatter.
+
+| Tier | Agents | Why |
+|---|---|---|
+| **Opus 4.8** (`claude-opus-4-8`) | `gimmac-ops`, `swift-language`, `design-system`, `appkit-performance` | Architecture, concurrency correctness, HIG/perf judgment — reasoning-heavy, errors are expensive |
+| **Sonnet 4.6** (`claude-sonnet-4-6`) | `tech-debt-tracker`, `tester`, `xcode-build` | Patterned/mechanical: audit checklists, fixture tests, YAML/config — no deep reasoning, faster + cheaper |
+| **Haiku 4.5** (`claude-haiku-4-5-20251001`) | trivial mechanical edits only (rename, comment strip, format tweak) — typically `cavecrew-builder`, not a pinned agent | Near-zero reasoning; use for bounded, obvious edits where correctness is visually checkable |
+
+Rule: when a Sonnet agent hits genuine reasoning (a subtle concurrency bug, an architecture call), it should hand back to the main thread to escalate to an Opus agent rather than guess.
+
 ---
 
 ## Skill Selection Guide
@@ -116,11 +128,42 @@ Always-available global skills: `/code-review`, `/simplify`, `/verify`, `/run`,
 ## Sub-Agent Protocol
 
 All sub-agents:
-- Run on Opus for maximum reasoning quality
+- Run on the model pinned in their `.md` frontmatter (see Model Tiering) — not Opus by default
 - May run in an isolated git worktree for independent changes
 - Must read `AGENTS.md` before making architectural changes
 - Must update their own `.md` file and relevant docs when behavior changes
 - Must not violate the locked decisions listed below
+
+---
+
+## Orchestration & Token Discipline
+
+Rules for whoever spawns sub-agents (the main thread). Context is the scarce resource — protect it.
+
+1. **Delegate reads, keep conclusions.** For "where is X / what calls Y / map this dir", spawn
+   `cavecrew-investigator` or `Explore` — the sub-agent burns the search tokens and returns a small
+   answer; your main context stays lean. Do not read whole files inline when a finder can return the
+   `file:line` you need. (jcodemunch + lean-ctx are wired — use `get_file_outline` → `get_symbol_source`
+   over a full `Read`.)
+
+2. **Scope sub-agent prompts tight.** A vague prompt makes the agent over-explore and return a fat
+   result. Name the exact deliverable. ✅ "Find the 3 call sites of `fetchDiff`, return `file:line`."
+   ❌ "Look into how diffs work."
+
+3. **Prefer read-only agents for investigation/audit/review.** No `Write`/`Edit` (e.g.
+   `tech-debt-tracker`, `cavecrew-investigator`) → the agent can't wander into edit-debug loops that
+   balloon context. Give any new auditor/reviewer `tools: Read, Grep, Glob, Bash` only.
+
+4. **Demand structured returns.** A fixed result block (e.g. gimmac-ops `RESULT/FILES/REVIEW/FOLLOWUPS`,
+   tech-debt-tracker `SUMMARY/TOP`) is parsed once. Prose forces the main thread to re-read to extract
+   facts. When spawning via Workflow, use the `schema` option to force a typed return.
+
+5. **Spawn independent agents in ONE message.** Reviewing 5 files / 5 dimensions → 5 agents at once,
+   not serial. Same total tokens, ~5× faster wall-clock, and each runs in its own context so main
+   stays small. Only serialize when stage N genuinely needs all of stage N-1.
+
+6. **`register_edit` after edits** (already in gimmac-ops) keeps the jcodemunch index fresh → fewer
+   stale-lookup retries on the next search.
 
 ---
 
