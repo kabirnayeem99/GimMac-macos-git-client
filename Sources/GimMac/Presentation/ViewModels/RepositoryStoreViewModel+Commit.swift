@@ -5,13 +5,13 @@ import Foundation
 @MainActor
 extension RepositoryStoreViewModel {
     func commitChanges() async {
-        guard canCommitChanges, !hasCheckedConflicts, let repository = selectedRepository else {
+        guard canCommitChanges, !hasUnresolvedConflicts, let repository = selectedRepository else {
             logger.warning(
                 "Commit guard failed — nothing to do",
                 category: .commit,
                 metadata: [
                     "canCommit": "\(canCommitChanges)",
-                    "hasConflicts": "\(hasCheckedConflicts)",
+                    "hasConflicts": "\(hasUnresolvedConflicts)",
                     "hasRepository": "\(selectedRepository != nil)"
                 ]
             )

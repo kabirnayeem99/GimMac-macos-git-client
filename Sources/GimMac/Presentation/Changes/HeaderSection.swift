@@ -19,27 +19,30 @@ struct HeaderSection: View {
         HStack(alignment: .top, spacing: 16) {
             VStack(alignment: .leading, spacing: 10) {
                 Text("Working Tree")
-                    .font(.system(size: 11, weight: .semibold))
+                    .font(.caption.weight(.semibold))
                     .foregroundStyle(.tertiary)
                     .textCase(.uppercase)
 
                 Text(title)
-                    .font(.system(size: 28, weight: .semibold))
+                    .font(.largeTitle.weight(.semibold))
                     .foregroundStyle(.primary)
+                    .accessibilityAddTraits(.isHeader)
 
                 Text(subtitle)
-                    .font(.system(size: 13))
+                    .font(.body)
                     .foregroundStyle(.secondary)
                     .lineSpacing(2)
                     .fixedSize(horizontal: false, vertical: true)
             }
+            .accessibilityElement(children: .combine)
 
             Spacer()
 
             Image(systemName: icon)
-                .font(.system(size: 32, weight: .regular))
+                .font(.largeTitle.weight(.regular))
                 .foregroundStyle(.tertiary)
                 .padding(.top, 6)
+                .accessibilityHidden(true)
         }
     }
 }

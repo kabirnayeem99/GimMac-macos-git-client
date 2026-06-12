@@ -44,15 +44,15 @@ struct ChangedFileRow: View {
     private var statusColor: Color {
         switch file.status {
         case .modified:
-            return .orange
+            return Color(.systemOrange)
         case .added, .untracked:
-            return .green
+            return Color(.systemGreen)
         case .deleted:
-            return .red
+            return Color(.systemRed)
         case .renamed:
-            return .blue
+            return Color(.systemBlue)
         case .unmerged:
-            return .yellow
+            return Color(.systemYellow)
         case .ignored, .unknown:
             return .secondary
         }
@@ -62,31 +62,28 @@ struct ChangedFileRow: View {
         HStack(spacing: 8) {
             Button(action: onToggleChecked) {
                 Image(systemName: checked ? "checkmark.square.fill" : "square")
-                    .font(.system(size: 12, weight: .semibold))
-                    .foregroundStyle(selected ? .white.opacity(0.9) : .secondary)
+                    .font(.callout.weight(.semibold))
+                    .foregroundStyle(.secondary)
             }
             .buttonStyle(.plain)
+            .accessibilityLabel(checked ? "Included in commit" : "Excluded from commit")
 
             Text(file.path)
-                .font(.system(size: 12, weight: selected ? .semibold : .regular))
+                .font(.callout.weight(selected ? .semibold : .regular))
                 .lineLimit(1)
 
             Spacer()
 
             Image(systemName: statusIcon)
-                .font(.system(size: 11, weight: .semibold))
-                .foregroundStyle(selected ? Color.white.opacity(0.9) : statusColor)
+                .font(.caption.weight(.semibold))
+                .foregroundStyle(statusColor)
                 .frame(width: 14, height: 14)
+                .accessibilityHidden(true)
         }
         .padding(.horizontal, 10)
         .frame(height: 36)
         .frame(maxWidth: .infinity, alignment: .leading)
-        .background(selected ? Color.accentColor : Color.clear)
-        .foregroundStyle(selected ? .white : .primary)
-        .clipShape(RoundedRectangle(cornerRadius: 7, style: .continuous))
-        .contentShape(RoundedRectangle(cornerRadius: 7, style: .continuous))
-        .padding(.horizontal, 6)
-        .padding(.vertical, 2)
+        .contentShape(Rectangle())
         .contextMenu {
             Button("Reveal in Finder", action: onRevealInFinder)
             if let name = editorName {

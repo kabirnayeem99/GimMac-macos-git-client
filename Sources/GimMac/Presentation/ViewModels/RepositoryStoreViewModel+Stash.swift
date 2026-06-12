@@ -5,7 +5,10 @@ import Foundation
 @MainActor
 extension RepositoryStoreViewModel {
     func applyStash() async {
+        guard !isStashOperationInProgress else { return }
         guard let repository = selectedRepository, let stashProvider else { return }
+        isStashOperationInProgress = true
+        defer { isStashOperationInProgress = false }
         errorMessage = nil
         do {
             try await stashProvider.applyStash(in: repository.url)
@@ -16,7 +19,10 @@ extension RepositoryStoreViewModel {
     }
 
     func dropStash() async {
+        guard !isStashOperationInProgress else { return }
         guard let repository = selectedRepository, let stashProvider else { return }
+        isStashOperationInProgress = true
+        defer { isStashOperationInProgress = false }
         errorMessage = nil
         do {
             try await stashProvider.dropStash(in: repository.url)

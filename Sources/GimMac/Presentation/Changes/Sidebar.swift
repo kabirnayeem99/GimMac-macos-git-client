@@ -39,10 +39,15 @@ struct Sidebar: View {
     let viewModel: RepositoryStoreViewModel
     @State private var filterState = FilterViewState()
     @State private var pendingDiscardPath: String?
+    @State private var isConfirmingStashDiscard = false
 
     private var filteredFiles: [ChangedFile] {
-        viewModel.changedFiles.filter { file in
-            matchesFilterText(file) && matchesFilterOptions(file)
+        // Snapshot the checked-paths set once per filter pass so option matching
+        // is O(1) per file instead of dispatching through the view model for
+        // every file × every selected option.
+        let checkedPaths = viewModel.checkedChangedFilePaths
+        return viewModel.changedFiles.filter { file in
+            matchesFilterText(file) && matchesFilterOptions(file, checkedPaths: checkedPaths)
         }
     }
 
@@ -58,7 +63,7 @@ struct Sidebar: View {
         return file.path.localizedCaseInsensitiveContains(filterState.text)
     }
 
-    private func matchesFilterOptions(_ file: ChangedFile) -> Bool {
+    private func matchesFilterOptions(_ file: ChangedFile, checkedPaths: Set<String>) -> Bool {
         guard !filterState.selectedOptions.isEmpty else {
             return true
         }
@@ -66,11 +71,11 @@ struct Sidebar: View {
         for option in filterState.selectedOptions {
             switch option {
             case .includedInCommit:
-                if viewModel.isChangedFileChecked(path: file.path) {
+                if checkedPaths.contains(file.path) {
                     return true
                 }
             case .excludedFromCommit:
-                if !viewModel.isChangedFileChecked(path: file.path) {
+                if !checkedPaths.contains(file.path) {
                     return true
                 }
             case .newFiles:
@@ -132,6 +137,8 @@ struct Sidebar: View {
                 .buttonStyle(.bordered)
                 .controlSize(.small)
                 .help("Filter changed files")
+                .accessibilityLabel("Filter changed files")
+                .accessibilityValue(isAnyFilterOptionSelected ? "Active" : "Off")
 
                 TextField(
                     "Filter",
@@ -142,6 +149,20 @@ struct Sidebar: View {
                 )
                     .textFieldStyle(.roundedBorder)
                     .controlSize(.small)
+                    .accessibilityLabel("Filter changed files")
+                    .overlay(alignment: .trailing) {
+                        if !filterState.text.isEmpty {
+                            Button {
+                                send(.setText(""))
+                            } label: {
+                                Image(systemName: "xmark.circle.fill")
+                                    .foregroundStyle(.secondary)
+                            }
+                            .buttonStyle(.plain)
+                            .padding(.trailing, 4)
+                            .accessibilityLabel("Clear filter")
+                        }
+                    }
             }
             .padding(.horizontal, 12)
             .padding(.bottom, 10)
@@ -161,15 +182,17 @@ struct Sidebar: View {
                     Image(systemName: allChecked
                           ? "checkmark.square.fill"
                           : (someChecked ? "minus.square.fill" : "square"))
-                        .font(.system(size: 12, weight: .semibold))
+                        .font(.callout.weight(.semibold))
                         .foregroundStyle(.secondary)
                 }
                 .buttonStyle(.plain)
                 .disabled(viewModel.changedFiles.isEmpty)
                 .help(allChecked ? "Deselect all" : "Select all")
+                .accessibilityLabel(allChecked ? "Deselect all files" : "Select all files")
+                .accessibilityValue(allChecked ? "All selected" : (someChecked ? "Some selected" : "None selected"))
 
-                Text("\(viewModel.changedFilesCount) changed file\(viewModel.changedFilesCount == 1 ? "" : "s")")
-                    .font(.system(size: 12, weight: .medium))
+                Text("^[\(viewModel.changedFilesCount) changed file](inflect: true)")
+                    .font(.callout.weight(.medium))
 
                 Spacer()
             }
@@ -188,8 +211,9 @@ struct Sidebar: View {
             if let stash = viewModel.stashEntry {
                 StashPanel(
                     entry: stash,
+                    busy: viewModel.isStashOperationInProgress,
                     onRestore: { Task { await viewModel.applyStash() } },
-                    onDiscard: { Task { await viewModel.dropStash() } }
+                    onDiscard: { isConfirmingStashDiscard = true }
                 )
             }
 
@@ -215,6 +239,18 @@ struct Sidebar: View {
             }
         } message: {
             Text("Changes to this file will be lost. This cannot be undone.")
+        }
+        .confirmationDialog(
+            "Discard stashed changes?",
+            isPresented: $isConfirmingStashDiscard,
+            titleVisibility: .visible
+        ) {
+            Button("Discard", role: .destructive) {
+                Task { await viewModel.dropStash() }
+            }
+            Button("Cancel", role: .cancel) {}
+        } message: {
+            Text("The stashed changes will be permanently lost. This cannot be undone.")
         }
     }
 
@@ -254,8 +290,23 @@ private struct ChangedFilesListView: View {
     let files: [ChangedFile]
     let onRequestDiscard: (String) -> Void
 
+    // Maps the view model's path-based selection onto the List's id-based
+    // selection (ChangedFile.id is a composite of status + path, stable across
+    // renames). Native List selection gives keyboard arrow navigation, the
+    // focus ring, and the system selection highlight for free.
+    private var selection: Binding<ChangedFile.ID?> {
+        Binding(
+            get: { files.first { $0.path == viewModel.selectedChangedFilePath }?.id },
+            set: { newValue in
+                guard let id = newValue,
+                      let file = files.first(where: { $0.id == id }) else { return }
+                viewModel.selectChangedFile(path: file.path)
+            }
+        )
+    }
+
     var body: some View {
-        List(files) { file in
+        List(files, selection: selection) { file in
             ChangedFileRow(
                 file: file,
                 selected: file.path == viewModel.selectedChangedFilePath,
@@ -273,11 +324,9 @@ private struct ChangedFilesListView: View {
                 editorName: viewModel.selectedEditorName
             )
             .frame(maxWidth: .infinity, alignment: .leading)
-            .contentShape(Rectangle())
-            .onTapGesture { viewModel.selectChangedFile(path: file.path) }
             .listRowInsets(EdgeInsets())
             .listRowSeparator(.hidden)
-            .listRowBackground(Color.clear)
+            .tag(file.id)
         }
         .listStyle(.plain)
         .scrollContentBackground(.hidden)
@@ -286,6 +335,7 @@ private struct ChangedFilesListView: View {
 
 private struct StashPanel: View {
     let entry: StashEntry
+    let busy: Bool
     let onRestore: () -> Void
     let onDiscard: () -> Void
 
@@ -293,30 +343,33 @@ private struct StashPanel: View {
         VStack(alignment: .leading, spacing: 6) {
             HStack(spacing: 6) {
                 Image(systemName: "tray.full")
-                    .font(.system(size: 11, weight: .semibold))
+                    .font(.caption.weight(.semibold))
                     .foregroundStyle(.secondary)
+                    .accessibilityHidden(true)
                 Text("Stashed Changes")
-                    .font(.system(size: 11, weight: .semibold))
+                    .font(.caption.weight(.semibold))
                     .foregroundStyle(.secondary)
                 Spacer()
             }
 
             Text(entry.message)
-                .font(.system(size: 12))
+                .font(.callout)
                 .lineLimit(2)
 
             HStack(spacing: 8) {
                 Button("Restore", action: onRestore)
                     .buttonStyle(.borderless)
                     .controlSize(.small)
+                    .disabled(busy)
                 Button("Discard", role: .destructive, action: onDiscard)
                     .buttonStyle(.borderless)
                     .controlSize(.small)
+                    .disabled(busy)
                 Spacer()
             }
         }
         .padding(10)
-        .background(.bar)
+        .liquidGlassBackground(fallbackMaterial: .bar)
         .overlay(alignment: .top) { Divider() }
     }
 }

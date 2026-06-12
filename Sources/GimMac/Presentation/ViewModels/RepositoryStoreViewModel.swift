@@ -84,6 +84,10 @@ final class RepositoryStoreViewModel {
     var conflictMergeToolName: String?
     var isConflictActionInProgress = false
 
+    /// Guards stash apply/drop against re-entry (e.g. double-tapping Restore or
+    /// Discard) so two concurrent git stash operations cannot overlap.
+    var isStashOperationInProgress = false
+
     /// Which top-level screen tab is shown: 0 = Changes, 1 = History.
     /// Bridged from SwiftUI `@State` so the menu bar (View → Show Changes/History)
     /// can drive tab selection from the responder chain.
@@ -154,13 +158,14 @@ final class RepositoryStoreViewModel {
         selectedRepository != nil &&
         (commitForm.isAmendMode || !changedFilesHandler.checkedPaths.isEmpty) &&
         !commitForm.trimmedSummary.isEmpty &&
-        !hasCheckedConflicts
+        !hasUnresolvedConflicts
     }
 
-    var hasCheckedConflicts: Bool {
-        changedFiles
-            .filter { changedFilesHandler.isChecked($0.path) }
-            .contains { $0.hasConflict }
+    /// True when any file in the working tree has an unresolved conflict. Git
+    /// blocks every commit while unmerged paths exist, so this gates on the full
+    /// changed-file set — not just the checkbox-selected files.
+    var hasUnresolvedConflicts: Bool {
+        changedFiles.contains { $0.hasConflict }
     }
 
     var isSyncing: Bool { isSyncInProgress }

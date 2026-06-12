@@ -1,3 +1,4 @@
+import AppKit
 import SwiftUI
 
 struct MainContent: View {
@@ -7,51 +8,63 @@ struct MainContent: View {
         let title: String
         let subtitle: String
         let button: String
+        let action: () -> Void
+    }
+
+    private func runPrimaryAction() {
+        Task { await viewModel.performPrimaryAction() }
     }
 
     private var remoteAction: RemoteSuggestion? {
         switch viewModel.primaryAction {
         case .push(let remote, let n):
             return RemoteSuggestion(
-                title: "Push \(n) commit\(n == 1 ? "" : "s") to \(remote)",
-                subtitle: "You have \(n) local commit\(n == 1 ? "" : "s") waiting to be pushed.",
-                button: "Push \(remote)"
+                title: String(AttributedString(localized: "Push ^[\(n) commit](inflect: true) to \(remote)").characters),
+                subtitle: String(AttributedString(localized: "You have ^[\(n) local commit](inflect: true) waiting to be pushed.").characters),
+                button: "Push \(remote)",
+                action: runPrimaryAction
             )
         case .pull(let remote, let n):
             return RemoteSuggestion(
-                title: "Pull \(n) commit\(n == 1 ? "" : "s") from \(remote)",
+                title: String(AttributedString(localized: "Pull ^[\(n) commit](inflect: true) from \(remote)").characters),
                 subtitle: "The remote has changes not yet on your machine.",
-                button: "Pull \(remote)"
+                button: "Pull \(remote)",
+                action: runPrimaryAction
             )
         case .forcePush(let remote, let n):
             return RemoteSuggestion(
-                title: "Force push \(n) commit\(n == 1 ? "" : "s") to \(remote)",
+                title: String(AttributedString(localized: "Force push ^[\(n) commit](inflect: true) to \(remote)").characters),
                 subtitle: "Your branch has diverged from \(remote).",
-                button: "Force push \(remote)"
+                button: "Force push \(remote)",
+                action: runPrimaryAction
             )
         case .sync(let remote, let ahead, let behind):
             return RemoteSuggestion(
                 title: "Sync with \(remote)",
                 subtitle: "Ahead by \(ahead), behind by \(behind).",
-                button: "Sync \(remote)"
+                button: "Sync \(remote)",
+                action: runPrimaryAction
             )
         case .fetch(let remote):
             return RemoteSuggestion(
                 title: "Fetch from \(remote)",
                 subtitle: "Check \(remote) for new commits.",
-                button: "Fetch \(remote)"
+                button: "Fetch \(remote)",
+                action: runPrimaryAction
             )
         case .publishRepository:
             return RemoteSuggestion(
                 title: "Publish this repository",
                 subtitle: "This repository only exists locally. Publish it to a remote to share your work.",
-                button: "Publish repository"
+                button: "Publish repository",
+                action: runPrimaryAction
             )
         case .publishBranch(let remote):
             return RemoteSuggestion(
                 title: "Publish branch to \(remote)",
                 subtitle: "This branch has no upstream yet.",
-                button: "Publish branch"
+                button: "Publish branch",
+                action: runPrimaryAction
             )
         case .commit, .merge, .rebase, .cherryPick:
             return nil
@@ -63,7 +76,14 @@ struct MainContent: View {
         return RemoteSuggestion(
             title: "View stashed changes",
             subtitle: "You have work-in-progress changes saved in a stash.",
-            button: "View stash"
+            button: "View stash",
+            action: {
+                NSApp.sendAction(
+                    Selector(("menuManageStashes:")),
+                    to: nil,
+                    from: nil
+                )
+            }
         )
     }
 
@@ -98,13 +118,25 @@ struct MainContent: View {
                 )
 
                 VStack(spacing: 0) {
-                    if let suggestion = stashHighlight ?? remoteAction {
+                    if let stash = stashHighlight {
                         SuggestionCard(
-                            title: suggestion.title,
-                            subtitle: suggestion.subtitle,
+                            title: stash.title,
+                            subtitle: stash.subtitle,
                             hint: "Available from the toolbar.",
-                            button: suggestion.button,
-                            highlighted: true
+                            button: stash.button,
+                            highlighted: true,
+                            action: stash.action
+                        )
+                    }
+
+                    if let remote = remoteAction {
+                        SuggestionCard(
+                            title: remote.title,
+                            subtitle: remote.subtitle,
+                            hint: "Available from the toolbar.",
+                            button: remote.button,
+                            highlighted: true,
+                            action: remote.action
                         )
                     }
 
@@ -112,24 +144,22 @@ struct MainContent: View {
                         title: "Open the repository in your editor",
                         subtitle: "Select your preferred editor in Settings.",
                         hint: "Repository menu or \u{2318}\u{21E7}A.",
-                        button: "Open in VS Code"
+                        button: "Open in \(viewModel.selectedEditorName ?? "Editor")",
+                        action: { viewModel.openInExternalEditor(path: "") }
                     )
 
                     SuggestionCard(
                         title: "View repository files in Finder",
                         subtitle: nil,
                         hint: "Repository menu or \u{2318}\u{21E7}F.",
-                        button: "Show in Finder"
-                    )
-
-                    SuggestionCard(
-                        title: "Open the repository page in your browser",
-                        subtitle: nil,
-                        hint: "Repository menu or \u{2318}\u{21E7}G.",
-                        button: "View Remote"
+                        button: "Show in Finder",
+                        action: { viewModel.openWithDefaultProgram(path: "") }
                     )
                 }
-                .background(.regularMaterial)
+                .liquidGlassBackground(
+                    fallbackMaterial: .regular,
+                    in: RoundedRectangle(cornerRadius: 12, style: .continuous)
+                )
                 .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
                 .overlay {
                     RoundedRectangle(cornerRadius: 12, style: .continuous)
@@ -144,6 +174,6 @@ struct MainContent: View {
             .frame(maxWidth: 860, alignment: .leading)
             .frame(maxWidth: .infinity)
         }
-        .background(Color(NSColor.textBackgroundColor))
+        .background(Color(NSColor.windowBackgroundColor))
     }
 }

@@ -169,6 +169,7 @@
 		E81B75E85960516961FAC83D /* GitResetReorderIntegrationTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6230084B64BB0D9C93D6B63E /* GitResetReorderIntegrationTests.swift */; };
 		EAACEA8F924D7C2C8F54DA06 /* CreateRepositoryWindowController.swift in Sources */ = {isa = PBXBuildFile; fileRef = AE0E3C6E2AB76582D9742B8D /* CreateRepositoryWindowController.swift */; };
 		EB6D06CD5C75AB24C82684DA /* IntegrationsSettingsViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9137CD8FAC54D1E9F4CAE5BC /* IntegrationsSettingsViewModel.swift */; };
+		ED13D27511BC0BC19276BC3E /* LiquidGlass.swift in Sources */ = {isa = PBXBuildFile; fileRef = 17E5AECC18DB3C4FFBEF93F8 /* LiquidGlass.swift */; };
 		EEEF6020A4DC52FEB29FA351 /* HistoryHandler.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6DDFBF42126A6CCC8586C053 /* HistoryHandler.swift */; };
 		EF6A0F43E7CE9E7E67078FD6 /* RepositoryCreation.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1898500D92E633D86C099970 /* RepositoryCreation.swift */; };
 		F002BA984783039A004823B1 /* GitIgnoreProviderTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7622D80A569F509D6D07568D /* GitIgnoreProviderTests.swift */; };
@@ -228,6 +229,7 @@
 		124AF3C8B9B84A87C77B36DD /* GitHistoryEditIntegrationTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GitHistoryEditIntegrationTests.swift; sourceTree = "<group>"; };
 		12AB9F4431BFAB698FC6E022 /* GitSettingsPaneController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GitSettingsPaneController.swift; sourceTree = "<group>"; };
 		140F9BC289D65C27C81626C3 /* ChangedFile.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ChangedFile.swift; sourceTree = "<group>"; };
+		17E5AECC18DB3C4FFBEF93F8 /* LiquidGlass.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LiquidGlass.swift; sourceTree = "<group>"; };
 		1898500D92E633D86C099970 /* RepositoryCreation.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RepositoryCreation.swift; sourceTree = "<group>"; };
 		18BFACAA79D97A617553FBEE /* LogLevel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LogLevel.swift; sourceTree = "<group>"; };
 		18EA41DE1F4131AB6797E58B /* GitAppErrorMapper.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GitAppErrorMapper.swift; sourceTree = "<group>"; };
@@ -681,6 +683,7 @@
 			isa = PBXGroup;
 			children = (
 				43BDE70B9BB495B708637A27 /* ChangedFileRow.swift */,
+				17E5AECC18DB3C4FFBEF93F8 /* LiquidGlass.swift */,
 			);
 			path = Shared;
 			sourceTree = "<group>";
@@ -1068,6 +1071,7 @@
 				FBC9EA0EFB36E21C914041DC /* HistoryRepositoryScreen.swift in Sources */,
 				1D30413B713AED488CBEC5F1 /* IntegrationsSettingsPaneController.swift in Sources */,
 				EB6D06CD5C75AB24C82684DA /* IntegrationsSettingsViewModel.swift in Sources */,
+				ED13D27511BC0BC19276BC3E /* LiquidGlass.swift in Sources */,
 				E03E38564B29D29B774F98DD /* LiveRepositoryScreenDataRepository.swift in Sources */,
 				7654AF891581F7F37FEF35AE /* LocalGitRepositoryInspector.swift in Sources */,
 				C022150B68DE2E84D3ED582C /* LogCategory.swift in Sources */,

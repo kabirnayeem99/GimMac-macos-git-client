@@ -17,67 +17,74 @@ struct CommitBox: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 10) {
             Text("Commit")
-                .font(.system(size: 11, weight: .semibold))
+                .font(.caption.weight(.semibold))
                 .foregroundStyle(.secondary)
 
             HStack(alignment: .center, spacing: 10) {
-                Circle()
-                    .fill(.quaternary)
-                    .frame(width: 28, height: 28)
-                    .overlay {
-                        Text(viewModel.currentGitUser.initials)
-                            .font(.system(size: 9, weight: .bold))
-                            .foregroundStyle(.secondary)
-                    }
-                    .onHover { isHovered in
-                        isShowingProfile = isHovered
-                    }
-                    .popover(isPresented: $isShowingProfile, arrowEdge: .top) {
-                        VStack(alignment: .leading, spacing: 4) {
-                            Text(viewModel.currentGitUser.name)
-                                .font(.system(size: 12, weight: .semibold))
-                            Text(viewModel.currentGitUser.email)
-                                .font(.system(size: 11))
+                Button {
+                    isShowingProfile.toggle()
+                } label: {
+                    Circle()
+                        .fill(.quaternary)
+                        .frame(width: 28, height: 28)
+                        .overlay {
+                            Text(viewModel.currentGitUser.initials)
+                                .font(.caption2.weight(.bold))
                                 .foregroundStyle(.secondary)
                         }
-                        .padding(10)
+                }
+                .buttonStyle(.plain)
+                .accessibilityLabel("Author: \(viewModel.currentGitUser.name), \(viewModel.currentGitUser.email)")
+                .popover(isPresented: $isShowingProfile, arrowEdge: .top) {
+                    VStack(alignment: .leading, spacing: 4) {
+                        Text(viewModel.currentGitUser.name)
+                            .font(.callout.weight(.semibold))
+                        Text(viewModel.currentGitUser.email)
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
                     }
+                    .padding(10)
+                }
 
                 TextField("Summary (required)", text: $viewModel.commitSummary)
                     .textFieldStyle(.roundedBorder)
                     .controlSize(.small)
-                    .overlay(alignment: .trailing) {
+                    .accessibilityLabel("Commit summary")
+                    .safeAreaInset(edge: .trailing, spacing: 0) {
                         Text("\(viewModel.summaryCharacterCount)")
-                            .font(.system(size: 10))
-                            .foregroundStyle(viewModel.summaryExceedsRecommendedLength ? Color.red : Color.secondary)
+                            .font(.caption2)
+                            .monospacedDigit()
+                            .foregroundStyle(viewModel.summaryExceedsRecommendedLength ? Color(.systemRed) : Color.secondary)
                             .padding(.trailing, 6)
+                            .accessibilityHidden(true)
                     }
             }
 
             TextField("Description", text: $viewModel.commitDescription, axis: .vertical)
                 .textFieldStyle(.roundedBorder)
-                .font(.system(size: 12))
+                .font(.callout)
                 .lineLimit(4...8)
                 .frame(maxWidth: .infinity)
+                .accessibilityLabel("Commit description")
 
             coAuthorSection
 
-            if viewModel.hasCheckedConflicts {
+            if viewModel.hasUnresolvedConflicts {
                 Label("Resolve all conflicts before committing.", systemImage: "exclamationmark.triangle.fill")
-                    .font(.system(size: 11))
-                    .foregroundStyle(.orange)
+                    .font(.caption)
+                    .foregroundStyle(Color(.systemOrange))
             }
 
             if let warning = viewModel.commitWarning {
                 Label(warning.message, systemImage: "exclamationmark.triangle")
-                    .font(.system(size: 11))
-                    .foregroundStyle(.yellow)
+                    .font(.caption)
+                    .foregroundStyle(Color(.systemOrange))
             }
 
             if let error = viewModel.errorMessage {
                 Label(error, systemImage: "xmark.circle.fill")
-                    .font(.system(size: 11))
-                    .foregroundStyle(.red)
+                    .font(.caption)
+                    .foregroundStyle(Color(.systemRed))
                     .accessibilityIdentifier("statusLabel")
             }
 
@@ -88,11 +95,12 @@ struct CommitBox: View {
                     }
                 } label: {
                     Text(commitButtonLabel)
-                        .font(.system(size: 13, weight: .semibold))
+                        .font(.body.weight(.semibold))
                         .frame(maxWidth: .infinity)
                 }
                 .buttonStyle(.borderedProminent)
                 .controlSize(.regular)
+                .keyboardShortcut(.return, modifiers: .command)
                 .disabled(!viewModel.canCommitChanges)
 
                 Button {
@@ -104,6 +112,9 @@ struct CommitBox: View {
                 .controlSize(.regular)
                 .help(viewModel.isAmendMode ? "Cancel amend" : "Amend last commit")
                 .disabled(viewModel.isCommitting || viewModel.commits.isEmpty)
+                .accessibilityLabel("Amend previous commit")
+                .accessibilityValue(viewModel.isAmendMode ? "On" : "Off")
+                .accessibilityAddTraits(viewModel.isAmendMode ? .isSelected : [])
 
                 Menu {
                     Toggle("Skip pre-commit hooks", isOn: $viewModel.skipHooks)
@@ -115,6 +126,7 @@ struct CommitBox: View {
                 .menuIndicator(.hidden)
                 .fixedSize()
                 .help("Commit options")
+                .accessibilityLabel("Commit options")
             }
 
             VStack(alignment: .leading, spacing: 4) {
@@ -133,13 +145,13 @@ struct CommitBox: View {
                 }
 
                 Text(viewModel.lastCommitSummary)
-                    .font(.system(size: 12, weight: .semibold))
+                    .font(.callout.weight(.semibold))
                     .lineLimit(1)
             }
-            .font(.system(size: 11))
+            .font(.caption)
         }
         .padding(12)
-        .background(.bar)
+        .liquidGlassBackground(fallbackMaterial: .bar)
         .overlay(alignment: .top) {
             Divider()
         }
@@ -155,7 +167,7 @@ struct CommitBox: View {
                     if !showCoAuthorField { coAuthorError = nil }
                 } label: {
                     Label("Add co-authors", systemImage: "person.badge.plus")
-                        .font(.system(size: 11))
+                        .font(.caption)
                 }
                 .buttonStyle(.borderless)
                 .controlSize(.small)
@@ -167,10 +179,10 @@ struct CommitBox: View {
             ForEach(viewModel.commitCoAuthors) { author in
                 HStack(spacing: 4) {
                     Image(systemName: "person.crop.circle")
-                        .font(.system(size: 10))
+                        .font(.caption2)
                         .foregroundStyle(.secondary)
                     Text(author.display)
-                        .font(.system(size: 11))
+                        .font(.caption)
                         .lineLimit(1)
                         .truncationMode(.middle)
                     Spacer(minLength: 4)
@@ -178,11 +190,14 @@ struct CommitBox: View {
                         viewModel.removeCoAuthor(author)
                     } label: {
                         Image(systemName: "xmark.circle.fill")
-                            .font(.system(size: 11))
+                            .font(.caption)
                             .foregroundStyle(.secondary)
+                            .frame(width: 24, height: 24)
+                            .contentShape(Rectangle())
                     }
                     .buttonStyle(.plain)
                     .help("Remove co-author")
+                    .accessibilityLabel("Remove co-author \(author.display)")
                 }
                 .padding(.horizontal, 8)
                 .padding(.vertical, 3)
@@ -197,8 +212,8 @@ struct CommitBox: View {
 
                 if let coAuthorError {
                     Text(coAuthorError)
-                        .font(.system(size: 10))
-                        .foregroundStyle(.red)
+                        .font(.caption2)
+                        .foregroundStyle(Color(.systemRed))
                 }
             }
         }
