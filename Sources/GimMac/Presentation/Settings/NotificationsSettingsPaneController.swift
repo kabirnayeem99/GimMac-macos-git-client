@@ -10,6 +10,7 @@ final class NotificationsSettingsPaneController: SettingsPaneViewController {
     private weak var hintLabel: NSTextField?
     private weak var grantButton: NSButton?
     private weak var openSettingsButton: NSButton?
+    private var isVisible = false
 
     private static let notificationSettingsURL =
         URL(string: "x-apple.systempreferences:com.apple.Notifications-Settings.extension")
@@ -59,6 +60,7 @@ final class NotificationsSettingsPaneController: SettingsPaneViewController {
 
     override func viewDidAppear() {
         super.viewDidAppear()
+        isVisible = true
         trackState()
         Task { [weak self] in
             await self?.viewModel.refreshPermissionStatus()
@@ -66,7 +68,13 @@ final class NotificationsSettingsPaneController: SettingsPaneViewController {
         }
     }
 
+    override func viewDidDisappear() {
+        super.viewDidDisappear()
+        isVisible = false
+    }
+
     private func trackState() {
+        guard isVisible else { return }
         withObservationTracking {
             refreshHint()
         } onChange: { [weak self] in

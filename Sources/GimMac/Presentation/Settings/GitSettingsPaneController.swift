@@ -15,6 +15,7 @@ final class GitSettingsPaneController: SettingsPaneViewController {
     private weak var validationLabel: NSTextField?
     private weak var bannerLabel: NSTextField?
     private weak var saveButton: NSButton?
+    private var isVisible = false
 
     init(viewModel: GitSettingsViewModel) {
         self.viewModel = viewModel
@@ -46,17 +47,18 @@ final class GitSettingsPaneController: SettingsPaneViewController {
         addSection("Author", views: [
             labeledRow("Name", control: name),
             labeledRow("Email", control: email),
-            validation
+            labeledRow("", control: validation)
         ])
 
         let branch = makeTextField(text: viewModel.defaultBranch, placeholder: "main") { [weak self] in
             self?.viewModel.defaultBranch = $0
         }
         branchField = branch
+        let note = makeNote("This name is used by Git when initializing new repositories. A common "
+                 + "alternative is \"master\".")
         addSection("Default branch", views: [
             labeledRow("Default branch name for new repositories", control: branch, labelWidth: 280),
-            makeNote("This name is used by Git when initializing new repositories. A common "
-                     + "alternative is \"master\".")
+            labeledRow("", control: note, labelWidth: 280)
         ])
 
         let save = makeButton("Save") { [weak self] in
@@ -90,6 +92,7 @@ final class GitSettingsPaneController: SettingsPaneViewController {
 
     override func viewDidAppear() {
         super.viewDidAppear()
+        isVisible = true
         trackState()
         Task { [weak self] in
             await self?.viewModel.load()
@@ -97,9 +100,15 @@ final class GitSettingsPaneController: SettingsPaneViewController {
         }
     }
 
+    override func viewDidDisappear() {
+        super.viewDidDisappear()
+        isVisible = false
+    }
+
     // MARK: - Observation
 
     private func trackState() {
+        guard isVisible else { return }
         withObservationTracking {
             syncStatus()
         } onChange: { [weak self] in

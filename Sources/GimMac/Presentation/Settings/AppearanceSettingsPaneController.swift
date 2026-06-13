@@ -58,7 +58,7 @@ final class AppearanceSettingsPaneController: SettingsPaneViewController {
         let tabSizes = viewModel.availableTabSizes
         let tabIndex = tabSizes.firstIndex(of: viewModel.selectedTabSize) ?? 0
         addSection("Diff", views: [
-            labeledRow("Tab size", control: makePopUp(titles: tabSizes.map(String.init), selectedIndex: tabIndex) { [weak self] index in
+            labeledRow("Tab size", control: makePopUp(titles: tabSizes.map(String.init), selectedIndex: tabIndex, width: 80) { [weak self] index in
                 guard let self, tabSizes.indices.contains(index) else { return }
                 viewModel.selectedTabSize = tabSizes[index]
             })

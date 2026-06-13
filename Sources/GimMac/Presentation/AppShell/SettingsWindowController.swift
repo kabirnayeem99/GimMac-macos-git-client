@@ -30,7 +30,7 @@ final class SettingsWindowController: NSWindowController {
         let window = NSWindow(contentViewController: rootViewController)
         window.title = "Settings"
         window.setContentSize(NSSize(width: 960, height: 620))
-        window.styleMask = [.titled, .closable]
+        window.styleMask = [.titled, .closable, .resizable]
         window.identifier = NSUserInterfaceItemIdentifier("gimmac.settings.window")
         window.collectionBehavior.remove(.fullScreenPrimary)
         window.collectionBehavior.remove(.fullScreenAuxiliary)
@@ -107,7 +107,7 @@ private final class SettingsRootViewController: NSSplitViewController {
         currentPaneController?.view.removeFromSuperview()
         currentPaneController?.removeFromParent()
 
-        addChild(controller)
+        detailContainer.addChild(controller)
         controller.view.translatesAutoresizingMaskIntoConstraints = false
         detailContainer.view.addSubview(controller.view)
         NSLayoutConstraint.activate([
@@ -158,8 +158,6 @@ private final class SidebarViewController: NSViewController, NSTableViewDataSour
         tableView.rowHeight = 32
         tableView.delegate = self
         tableView.dataSource = self
-        tableView.target = self
-        tableView.action = #selector(selectionDidChange)
         tableView.style = .sourceList
         scrollView.documentView = tableView
 
@@ -226,8 +224,10 @@ private final class SidebarViewController: NSViewController, NSTableViewDataSour
         return cell
     }
 
-    @objc
-    private func selectionDidChange() {
-        onSelectionChanged?(tableView.selectedRow)
+    func tableViewSelectionDidChange(_ notification: Notification) {
+        let selectedRow = tableView.selectedRow
+        if selectedRow >= 0 {
+            onSelectionChanged?(selectedRow)
+        }
     }
 }

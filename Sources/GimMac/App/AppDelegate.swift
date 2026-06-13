@@ -247,10 +247,31 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     @objc
     func openInExternalEditor(_ sender: Any?) {
         guard let repo = repositoryStoreViewModel.selectedRepository else { return }
-        let editors = editorService.availableEditors()
-        let savedID = UserDefaults.standard.string(forKey: ExternalEditorPreferences.selectedEditorKey)
-        guard let editor = editors.first(where: { $0.bundleIdentifier == savedID }) ?? editors.first else { return }
-        editorService.launch(editor: editor, at: repo.url)
+        
+        if settingsStore.useCustomEditor {
+            let custom = settingsStore.customEditor
+            guard !custom.path.isEmpty else { return }
+            let appURL = URL(fileURLWithPath: custom.path)
+            let config = NSWorkspace.OpenConfiguration()
+            config.activates = true
+            
+            var args: [String] = []
+            let rawArgs = custom.arguments.split(whereSeparator: { $0.isWhitespace }).map(String.init)
+            for arg in rawArgs {
+                if arg.contains(CustomIntegration.targetPathArgument) {
+                    args.append(arg.replacingOccurrences(of: CustomIntegration.targetPathArgument, with: repo.url.path))
+                } else {
+                    args.append(arg)
+                }
+            }
+            config.arguments = args
+            NSWorkspace.shared.open([repo.url], withApplicationAt: appURL, configuration: config, completionHandler: nil)
+        } else {
+            let editors = editorService.availableEditors()
+            let savedID = settingsStore.selectedExternalEditorBundleID
+            guard let editor = editors.first(where: { $0.bundleIdentifier == savedID }) ?? editors.first else { return }
+            editorService.launch(editor: editor, at: repo.url)
+        }
     }
 
     @objc

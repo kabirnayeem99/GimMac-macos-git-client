@@ -75,7 +75,7 @@ class SettingsPaneViewController: NSViewController {
 
     func addHeader(_ title: String) {
         let label = NSTextField(labelWithString: title)
-        label.font = .systemFont(ofSize: 28, weight: .bold)
+        label.font = .systemFont(ofSize: 18, weight: .bold)
         contentStack.addArrangedSubview(label)
     }
 
@@ -87,7 +87,7 @@ class SettingsPaneViewController: NSViewController {
         container.spacing = 10
         if let title {
             let groupTitle = NSTextField(labelWithString: title)
-            groupTitle.font = .systemFont(ofSize: 15, weight: .semibold)
+            groupTitle.font = .systemFont(ofSize: 13, weight: .bold)
             container.addArrangedSubview(groupTitle)
         }
         views.forEach { container.addArrangedSubview($0) }
@@ -106,7 +106,7 @@ class SettingsPaneViewController: NSViewController {
         return button
     }
 
-    func makePopUp(titles: [String], selectedIndex: Int, onSelect: @escaping (Int) -> Void) -> NSPopUpButton {
+    func makePopUp(titles: [String], selectedIndex: Int, width: CGFloat = 200, onSelect: @escaping (Int) -> Void) -> NSPopUpButton {
         let trampoline = ControlActionTrampoline { control in
             onSelect((control as? NSPopUpButton)?.indexOfSelectedItem ?? 0)
         }
@@ -119,7 +119,7 @@ class SettingsPaneViewController: NSViewController {
         popup.target = trampoline
         popup.action = #selector(ControlActionTrampoline.fire(_:))
         popup.translatesAutoresizingMaskIntoConstraints = false
-        popup.widthAnchor.constraint(equalToConstant: 260).isActive = true
+        popup.widthAnchor.constraint(equalToConstant: width).isActive = true
         return popup
     }
 
@@ -136,6 +136,7 @@ class SettingsPaneViewController: NSViewController {
         let field = NSTextField(string: text)
         field.placeholderString = placeholder
         field.controlSize = .large
+        field.cell?.sendsActionOnEndEditing = true
         field.target = trampoline
         field.action = #selector(ControlActionTrampoline.fire(_:))
         field.translatesAutoresizingMaskIntoConstraints = false

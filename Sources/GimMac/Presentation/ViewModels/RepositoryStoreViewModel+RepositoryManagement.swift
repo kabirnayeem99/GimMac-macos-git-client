@@ -120,11 +120,47 @@ extension RepositoryStoreViewModel {
         }
     }
 
-    /// Open the selected repository in Terminal.app.
+    /// Open the selected repository in the configured shell integration.
     func openInShell() {
         guard let repo = selectedRepository else { return }
-        let terminalURL = URL(fileURLWithPath: "/System/Applications/Utilities/Terminal.app")
+        
+        let defaults = UserDefaults.standard
+        let useCustomShell = defaults.bool(forKey: "io.github.kabirnayeem99.gimmac.settings.useCustomShell")
+        
+        if useCustomShell,
+           let data = defaults.data(forKey: "io.github.kabirnayeem99.gimmac.settings.customShell"),
+           let custom = try? JSONDecoder().decode(CustomIntegration.self, from: data),
+           !custom.path.isEmpty {
+            let appURL = URL(fileURLWithPath: custom.path)
+            let config = NSWorkspace.OpenConfiguration()
+            config.activates = true
+            
+            var args: [String] = []
+            let rawArgs = custom.arguments.split(whereSeparator: { $0.isWhitespace }).map(String.init)
+            for arg in rawArgs {
+                if arg.contains(CustomIntegration.targetPathArgument) {
+                    args.append(arg.replacingOccurrences(of: CustomIntegration.targetPathArgument, with: repo.url.path))
+                } else {
+                    args.append(arg)
+                }
+            }
+            config.arguments = args
+            NSWorkspace.shared.open([repo.url], withApplicationAt: appURL, configuration: config, completionHandler: nil)
+            return
+        }
+        
+        // Predefined shell selection
+        let shellURL: URL
+        if let bundleID = defaults.string(forKey: "io.github.kabirnayeem99.gimmac.settings.selectedShellBundleID"),
+           let appURL = NSWorkspace.shared.urlForApplication(withBundleIdentifier: bundleID) {
+            shellURL = appURL
+        } else {
+            // Default fallback
+            shellURL = URL(fileURLWithPath: "/System/Applications/Utilities/Terminal.app")
+        }
+        
         let config = NSWorkspace.OpenConfiguration()
-        NSWorkspace.shared.open([repo.url], withApplicationAt: terminalURL, configuration: config)
+        config.activates = true
+        NSWorkspace.shared.open([repo.url], withApplicationAt: shellURL, configuration: config, completionHandler: nil)
     }
 }

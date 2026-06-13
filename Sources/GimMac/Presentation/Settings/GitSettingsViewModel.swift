@@ -14,6 +14,7 @@ final class GitSettingsViewModel {
 
     private(set) var isLoading = false
     private(set) var isSaving = false
+    private(set) var hasLoaded = false
     var errorMessage: String?
     var successMessage: String?
 
@@ -36,7 +37,7 @@ final class GitSettingsViewModel {
     }
 
     func load() async {
-        guard !isLoading else { return }
+        guard !hasLoaded, !isLoading else { return }
         isLoading = true
         defer { isLoading = false }
         do {
@@ -49,6 +50,7 @@ final class GitSettingsViewModel {
             committerName = name ?? ""
             committerEmail = email ?? ""
             defaultBranch = branch ?? ""
+            hasLoaded = true
         } catch {
             errorMessage = errorDescription(error)
         }

@@ -127,6 +127,7 @@
 		A6B3919526D8B4436A7AF5E1 /* GitClientProtocol.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9E590CFF236A4BC6D8D3F55B /* GitClientProtocol.swift */; };
 		A774B1ADF13707C7AD771B4B /* DirtyWorkingTreeAction.swift in Sources */ = {isa = PBXBuildFile; fileRef = A4A112BFDC9D441A7E0B13D3 /* DirtyWorkingTreeAction.swift */; };
 		AA3F79E7C73EC97D52E2EB32 /* HeaderSection.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1B8FE2F2F033C81E8CFF030A /* HeaderSection.swift */; };
+		AD1C6E3E9051858BD1D7E786 /* AppFormatters.swift in Sources */ = {isa = PBXBuildFile; fileRef = E53A80597BCD76DDFA337724 /* AppFormatters.swift */; };
 		B0AD9B4A54B735A35ED48267 /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = 25B57C69324148C1CF9426CA /* Assets.xcassets */; };
 		B1F4227542EE9BF66AA90A4B /* Branch.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6B06BFBCF989C3DD65C2518E /* Branch.swift */; };
 		B23118094A59182874EBAFDB /* BranchCompareResult.swift in Sources */ = {isa = PBXBuildFile; fileRef = B610DD11A31CD0323A8E59AA /* BranchCompareResult.swift */; };
@@ -169,6 +170,7 @@
 		E81B75E85960516961FAC83D /* GitResetReorderIntegrationTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6230084B64BB0D9C93D6B63E /* GitResetReorderIntegrationTests.swift */; };
 		EAACEA8F924D7C2C8F54DA06 /* CreateRepositoryWindowController.swift in Sources */ = {isa = PBXBuildFile; fileRef = AE0E3C6E2AB76582D9742B8D /* CreateRepositoryWindowController.swift */; };
 		EB6D06CD5C75AB24C82684DA /* IntegrationsSettingsViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9137CD8FAC54D1E9F4CAE5BC /* IntegrationsSettingsViewModel.swift */; };
+		EBFA6B09C447D5121F0C4527 /* ToolbarItemStyle.swift in Sources */ = {isa = PBXBuildFile; fileRef = E839D719ED93E44336AC4938 /* ToolbarItemStyle.swift */; };
 		ED13D27511BC0BC19276BC3E /* LiquidGlass.swift in Sources */ = {isa = PBXBuildFile; fileRef = 17E5AECC18DB3C4FFBEF93F8 /* LiquidGlass.swift */; };
 		EEEF6020A4DC52FEB29FA351 /* HistoryHandler.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6DDFBF42126A6CCC8586C053 /* HistoryHandler.swift */; };
 		EF6A0F43E7CE9E7E67078FD6 /* RepositoryCreation.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1898500D92E633D86C099970 /* RepositoryCreation.swift */; };
@@ -385,7 +387,9 @@
 		E20C0A134D6994F3A0F85425 /* DiffDocument.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DiffDocument.swift; sourceTree = "<group>"; };
 		E42A8B8E1FEB6F7354CCF54D /* RepositoryStoreViewModel+Discard.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "RepositoryStoreViewModel+Discard.swift"; sourceTree = "<group>"; };
 		E483EE6FD5D30A0A7F7C266C /* UserDefaultsAppSettingsStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = UserDefaultsAppSettingsStore.swift; sourceTree = "<group>"; };
+		E53A80597BCD76DDFA337724 /* AppFormatters.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppFormatters.swift; sourceTree = "<group>"; };
 		E685C20FBDF9CC7D583A2EC8 /* RepositoryStoreViewModel+FileActions.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "RepositoryStoreViewModel+FileActions.swift"; sourceTree = "<group>"; };
+		E839D719ED93E44336AC4938 /* ToolbarItemStyle.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ToolbarItemStyle.swift; sourceTree = "<group>"; };
 		E954CB89CA50BFD3D375FDFB /* DiffModels.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DiffModels.swift; sourceTree = "<group>"; };
 		EA17D8D594AE5C701668E36D /* RepositoryStoreViewModel+Stash.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "RepositoryStoreViewModel+Stash.swift"; sourceTree = "<group>"; };
 		EA19FE797B77FB6AD3F766E5 /* BundledRepositoryTemplateCatalog.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BundledRepositoryTemplateCatalog.swift; sourceTree = "<group>"; };
@@ -419,6 +423,7 @@
 			children = (
 				DE3C70BA944DCA559CD117C8 /* PushToolbarCard.swift */,
 				461528A469A10C9A19830C7F /* ToolbarCard.swift */,
+				E839D719ED93E44336AC4938 /* ToolbarItemStyle.swift */,
 				1CE5A69B0D173FAFACDE8B17 /* TopToolbar.swift */,
 			);
 			path = Toolbar;
@@ -453,6 +458,14 @@
 				B577AFD2940BC993824B1B88 /* SettingsPaneViewController.swift */,
 			);
 			path = Settings;
+			sourceTree = "<group>";
+		};
+		54E2E0E04702E778AE2752D6 /* Infrastructure */ = {
+			isa = PBXGroup;
+			children = (
+				E53A80597BCD76DDFA337724 /* AppFormatters.swift */,
+			);
+			path = Infrastructure;
 			sourceTree = "<group>";
 		};
 		55D0AF77EFE66949C9CE3C50 /* Logging */ = {
@@ -586,6 +599,7 @@
 				67BA8E12D2A7A2766D05D061 /* App */,
 				EC6C4D6729FD8C33A6D11577 /* Data */,
 				645E4FC0A4E966B9E089EABD /* Domain */,
+				54E2E0E04702E778AE2752D6 /* Infrastructure */,
 				A0400FBCA35F787D99921A38 /* Presentation */,
 				BD6E4CDE521BB193DC26F4A8 /* Resources */,
 			);
@@ -987,6 +1001,7 @@
 				9BD8BBDC2079DE5EA41B6081 /* AdvancedSettingsPaneController.swift in Sources */,
 				78C2A5B83502DDF46EF8E4DE /* AdvancedSettingsViewModel.swift in Sources */,
 				F39A7444D24AEE0D4750C32E /* AppDelegate.swift in Sources */,
+				AD1C6E3E9051858BD1D7E786 /* AppFormatters.swift in Sources */,
 				A3667B5D32BD63C7A3C4174F /* AppKitThemeController.swift in Sources */,
 				55D0A0BC8E7AC940038CEA89 /* AppLogging.swift in Sources */,
 				E063CB1D09D60B7153ECDDB5 /* AppSettings.swift in Sources */,
@@ -1131,6 +1146,7 @@
 				3A2FE9927803F108F1E6EF53 /* ThemeApplying.swift in Sources */,
 				DB29E62C6988A51FE187864A /* Tip.swift in Sources */,
 				3081300194218518FA1D5CAF /* ToolbarCard.swift in Sources */,
+				EBFA6B09C447D5121F0C4527 /* ToolbarItemStyle.swift in Sources */,
 				06570D5350BD37FF3AD4D240 /* TopToolbar.swift in Sources */,
 				7DF2CA047092250E8B872184 /* UpdateFromDefaultSheetController.swift in Sources */,
 				4875E88C2DAB84AB2155BED3 /* UserDefaultsAppSettingsStore.swift in Sources */,

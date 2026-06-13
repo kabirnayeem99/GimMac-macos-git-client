@@ -1,6 +1,7 @@
 import Foundation
 
 /// Shared formatters to avoid expensive re-allocation in UI components and view models.
+@MainActor
 enum AppFormatters {
     /// Formatter for "Last fetched 2 minutes ago", etc.
     static let relativeDate: RelativeDateTimeFormatter = {

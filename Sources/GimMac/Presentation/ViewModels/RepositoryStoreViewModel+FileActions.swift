@@ -41,7 +41,21 @@ extension RepositoryStoreViewModel {
     }
 
     var selectedEditorName: String? {
-        guard let bundleID = UserDefaults.standard.string(forKey: ExternalEditorPreferences.selectedEditorKey),
+        let defaults = UserDefaults.standard
+        if defaults.bool(forKey: "io.github.kabirnayeem99.gimmac.settings.useCustomEditor"),
+           let data = defaults.data(forKey: "io.github.kabirnayeem99.gimmac.settings.customEditor"),
+           let custom = try? JSONDecoder().decode(CustomIntegration.self, from: data),
+           !custom.path.isEmpty {
+            let appURL = URL(fileURLWithPath: custom.path)
+            if let bundle = Bundle(url: appURL) {
+                return (bundle.infoDictionary?["CFBundleDisplayName"] as? String)
+                    ?? (bundle.infoDictionary?["CFBundleName"] as? String)
+                    ?? appURL.deletingPathExtension().lastPathComponent
+            }
+            return appURL.deletingPathExtension().lastPathComponent
+        }
+        
+        guard let bundleID = defaults.string(forKey: ExternalEditorPreferences.selectedEditorKey),
               let appURL = NSWorkspace.shared.urlForApplication(withBundleIdentifier: bundleID),
               let bundle = Bundle(url: appURL) else { return nil }
         return (bundle.infoDictionary?["CFBundleDisplayName"] as? String)
@@ -51,7 +65,33 @@ extension RepositoryStoreViewModel {
     func openInExternalEditor(path: String) {
         guard let repository = selectedRepository else { return }
         let fileURL = repository.url.appendingPathComponent(path)
-        guard let bundleID = UserDefaults.standard.string(forKey: ExternalEditorPreferences.selectedEditorKey),
+        
+        let defaults = UserDefaults.standard
+        let useCustomEditor = defaults.bool(forKey: "io.github.kabirnayeem99.gimmac.settings.useCustomEditor")
+        
+        if useCustomEditor,
+           let data = defaults.data(forKey: "io.github.kabirnayeem99.gimmac.settings.customEditor"),
+           let custom = try? JSONDecoder().decode(CustomIntegration.self, from: data),
+           !custom.path.isEmpty {
+            let appURL = URL(fileURLWithPath: custom.path)
+            let config = NSWorkspace.OpenConfiguration()
+            config.activates = true
+            
+            var args: [String] = []
+            let rawArgs = custom.arguments.split(whereSeparator: { $0.isWhitespace }).map(String.init)
+            for arg in rawArgs {
+                if arg.contains(CustomIntegration.targetPathArgument) {
+                    args.append(arg.replacingOccurrences(of: CustomIntegration.targetPathArgument, with: fileURL.path))
+                } else {
+                    args.append(arg)
+                }
+            }
+            config.arguments = args
+            NSWorkspace.shared.open([fileURL], withApplicationAt: appURL, configuration: config, completionHandler: nil)
+            return
+        }
+        
+        guard let bundleID = defaults.string(forKey: ExternalEditorPreferences.selectedEditorKey),
               let appURL = NSWorkspace.shared.urlForApplication(withBundleIdentifier: bundleID) else {
             NSWorkspace.shared.open(fileURL)
             return
