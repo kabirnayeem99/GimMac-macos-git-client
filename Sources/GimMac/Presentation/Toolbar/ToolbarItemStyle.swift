@@ -11,32 +11,25 @@ struct ToolbarItemStyle: ViewModifier {
     func body(content: Content) -> some View {
         content
             .background(
-                ZStack {
-                    if isEnabled {
-                        if isPressed {
-                            Color.primary.opacity(0.12)
-                        } else if isHovered {
-                            Color.primary.opacity(0.08)
-                        } else {
-                            Color.primary.opacity(0.04)
-                        }
-                    }
-                    Color.clear.background(.regularMaterial)
-                }
+                RoundedRectangle(cornerRadius: 6, style: .continuous)
+                    .fill(Color.primary.opacity(highlightOpacity))
             )
-            .clipShape(RoundedRectangle(cornerRadius: 10, style: .continuous))
-            .overlay {
-                RoundedRectangle(cornerRadius: 10, style: .continuous)
-                    .stroke(
-                        Color.primary.opacity(
-                            !isEnabled ? 0.02 : (isPressed ? 0.2 : (isHovered ? 0.15 : 0.05))
-                        ),
-                        lineWidth: 1
-                    )
-            }
-            .opacity(isEnabled ? 1.0 : 0.5)
+            // Keep the whole rounded rect clickable, including the transparent
+            // rest state, so hover/press track the full button — matching the
+            // borderless Finder toolbar button hit area.
+            .contentShape(RoundedRectangle(cornerRadius: 6, style: .continuous))
+            .opacity(isEnabled ? 1.0 : 0.45)
             .onHover { isHovered = $0 }
             .onLongPressGesture(minimumDuration: 0, pressing: { isPressed = $0 }, perform: {})
+    }
+
+    /// Borderless native behavior: nothing at rest, a light fill on hover, a
+    /// slightly stronger one while pressed.
+    private var highlightOpacity: Double {
+        guard isEnabled else { return 0 }
+        if isPressed { return 0.12 }
+        if isHovered { return 0.08 }
+        return 0
     }
 }
 

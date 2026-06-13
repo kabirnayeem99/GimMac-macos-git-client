@@ -9,6 +9,20 @@ final class MainSplitViewController: NSViewController {
     private let rebaseService: RebaseProviding
     private let settingsStore: any AppSettingsStoring
 
+    /// Owns the window's native unified toolbar. Built lazily so its closures can
+    /// capture `self`; installed once a window is available (`viewWillAppear`).
+    private lazy var toolbarController = MainToolbarController(
+        viewModel: viewModel,
+        openRepositoryAction: { [weak self] in
+            self?.openRepositoryTapped()
+        },
+        selectRepositoryAction: { [weak self] id in
+            Task {
+                await self?.viewModel.selectPersistedRepository(id: id)
+            }
+        }
+    )
+
     init(
         viewModel: RepositoryStoreViewModel,
         mergeService: MergeBranchProviding,
@@ -33,16 +47,20 @@ final class MainSplitViewController: NSViewController {
                 viewModel: viewModel,
                 openRepositoryAction: { [weak self] in
                     self?.openRepositoryTapped()
-                },
-                selectSavedRepositoryAction: { [weak self] id in
-                    Task {
-                        await self?.viewModel.selectPersistedRepository(id: id)
-                    }
                 }
             )
         )
         hostingView.translatesAutoresizingMaskIntoConstraints = false
         view = hostingView
+    }
+
+    override func viewWillAppear() {
+        super.viewWillAppear()
+        // The window only exists once the view is in the hierarchy; install the
+        // unified toolbar here. `install(on:)` is idempotent across re-appears.
+        if let window = view.window {
+            toolbarController.install(on: window)
+        }
     }
 
     override func viewDidLoad() {

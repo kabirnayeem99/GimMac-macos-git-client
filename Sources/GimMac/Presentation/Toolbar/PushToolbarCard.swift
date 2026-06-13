@@ -17,50 +17,35 @@ struct PushToolbarCard: View {
     }
 
     var body: some View {
-        HStack(spacing: 10) {
+        HStack(spacing: 5) {
             if isLoading {
                 ProgressView()
                     .progressViewStyle(.circular)
                     .controlSize(.small)
-                    .frame(width: 17, height: 17)
+                    .frame(width: 16, height: 16)
             } else {
-                Image(systemName: "arrow.up.circle.fill")
-                    .font(.system(size: 17, weight: .medium))
-                    .foregroundStyle(.tint)
+                Image(systemName: "arrow.triangle.2.circlepath")
+                    .font(.system(size: 16, weight: .regular))
+                    .foregroundStyle(.primary)
             }
-
-            VStack(alignment: .leading, spacing: 2) {
-                Text(label)
-                    .font(.system(size: 13, weight: .semibold))
-
-                Text(fetchedDescription)
-                    .font(.system(size: 11))
-                    .foregroundStyle(.secondary)
-            }
-
-            // Fixed spacing instead of Spacer() allows the button to shrink to content
-            // while maintaining a professional gap.
-            Rectangle()
-                .fill(.clear)
-                .frame(width: 8)
 
             if let badge, !isLoading {
                 Text(badge)
-                    .font(.system(size: 11, weight: .bold))
-                    .padding(.horizontal, 7)
-                    .padding(.vertical, 2)
-                    .background(.quaternary)
-                    .clipShape(Capsule())
+                    .font(.system(size: 10, weight: .semibold))
+                    .monospacedDigit()
+                    .padding(.horizontal, 5)
+                    .padding(.vertical, 1)
+                    .background(.quaternary, in: Capsule())
             }
 
             Image(systemName: "chevron.down")
-                .font(.system(size: 10, weight: .bold))
-                .foregroundStyle(.secondary) // More prominent than tertiary
+                .font(.system(size: 9, weight: .semibold))
+                .foregroundStyle(.secondary)
         }
-        .padding(.horizontal, 12)
-        .frame(height: 40)
+        .frame(height: 28)
+        .padding(.horizontal, 8)
         .toolbarItemStyle()
-        .help(label)
+        .help("\(label) — \(fetchedDescription)")
         .onReceive(ticker) { date in
             now = date
         }

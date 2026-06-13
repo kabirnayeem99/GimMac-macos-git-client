@@ -3,50 +3,25 @@ import SwiftUI
 struct RepositoryScreen: View {
     let viewModel: RepositoryStoreViewModel
     let openRepositoryAction: () -> Void
-    let selectSavedRepositoryAction: (UUID) -> Void
-
-    /// Bridged to `RepositoryStoreViewModel.viewTab` so the AppKit menu bar
-    /// (View → Show Changes/History) can drive tab selection through the
-    /// responder chain. Keep this as a computed Binding — using `@State` would
-    /// fork the source of truth and the menu commands would silently no-op.
-    private var selectedTab: Binding<Int> {
-        Binding(get: { viewModel.viewTab }, set: { viewModel.viewTab = $0 })
-    }
 
     var body: some View {
         VStack(spacing: 0) {
             if viewModel.selectedRepository == nil {
                 EmptyRepositoryStateView(openRepositoryAction: openRepositoryAction)
             } else {
-                TopToolbar(
-                    viewModel: viewModel,
-                    openRepositoryAction: openRepositoryAction,
-                    selectRepositoryAction: selectSavedRepositoryAction
-                )
-
+                // The former in-content `TopToolbar` is now the window's native
+                // unified `NSToolbar`, built by `MainToolbarController`.
                 if viewModel.viewTab == 0 {
-                    HStack(spacing: 0) {
-                        Sidebar(
-                            selectedTab: selectedTab,
-                            viewModel: viewModel
-                        )
-                        .frame(width: 320)
-
-                        Divider()
-
-                        if viewModel.changedFilesCount > 0 {
-                            DiffViewer(viewModel: viewModel)
-                                .frame(maxWidth: .infinity, maxHeight: .infinity)
-                        } else {
-                            MainContent(viewModel: viewModel)
-                                .frame(maxWidth: .infinity, maxHeight: .infinity)
-                        }
-                    }
+                    // Native two-pane layout: a real NSSplitViewController with a
+                    // draggable divider and a vibrant `.sidebar` material pane.
+                    // See ChangesSplitViewController.
+                    ChangesSplitView(viewModel: viewModel)
+                        .frame(maxWidth: .infinity, maxHeight: .infinity)
                 } else {
-                    HistoryRepositoryScreen(
-                        selectedTab: selectedTab,
-                        viewModel: viewModel
-                    )
+                    // Native three-pane layout: commit list (vibrant sidebar) +
+                    // changed-files column + diff. See HistorySplitViewController.
+                    HistorySplitView(viewModel: viewModel)
+                        .frame(maxWidth: .infinity, maxHeight: .infinity)
                 }
             }
         }
