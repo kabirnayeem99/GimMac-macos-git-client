@@ -15,8 +15,26 @@ protocol StatusProviding: Sendable {
 }
 
 protocol DiffProviding: Sendable {
-    func fetchDiff(in repositoryURL: URL, for path: String) async throws -> DiffDocument
+    /// Working-directory diff for `path`. When the change is a rename, pass the
+    /// pre-rename `oldPath` so Git's rename detection can pair the two paths;
+    /// without it a pure rename appears as a brand-new file.
+    func fetchDiff(in repositoryURL: URL, for path: String, oldPath: String?) async throws -> DiffDocument
     func fetchCommitDiff(in repositoryURL: URL, for path: String, commitSHA: String) async throws -> DiffDocument
+    /// The diff for a changed submodule gitlink. Flags are taken from the
+    /// already-parsed `changedFile.submoduleStatus`; gitlink SHAs are read from
+    /// `git diff --submodule=short` only when the recorded commit changed.
+    func submoduleDiff(in repositoryURL: URL, for changedFile: ChangedFile) async throws -> SubmoduleDiffData
+    /// The working-tree image at `path`, base64-encoded with its media type.
+    func workingDirectoryImage(in repositoryURL: URL, for path: String) async throws -> ImageDiffContent
+    /// The image blob at `ref:path` (e.g. `HEAD`), base64-encoded with its media type.
+    func blobImage(in repositoryURL: URL, for path: String, at ref: String) async throws -> ImageDiffContent
+}
+
+extension DiffProviding {
+    /// Convenience for non-renamed files.
+    func fetchDiff(in repositoryURL: URL, for path: String) async throws -> DiffDocument {
+        try await fetchDiff(in: repositoryURL, for: path, oldPath: nil)
+    }
 }
 
 protocol CommitInspecting: Sendable {

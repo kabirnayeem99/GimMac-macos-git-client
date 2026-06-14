@@ -74,7 +74,13 @@ Out of MVP:
 - Hunk-level staging
 - Commit graph/history beyond a simple recent log
 - Tags (read-only display deferred to Later)
-- Submodule operations
+- Submodule operations (add / update / sync)
+  - **Note (decision updated):** read-only *submodule diff display* is now in MVP
+    (see Phase 4). Only mutating submodule operations remain out of MVP.
+
+Diff types supported in MVP (decision updated): text, binary (binary marker),
+image (before/after preview), and submodule gitlink changes (commit / modified /
+untracked status). The diff viewer was previously text-only.
 
 ### V1
 
@@ -345,9 +351,18 @@ final class MockGitClient: GitClientProtocol {
 
 ### Phase 4: Diff Viewer
 
-- Run `git diff -- <file>`.
-- Run `git diff --cached -- <file>` for staged view.
-- Render unified diff using `DiffFile` / `DiffHunk` / `DiffLine` models.
+- Run `git diff -M -- <oldPath> <file>` (and `--cached`) — the old path is
+  included for renames so detection pairs the two paths.
+- Render unified diff using `DiffDocument` (`DiffContentKind`: text / binary /
+  image / submodule).
+- Binary changes are flagged (`DiffContentKind.binary`) and shown with a binary
+  marker rather than garbled text.
+- Image changes (png/jpg/gif/…) are shown as a before/after preview; blobs are
+  read as raw bytes via `GitClientProtocol.runReturningData` (HEAD blob +
+  working-tree file), never UTF-8-decoded.
+- Submodule gitlink changes are shown via `submoduleDiff` (commit / modified /
+  untracked status + old/new SHA), reusing the parsed `ChangedFile.submoduleStatus`.
+- Unborn repository: files render as pure additions (`git diff --no-index`).
 - Add syntax highlighting for added/removed/context lines.
 - Show "file too large" fallback for diffs over a configurable line threshold.
 - Later: side-by-side diff.
@@ -511,6 +526,8 @@ git config --global commit.gpgsign true
 8. Signing: support both GPG and SSH signing through Git config.
 9. UI: AppKit-first.
 10. Tags: out of scope until Later.
+11. Diff viewer: supports text, binary, image (before/after), and read-only
+    submodule diffs in MVP. Mutating submodule operations remain out of MVP.
 
 ---
 

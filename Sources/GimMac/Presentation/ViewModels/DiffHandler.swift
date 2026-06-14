@@ -29,8 +29,8 @@ final class DiffHandler {
             return
         }
 
-        if let changedFile = changedFiles.first(where: { $0.path == path }),
-           changedFile.status == .untracked {
+        let changedFile = changedFiles.first(where: { $0.path == path })
+        if changedFile?.status == .untracked {
             selectedDiffDocument = await loadUntrackedFileDiff(repositoryURL: repository.url, path: path)
             return
         }
@@ -39,7 +39,14 @@ final class DiffHandler {
         defer { isLoadingDiff = false }
 
         do {
-            selectedDiffDocument = try await diffProvider.fetchDiff(in: repository.url, for: path)
+            if let changedFile, changedFile.submoduleStatus != nil {
+                let data = try await diffProvider.submoduleDiff(in: repository.url, for: changedFile)
+                selectedDiffDocument = DiffDocument(filePath: path, lines: [], kind: .submodule(data))
+                return
+            }
+            // Pass the rename's old path so the diff shows the move correctly
+            // rather than as a brand-new file.
+            selectedDiffDocument = try await diffProvider.fetchDiff(in: repository.url, for: path, oldPath: changedFile?.oldPath)
         } catch {
             selectedDiffDocument = DiffDocument(filePath: path, lines: [])
         }

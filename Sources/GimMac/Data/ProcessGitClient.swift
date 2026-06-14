@@ -2,7 +2,16 @@ import Foundation
 
 protocol GitCommandRunning: Sendable {
     func execute(id: UUID, arguments: [String], repositoryURL: URL, extraEnvironment: [String: String]) async throws -> GitCommandResult
+    func executeData(id: UUID, arguments: [String], repositoryURL: URL, extraEnvironment: [String: String]) async throws -> Data
     func cancel(id: UUID) async
+}
+
+extension GitCommandRunning {
+    /// Fallback: decode the text result's stdout. Real runners override this to
+    /// preserve raw bytes.
+    func executeData(id: UUID, arguments: [String], repositoryURL: URL, extraEnvironment: [String: String]) async throws -> Data {
+        Data(try await execute(id: id, arguments: arguments, repositoryURL: repositoryURL, extraEnvironment: extraEnvironment).stdout.utf8)
+    }
 }
 
 final class ProcessGitClient: GitClientProtocol, Sendable {
@@ -23,6 +32,41 @@ final class ProcessGitClient: GitClientProtocol, Sendable {
 
     func run(_ arguments: [String], in repositoryURL: URL, extraEnvironment: [String: String], timeout: TimeInterval) async throws -> GitCommandResult {
         try await runCommand(arguments, in: repositoryURL, extraEnvironment: extraEnvironment, timeout: timeout)
+    }
+
+    func runReturningData(_ arguments: [String], in repositoryURL: URL, timeout: TimeInterval) async throws -> Data {
+        let commandID = UUID()
+        do {
+            let data = try await withThrowingTaskGroup(of: Data.self) { group in
+                group.addTask {
+                    try await self.runner.executeData(id: commandID, arguments: arguments, repositoryURL: repositoryURL, extraEnvironment: [:])
+                }
+                group.addTask {
+                    let nanoseconds = timeout > 0 && timeout.isFinite ? UInt64(timeout * 1_000_000_000) : 0
+                    try await Task.sleep(nanoseconds: nanoseconds)
+                    await self.runner.cancel(id: commandID)
+                    throw GitAppError.timeout(command: arguments, seconds: timeout)
+                }
+                guard let first = try await group.next() else {
+                    throw GitAppError.commandFailed(command: arguments, exitCode: -1, stdout: "", stderr: "No result returned.")
+                }
+                group.cancelAll()
+                return first
+            }
+            return data
+        } catch let error as GitAppError {
+            await logger.logGitCommandFailure(arguments, in: repositoryURL, error: error)
+            throw error
+        } catch is CancellationError {
+            await runner.cancel(id: commandID)
+            let cancelled = GitAppError.cancelled(command: arguments)
+            await logger.logGitCommandFailure(arguments, in: repositoryURL, error: cancelled)
+            throw cancelled
+        } catch {
+            let mappedError = GitAppErrorMapper.mapProcessError(command: arguments, error: error)
+            await logger.logGitCommandFailure(arguments, in: repositoryURL, error: mappedError)
+            throw mappedError
+        }
     }
 
     private func runCommand(
@@ -108,6 +152,54 @@ actor ProcessGitCommandRunner: GitCommandRunning {
                             command: arguments,
                             exitCode: process.terminationStatus,
                             stdout: out,
+                            stderr: err
+                        ))
+                    } catch {
+                        continuation.resume(throwing: error)
+                    }
+                }
+            }
+        } onCancel: {
+            Task { await self.cancel(id: id) }
+        }
+    }
+
+    func executeData(id: UUID, arguments: [String], repositoryURL: URL, extraEnvironment: [String: String]) async throws -> Data {
+        let process = Process()
+        process.executableURL = URL(fileURLWithPath: "/usr/bin/env")
+        process.arguments = ["git"] + arguments
+        process.currentDirectoryURL = repositoryURL
+        var env = Self.gitEnvironment()
+        env.merge(extraEnvironment) { _, new in new }
+        process.environment = env
+
+        let stdout = Pipe()
+        let stderr = Pipe()
+        process.standardOutput = stdout
+        process.standardError = stderr
+
+        inFlight[id] = process
+        defer { inFlight[id] = nil }
+
+        return try await withTaskCancellationHandler {
+            try await withCheckedThrowingContinuation { continuation in
+                queue.async {
+                    do {
+                        try process.run()
+                        // Read stdout bytes before waiting to avoid pipe-buffer deadlock on large blobs.
+                        let outData = stdout.fileHandleForReading.readDataToEndOfFile()
+                        process.waitUntilExit()
+                        let err = String(data: stderr.fileHandleForReading.readDataToEndOfFile(), encoding: .utf8) ?? ""
+
+                        if process.terminationStatus == 0 {
+                            continuation.resume(returning: outData)
+                            return
+                        }
+
+                        continuation.resume(throwing: GitAppErrorMapper.map(
+                            command: arguments,
+                            exitCode: process.terminationStatus,
+                            stdout: "",
                             stderr: err
                         ))
                     } catch {

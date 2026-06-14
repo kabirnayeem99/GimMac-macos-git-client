@@ -288,6 +288,30 @@ enum DiffLineKind {
 }
 ```
 
+### Diff kinds (implemented)
+
+The shipped model is `DiffDocument` (`Domain/DiffDocument.swift`), which carries
+a `kind: DiffContentKind` discriminator (GitHub Desktop's `DiffType`):
+
+```swift
+enum DiffContentKind {
+    case text                       // hunks in `lines`
+    case binary                     // non-renderable binary change
+    case image(ImageDiffData)       // before/after base64 blobs + media type
+    case submodule(SubmoduleDiffData) // gitlink commit/modified/untracked + SHAs
+}
+```
+
+- **Image diffs** read raw bytes (not UTF-8 text) via
+  `GitClientProtocol.runReturningData`: the HEAD blob (`git show HEAD:<path>`)
+  for `previous`, and the working-tree file for `current`. Either side is `nil`
+  for a new/deleted image.
+- **Submodule diffs** take status flags from the already-parsed
+  `ChangedFile.submoduleStatus`; gitlink SHAs are read from
+  `git diff --submodule=short` only when the recorded commit changed.
+- **Submodule diff display is read-only** — no submodule mutation. (Decision
+  updated; see PLAN.md.)
+
 ---
 
 ## Performance Design

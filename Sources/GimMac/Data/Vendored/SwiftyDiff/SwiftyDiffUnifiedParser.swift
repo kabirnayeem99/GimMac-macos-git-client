@@ -124,6 +124,16 @@ enum SwiftyDiffUnifiedParser {
                 break
             }
 
+            // Skip non-content lines that carry no diff prefix: the trailing
+            // empty element produced by splitting on the final newline, the
+            // blank separator between concatenated diffs, and the
+            // "\ No newline at end of file" marker. Real in-hunk lines always
+            // start with '+', '-', or ' '.
+            if line.isEmpty || line.hasPrefix("\\") {
+                i += 1
+                continue
+            }
+
             if line.hasPrefix("+") {
                 parsedLines.append(
                     ParsedLine(type: .addition, content: String(line.dropFirst()), oldLineNumber: nil, newLineNumber: newLineNum)

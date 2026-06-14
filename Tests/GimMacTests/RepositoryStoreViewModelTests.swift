@@ -23,7 +23,7 @@ private struct MockRepositoryScreenDataProvider: RepositoryScreenDataProviding, 
 }
 
 private struct MockDiffProvider: DiffProviding, Sendable {
-    func fetchDiff(in repositoryURL: URL, for path: String) async throws -> DiffDocument {
+    func fetchDiff(in repositoryURL: URL, for path: String, oldPath: String?) async throws -> DiffDocument {
         DiffDocument(filePath: path, lines: [])
     }
 
@@ -33,6 +33,26 @@ private struct MockDiffProvider: DiffProviding, Sendable {
         commitSHA: String
     ) async throws -> DiffDocument {
         DiffDocument(filePath: path, lines: [])
+    }
+
+    func submoduleDiff(in repositoryURL: URL, for changedFile: ChangedFile) async throws -> SubmoduleDiffData {
+        SubmoduleDiffData(
+            path: changedFile.path,
+            fullPath: repositoryURL.appendingPathComponent(changedFile.path).path,
+            oldSHA: nil,
+            newSHA: nil,
+            commitChanged: false,
+            modifiedChanges: false,
+            untrackedChanges: false
+        )
+    }
+
+    func workingDirectoryImage(in repositoryURL: URL, for path: String) async throws -> ImageDiffContent {
+        ImageDiffContent(mediaType: "image/png", base64Contents: "")
+    }
+
+    func blobImage(in repositoryURL: URL, for path: String, at ref: String) async throws -> ImageDiffContent {
+        ImageDiffContent(mediaType: "image/png", base64Contents: "")
     }
 }
 
