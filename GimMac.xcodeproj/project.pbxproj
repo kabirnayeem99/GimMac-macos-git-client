@@ -25,6 +25,7 @@
 		16ED59D3822B573503544E47 /* GitServices.swift in Sources */ = {isa = PBXBuildFile; fileRef = 33C76A1623B00897EB3A455A /* GitServices.swift */; };
 		1A580C99DDD154DB9A95A35D /* MainContent.swift in Sources */ = {isa = PBXBuildFile; fileRef = 667A5002E410798E8258E45C /* MainContent.swift */; };
 		1B3E8A70FCAD615E77D85191 /* DiffModels.swift in Sources */ = {isa = PBXBuildFile; fileRef = E954CB89CA50BFD3D375FDFB /* DiffModels.swift */; };
+		1C0D103458BBD9FF26FB08DD /* RepositoryBranchDisplayFormatterTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1133B7C911DB56B6558014F8 /* RepositoryBranchDisplayFormatterTests.swift */; };
 		1C0F126A70203B850E0842CD /* GitStashIntegrationTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = C80854ED7279D83FB0BD1E99 /* GitStashIntegrationTests.swift */; };
 		1D30413B713AED488CBEC5F1 /* IntegrationsSettingsPaneController.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2BC99226C94DFE1DBC633B15 /* IntegrationsSettingsPaneController.swift */; };
 		1F1521CA6B02FB41DCF33090 /* BranchCompareViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = F18AB1B40768A45D19090BC1 /* BranchCompareViewModel.swift */; };
@@ -95,6 +96,7 @@
 		7A4B0E20D99CA0BCADFA70B3 /* OnboardingViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7B3DBB600DA9ACF8D34E4E85 /* OnboardingViewModel.swift */; };
 		7D629C19CB8BFEBD3D6E8E79 /* GitStatusIntegrationTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3B4CE5B9A01A638B24F9F601 /* GitStatusIntegrationTests.swift */; };
 		7DF2CA047092250E8B872184 /* UpdateFromDefaultSheetController.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4181F987D496367AAFD6293E /* UpdateFromDefaultSheetController.swift */; };
+		7ED9D419E81389CA0A01B3A6 /* GitBranchIntegrationTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0698DCC45F0E32B17C534069 /* GitBranchIntegrationTests.swift */; };
 		7FABD62E9C629F62BB139FE5 /* LogEntry.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2012A84EB7447363386F3DFD /* LogEntry.swift */; };
 		80A754714D15D7005F2AD5C3 /* DiffLineRow.swift in Sources */ = {isa = PBXBuildFile; fileRef = ACE0A58161344B91AB47E165 /* DiffLineRow.swift */; };
 		81A0A40824F78B4952F26C1F /* CreateBranchWindowController.swift in Sources */ = {isa = PBXBuildFile; fileRef = BD9DB7E6D1D3EA6BB4902219 /* CreateBranchWindowController.swift */; };
@@ -228,11 +230,13 @@
 		0568DA8DB239E2DA789306D2 /* Sidebar.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Sidebar.swift; sourceTree = "<group>"; };
 		05D0421413D8FD75722B8E2B /* OnboardingView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OnboardingView.swift; sourceTree = "<group>"; };
 		0677F5FFC8936B946733BBC0 /* StashManagementViewController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = StashManagementViewController.swift; sourceTree = "<group>"; };
+		0698DCC45F0E32B17C534069 /* GitBranchIntegrationTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GitBranchIntegrationTests.swift; sourceTree = "<group>"; };
 		0A4C16FAB01CCCB5F17A3215 /* BranchesViewModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BranchesViewModel.swift; sourceTree = "<group>"; };
 		102E2C526924299D5DB2AACF /* RepositoryCreationIntegrationTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RepositoryCreationIntegrationTests.swift; sourceTree = "<group>"; };
 		10384E2D2B93DDDDB2253DEC /* GitMergeService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GitMergeService.swift; sourceTree = "<group>"; };
 		10534DBE9C237DE3F70BE90F /* LiveRepositoryScreenDataRepository.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LiveRepositoryScreenDataRepository.swift; sourceTree = "<group>"; };
 		11312C5FCDAC7E2B6D890B96 /* CompareBranchWindowController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CompareBranchWindowController.swift; sourceTree = "<group>"; };
+		1133B7C911DB56B6558014F8 /* RepositoryBranchDisplayFormatterTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RepositoryBranchDisplayFormatterTests.swift; sourceTree = "<group>"; };
 		11BDDBD82216E15AC739693F /* RepositoryScreenSnapshot.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RepositoryScreenSnapshot.swift; sourceTree = "<group>"; };
 		124AF3C8B9B84A87C77B36DD /* GitHistoryEditIntegrationTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GitHistoryEditIntegrationTests.swift; sourceTree = "<group>"; };
 		12AB9F4431BFAB698FC6E022 /* GitSettingsPaneController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GitSettingsPaneController.swift; sourceTree = "<group>"; };
@@ -531,6 +535,7 @@
 		66EABE7217D6CCB889BDECDC /* GimMacIntegrationTests */ = {
 			isa = PBXGroup;
 			children = (
+				0698DCC45F0E32B17C534069 /* GitBranchIntegrationTests.swift */,
 				046EB765F5CFA9DC2ED2F032 /* GitConfigServiceIntegrationTests.swift */,
 				8BA58B773B9DC18A7A66C945 /* GitConflictIntegrationTests.swift */,
 				124AF3C8B9B84A87C77B36DD /* GitHistoryEditIntegrationTests.swift */,
@@ -590,6 +595,7 @@
 				7622D80A569F509D6D07568D /* GitIgnoreProviderTests.swift */,
 				219AA33A0DEF90EABD2578B2 /* GitIgnoreRuleTests.swift */,
 				EAFCF6AA8F98D0461CA70DD6 /* ProcessGitClientTests.swift */,
+				1133B7C911DB56B6558014F8 /* RepositoryBranchDisplayFormatterTests.swift */,
 				40544E3542DD0D5C3B33439B /* RepositoryStoreViewModelTests.swift */,
 				93845DF48EB53C8B8954CA4B /* SettingsViewModelTests.swift */,
 				5778DB7C0635D207671F03CA /* UserDefaultsAppSettingsStoreTests.swift */,
@@ -1192,6 +1198,7 @@
 				F002BA984783039A004823B1 /* GitIgnoreProviderTests.swift in Sources */,
 				4E2D1311208F99F80D2CD137 /* GitIgnoreRuleTests.swift in Sources */,
 				A1364B4855C87BEEECF656DE /* ProcessGitClientTests.swift in Sources */,
+				1C0D103458BBD9FF26FB08DD /* RepositoryBranchDisplayFormatterTests.swift in Sources */,
 				BF5F71EF2E43A8654E2F659F /* RepositoryStoreViewModelTests.swift in Sources */,
 				F7A5956B05233A1F9FACCC5B /* SettingsViewModelTests.swift in Sources */,
 				7240D238F88851C1B24E9C0E /* UserDefaultsAppSettingsStoreTests.swift in Sources */,
@@ -1202,6 +1209,7 @@
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				7ED9D419E81389CA0A01B3A6 /* GitBranchIntegrationTests.swift in Sources */,
 				56AA295B47D86E3D238FD13E /* GitConfigServiceIntegrationTests.swift in Sources */,
 				447416D36CA617DB97537D26 /* GitConflictIntegrationTests.swift in Sources */,
 				968DEC7BC36B8C4FD42E1D1B /* GitHistoryEditIntegrationTests.swift in Sources */,

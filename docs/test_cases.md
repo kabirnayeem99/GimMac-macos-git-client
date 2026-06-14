@@ -222,31 +222,6 @@ local-first macOS Git client.
 
 ## Branches & Refs
 
-### unit/git/branch-test.ts
-
-**tip**
-- When a new empty repository is created, the tip state is Unborn with ref "master".
-- When a branch is created and checked out in an empty repository, the tip state is Unborn with the new branch name.
-- When a commit is checked out directly without a branch, the tip state is Detached with the correct SHA.
-- When on a valid branch with commits, the tip state is Valid with the correct branch name and SHA.
-- When a branch tracks a non-origin remote, the tip state is Valid with the correct upstream remote name.
-
-**upstreamWithoutRemote**
-- When a branch has an upstream on a non-origin remote, the upstream without remote prefix is extracted correctly.
-
-**getBranchesPointedAt**
-- When querying for branches at HEAD in a fixture repository, one branch name is found.
-- When querying for branches at a parent commit, no branch names are found.
-- When querying with a malformed committish, null is returned.
-- When multiple local branches point at the same commit, all branch names are found.
-
-**deleteLocalBranch**
-- When a local branch is deleted, it no longer appears in the list of branches for that ref.
-
-**deleteRemoteBranch**
-- When a local branch has an upstream branch and the upstream is deleted, the local branch remains but the remote tracking branch is removed.
-- When attempting to delete a remote branch that has already been removed, the operation succeeds without error.
-
 ### unit/git/checkout-test.ts
 
 - When invalid characters are used for a branch name, checkout fails with a fatal error.

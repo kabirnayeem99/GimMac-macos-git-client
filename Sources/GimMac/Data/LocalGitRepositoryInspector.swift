@@ -39,7 +39,9 @@ final class LocalGitRepositoryInspector: RepositoryInspecting {
         }
 
         if branch.isEmpty, let sha = headHash {
-            return .detached(sha: String(sha.prefix(7)))
+            // Carry the full SHA in the model (matches GitHub Desktop's
+            // IDetachedHead.currentSha); the branch UI shortens it for display.
+            return .detached(sha: sha)
         }
 
         if let symRef = try? await gitClient.run(["symbolic-ref", "HEAD"], in: url, timeout: 5) {

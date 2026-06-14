@@ -8,7 +8,8 @@ enum RepositoryBranchDisplayFormatter {
         case .unborn(let ref):
             return ref
         case .detached(let sha):
-            return "HEAD @ \(sha)"
+            // The model carries the full SHA; show the abbreviated form.
+            return "HEAD @ \(String(sha.prefix(7)))"
         case .valid(let branch):
             return branch.name
         }

@@ -48,7 +48,21 @@ final class GitBranchOperator: BranchOperating, DefaultBranchRenaming, Sendable 
     func deleteRemoteBranch(_ branch: Branch, remote: String, in repositoryURL: URL) async throws {
         // Pass empty refspec as a single argument: ":branchName".
         let refspec = ":\(branch.nameWithoutRemote)"
-        _ = try await client.run(["push", remote, refspec], in: repositoryURL, timeout: 60)
+        do {
+            _ = try await client.run(["push", remote, refspec], in: repositoryURL, timeout: 60)
+        } catch let error as GitAppError {
+            // The remote ref may already have been deleted. Git reports this as
+            // "remote ref does not exist". Mirror GitHub Desktop and treat it as
+            // an idempotent success, pruning our local remote-tracking ref to
+            // reflect the state the push would have produced. Any other failure
+            // (auth, network, protected branch) still propagates.
+            guard case let .commandFailed(_, _, _, stderr) = error,
+                  stderr.lowercased().contains("remote ref does not exist") else {
+                throw error
+            }
+            let trackingRef = "refs/remotes/\(remote)/\(branch.nameWithoutRemote)"
+            _ = try? await client.run(["update-ref", "-d", trackingRef], in: repositoryURL, timeout: 10)
+        }
     }
 
     @discardableResult

@@ -59,4 +59,21 @@ struct Branch: Identifiable, Equatable, Sendable {
         guard name.hasPrefix(prefix) else { return name }
         return String(name.dropFirst(prefix.count))
     }
+
+    /// The remote name carried by the upstream, e.g. `origin` for an upstream of
+    /// `origin/main`. `nil` when there is no upstream or it lacks a remote
+    /// prefix. GitHub Desktop equivalent: `Branch.upstreamRemoteName`.
+    var upstreamRemoteName: String? {
+        guard let upstream, let slash = upstream.firstIndex(of: "/") else { return nil }
+        return String(upstream[..<slash])
+    }
+
+    /// The upstream branch name without its remote prefix, e.g. `main` for
+    /// `origin/main` or `thing/foo` for `origin/thing/foo`. `nil` when there is
+    /// no upstream or it lacks a remote prefix.
+    /// GitHub Desktop equivalent: `Branch.upstreamWithoutRemote`.
+    var upstreamWithoutRemote: String? {
+        guard let upstream, let slash = upstream.firstIndex(of: "/") else { return nil }
+        return String(upstream[upstream.index(after: slash)...])
+    }
 }
