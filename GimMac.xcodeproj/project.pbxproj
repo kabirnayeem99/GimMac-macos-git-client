@@ -93,6 +93,7 @@
 		7780894A03E58CA26D95A7FE /* ReorderCommitsSheet.swift in Sources */ = {isa = PBXBuildFile; fileRef = AD078CE2659B67682AB58C89 /* ReorderCommitsSheet.swift */; };
 		78C2A5B83502DDF46EF8E4DE /* AdvancedSettingsViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = 548C525D895A7D7B7E44D930 /* AdvancedSettingsViewModel.swift */; };
 		7A4B0E20D99CA0BCADFA70B3 /* OnboardingViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7B3DBB600DA9ACF8D34E4E85 /* OnboardingViewModel.swift */; };
+		7D629C19CB8BFEBD3D6E8E79 /* GitStatusIntegrationTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3B4CE5B9A01A638B24F9F601 /* GitStatusIntegrationTests.swift */; };
 		7DF2CA047092250E8B872184 /* UpdateFromDefaultSheetController.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4181F987D496367AAFD6293E /* UpdateFromDefaultSheetController.swift */; };
 		7FABD62E9C629F62BB139FE5 /* LogEntry.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2012A84EB7447363386F3DFD /* LogEntry.swift */; };
 		80A754714D15D7005F2AD5C3 /* DiffLineRow.swift in Sources */ = {isa = PBXBuildFile; fileRef = ACE0A58161344B91AB47E165 /* DiffLineRow.swift */; };
@@ -276,6 +277,7 @@
 		39EDD9BC04CAF27E16A2A34A /* ChangesSplitViewController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ChangesSplitViewController.swift; sourceTree = "<group>"; };
 		3A2692D7DF01D7940821D971 /* DeleteBranchWindowController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DeleteBranchWindowController.swift; sourceTree = "<group>"; };
 		3A82EEBAD21C491119F1FACD /* GitBranchUpstreamReader.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GitBranchUpstreamReader.swift; sourceTree = "<group>"; };
+		3B4CE5B9A01A638B24F9F601 /* GitStatusIntegrationTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GitStatusIntegrationTests.swift; sourceTree = "<group>"; };
 		3B9862F3E3D1ED946BCECE8B /* MainSplitViewController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MainSplitViewController.swift; sourceTree = "<group>"; };
 		3C33D69C1AB4F9C4A665559D /* CommitRow.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CommitRow.swift; sourceTree = "<group>"; };
 		3FC80E035BEA6BEEDF2F2CDE /* SwiftyDiffUnifiedParser.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SwiftyDiffUnifiedParser.swift; sourceTree = "<group>"; };
@@ -536,6 +538,7 @@
 				6230084B64BB0D9C93D6B63E /* GitResetReorderIntegrationTests.swift */,
 				685CA9B92D7980F3228BC721 /* GitSmokeIntegrationTests.swift */,
 				C80854ED7279D83FB0BD1E99 /* GitStashIntegrationTests.swift */,
+				3B4CE5B9A01A638B24F9F601 /* GitStatusIntegrationTests.swift */,
 				D41A04E8EBC27B96F3169DB9 /* GitTagBranchIntegrationTests.swift */,
 				102E2C526924299D5DB2AACF /* RepositoryCreationIntegrationTests.swift */,
 			);
@@ -1206,6 +1209,7 @@
 				E81B75E85960516961FAC83D /* GitResetReorderIntegrationTests.swift in Sources */,
 				F4DE69CD76C604DFA986C08C /* GitSmokeIntegrationTests.swift in Sources */,
 				1C0F126A70203B850E0842CD /* GitStashIntegrationTests.swift in Sources */,
+				7D629C19CB8BFEBD3D6E8E79 /* GitStatusIntegrationTests.swift in Sources */,
 				36CA6A02B43CE104ACEA113C /* GitTagBranchIntegrationTests.swift in Sources */,
 				BE0369C6FA6F50DB29D617EA /* RepositoryCreationIntegrationTests.swift in Sources */,
 			);

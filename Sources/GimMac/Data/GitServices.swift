@@ -30,7 +30,7 @@ final class GitStatusProvider: StatusProviding, Sendable {
     }
 
     func fetchStatus(in repositoryURL: URL) async throws -> [ChangedFile] {
-        let arguments = ["status", "--porcelain=v1", "-uall"]
+        let arguments = ["status", "--porcelain=v2", "--untracked-files=all", "-z"]
         let result = try await client.run(arguments, in: repositoryURL, timeout: 10)
         return GitStatusParser.parse(result.stdout)
     }

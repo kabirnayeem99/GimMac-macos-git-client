@@ -32,6 +32,8 @@ struct ChangedFileRow: View {
             return "trash"
         case .renamed:
             return "arrow.left.arrow.right"
+        case .copied:
+            return "doc.on.doc"
         case .unmerged:
             return "exclamationmark.triangle"
         case .ignored:
@@ -49,7 +51,7 @@ struct ChangedFileRow: View {
             return Color(.systemGreen)
         case .deleted:
             return Color(.systemRed)
-        case .renamed:
+        case .renamed, .copied:
             return Color(.systemBlue)
         case .unmerged:
             return Color(.systemYellow)

@@ -98,6 +98,8 @@ struct HistoryFileRow: View {
             return "trash"
         case .renamed:
             return "arrow.left.arrow.right"
+        case .copied:
+            return "doc.on.doc"
         case .unmerged:
             return "exclamationmark.triangle"
         case .ignored:
@@ -113,6 +115,7 @@ struct HistoryFileRow: View {
         case .added, .untracked: return "Added"
         case .deleted: return "Deleted"
         case .renamed: return "Renamed"
+        case .copied: return "Copied"
         case .unmerged: return "Conflicted"
         case .ignored: return "Ignored"
         case .unknown: return "Unknown"
@@ -127,7 +130,7 @@ struct HistoryFileRow: View {
             return Color(.systemGreen)
         case .deleted:
             return Color(.systemRed)
-        case .renamed:
+        case .renamed, .copied:
             return Color(.systemBlue)
         case .unmerged:
             return Color(.systemRed)
