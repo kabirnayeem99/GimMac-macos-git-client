@@ -16,7 +16,7 @@ final class NSWorkspaceShellService: ShellServiceProtocol {
         ("kitty", "net.kovidgoyal.kitty"),
         ("WezTerm", "com.github.wez.wezterm"),
         ("Ghostty", "com.mitchellh.ghostty"),
-        ("Tabby", "org.tabby"),
+        ("Tabby", "org.tabby")
     ]
 
     func availableShells() -> [TerminalShell] {

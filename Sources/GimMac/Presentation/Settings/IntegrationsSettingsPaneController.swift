@@ -45,7 +45,7 @@ final class IntegrationsSettingsPaneController: SettingsPaneViewController {
                     viewModel.useCustomEditor = false
                     viewModel.selectedEditorBundleID = viewModel.availableEditors[index].bundleIdentifier
                 }
-                rebuildContent()
+                rebuildWithFade()
             })
         ]
 
@@ -85,7 +85,7 @@ final class IntegrationsSettingsPaneController: SettingsPaneViewController {
                     viewModel.useCustomShell = false
                     viewModel.selectedShellBundleID = viewModel.availableShells[index].bundleIdentifier
                 }
-                rebuildContent()
+                rebuildWithFade()
             })
         ]
 
@@ -152,5 +152,17 @@ final class IntegrationsSettingsPaneController: SettingsPaneViewController {
         panel.allowedContentTypes = [.application]
         panel.directoryURL = URL(fileURLWithPath: "/Applications")
         return panel.runModal() == .OK ? panel.url : nil
+    }
+
+    private func rebuildWithFade() {
+        guard !AppKitMotion.reduceMotion else {
+            rebuildContent()
+            return
+        }
+        contentStack.animateAlpha(to: 0, duration: AppKitMotion.feedback) { [weak self] in
+            self?.rebuildContent()
+            self?.contentStack.layoutSubtreeIfNeeded()
+            self?.contentStack.animateAlpha(to: 1, duration: AppKitMotion.feedback)
+        }
     }
 }

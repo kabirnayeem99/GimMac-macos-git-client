@@ -110,10 +110,10 @@ final class GitBranchIntegrationTests: XCTestCase {
         let reader = GitBranchReader(client: client)
         let branches = try await reader.fetchBranches(in: local)
 
-        let master = try XCTUnwrap(branches.first { $0.name == "master" && $0.isLocal })
-        XCTAssertEqual(master.upstream, "bassoon/master")
-        XCTAssertEqual(master.upstreamRemoteName, "bassoon")
-        XCTAssertEqual(master.upstreamWithoutRemote, "master")
+        let defaultBranch = try XCTUnwrap(branches.first { $0.name == "master" && $0.isLocal })
+        XCTAssertEqual(defaultBranch.upstream, "bassoon/master")
+        XCTAssertEqual(defaultBranch.upstreamRemoteName, "bassoon")
+        XCTAssertEqual(defaultBranch.upstreamWithoutRemote, "master")
     }
 
     // MARK: - getBranchesPointedAt → fetchBranchesPointing

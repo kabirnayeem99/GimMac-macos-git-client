@@ -1,7 +1,7 @@
 import Foundation
 import Observation
 
-enum OnboardingStep: Equatable {
+enum OnboardingStep: Equatable, CaseIterable {
     case welcome
     case configureGit
 }
@@ -14,6 +14,7 @@ final class OnboardingViewModel {
     var email: String = ""
     var isSaving: Bool = false
     var errorMessage: String?
+    var completionOutcome: OpOutcome = .none
 
     var onComplete: (@MainActor () -> Void)?
 
@@ -42,16 +43,22 @@ final class OnboardingViewModel {
         guard !isSaving else { return }
         isSaving = true
         errorMessage = nil
+        completionOutcome = .none
         do {
             let trimName = name.trimmingCharacters(in: .whitespaces)
             let trimEmail = email.trimmingCharacters(in: .whitespaces)
             if !trimName.isEmpty { try await configWriter.setGlobalUserName(trimName) }
             if !trimEmail.isEmpty { try await configWriter.setGlobalUserEmail(trimEmail) }
-            onComplete?()
+            completionOutcome = .success
         } catch {
             errorMessage = error.localizedDescription
+            completionOutcome = .failure
         }
         isSaving = false
+    }
+
+    func clearCompletionOutcome() {
+        completionOutcome = .none
     }
 
     func skip() { onComplete?() }

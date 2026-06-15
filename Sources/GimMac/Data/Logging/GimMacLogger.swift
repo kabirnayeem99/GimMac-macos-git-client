@@ -55,8 +55,8 @@ actor GimMacLogger: AppLogging {
     }
 
     func logGitCommandFailure(_ arguments: [String], in repositoryURL: URL, error: Error) {
-        let (exitCode, stdout, stderr) = gitErrorDetails(from: error)
-        let level: LogLevel = exitCode == 1 ? .debug : .error
+        let details = gitErrorDetails(from: error)
+        let level: LogLevel = details.exitCode == 1 ? .debug : .error
         let entry = LogEntry(
             kind: .git,
             timestamp: Self.now(),
@@ -65,9 +65,9 @@ actor GimMacLogger: AppLogging {
             message: "git " + arguments.joined(separator: " "),
             metadata: [:],
             repositoryPath: repositoryURL.path,
-            exitCode: exitCode,
-            stdout: stdout,
-            stderr: stderr,
+            exitCode: details.exitCode,
+            stdout: details.stdout,
+            stderr: details.stderr,
             error: error.localizedDescription
         )
         print(entry.consoleDescription)
@@ -86,7 +86,7 @@ actor GimMacLogger: AppLogging {
             all.append(entry)
             if all.count > maxEntries { all = Array(all.suffix(maxEntries)) }
             let encoder = JSONEncoder()
-            let lines = try all.map { try String(decoding: encoder.encode($0), as: UTF8.self) }
+            let lines = try all.map { try String(data: encoder.encode($0), encoding: .utf8) ?? "" }
             try (lines.joined(separator: "\n") + "\n")
                 .write(to: fileURL, atomically: true, encoding: .utf8)
         } catch {
@@ -105,11 +105,17 @@ actor GimMacLogger: AppLogging {
             }
     }
 
-    private func gitErrorDetails(from error: Error) -> (Int32?, String, String) {
+    private struct GitErrorDetails {
+        let exitCode: Int32?
+        let stdout: String
+        let stderr: String
+    }
+
+    private func gitErrorDetails(from error: Error) -> GitErrorDetails {
         if case .commandFailed(_, let code, let out, let err) = error as? GitAppError {
-            return (code, out, err)
+            return GitErrorDetails(exitCode: code, stdout: out, stderr: err)
         }
-        return (nil, "", "")
+        return GitErrorDetails(exitCode: nil, stdout: "", stderr: "")
     }
 
     private static func now() -> String {

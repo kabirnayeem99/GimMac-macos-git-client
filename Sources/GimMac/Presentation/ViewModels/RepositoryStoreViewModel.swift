@@ -51,6 +51,8 @@ final class RepositoryStoreViewModel {
     let historyHandler = HistoryHandler()
     var historyLoadTask: Task<Void, Never>?
     var historyFileDiffTask: Task<Void, Never>?
+    var changedFileDiffTask: Task<Void, Never>?
+    var repositorySelectionGeneration: Int = 0
 
     var selectedRepository: Repository?
     var tip: TipState = .unknown
@@ -62,6 +64,14 @@ final class RepositoryStoreViewModel {
     var lastFetched: Date?
     var forcePushNeeded = false
     var isSyncInProgress = false
+    var syncOutcome: OpOutcome = .none
+    var commitOutcome: OpOutcome = .none
+    var historyOutcome: OpOutcome = .none
+    var conflictContinueOutcome: OpOutcome = .none
+    var syncOutcomeResetTask: Task<Void, Never>?
+    var commitOutcomeResetTask: Task<Void, Never>?
+    var historyOutcomeResetTask: Task<Void, Never>?
+    var conflictOutcomeResetTask: Task<Void, Never>?
     var changedFiles: [ChangedFile] = []
     var commits: [Commit] = []
     var unpushedSHAs: Set<String> = []
@@ -89,6 +99,8 @@ final class RepositoryStoreViewModel {
     var initialConflictCount = 0
     var conflictMergeToolName: String?
     var isConflictActionInProgress = false
+    var recentlyResolvedConflict: ConflictedFileStatus?
+    var recentlyResolvedConflictResetTask: Task<Void, Never>?
 
     /// Guards stash apply/drop against re-entry (e.g. double-tapping Restore or
     /// Discard) so two concurrent git stash operations cannot overlap.

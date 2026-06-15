@@ -50,8 +50,10 @@ extension RepositoryStoreViewModel {
             }
 
             await refreshRepositoryScreenData()
+            signalSyncOutcome(.success)
         } catch {
             errorMessage = error.localizedDescription
+            signalSyncOutcome(.failure)
         }
     }
 
@@ -68,8 +70,10 @@ extension RepositoryStoreViewModel {
         do {
             try await provider.pushForceSafely(remote: remote, in: repository.url)
             await refreshRepositoryScreenData()
+            signalSyncOutcome(.success)
         } catch {
             errorMessage = error.localizedDescription
+            signalSyncOutcome(.failure)
         }
     }
 
@@ -89,8 +93,10 @@ extension RepositoryStoreViewModel {
             try await provider.fetch(remote: remote, in: repository.url)
             lastFetched = Date()
             await refreshRepositoryScreenData()
+            signalSyncOutcome(.success)
         } catch {
             errorMessage = error.localizedDescription
+            signalSyncOutcome(.failure)
         }
     }
 
@@ -108,8 +114,10 @@ extension RepositoryStoreViewModel {
             try await provider.pull(in: repository.url)
             lastFetched = Date()
             await refreshRepositoryScreenData()
+            signalSyncOutcome(.success)
         } catch {
             errorMessage = error.localizedDescription
+            signalSyncOutcome(.failure)
         }
     }
 }

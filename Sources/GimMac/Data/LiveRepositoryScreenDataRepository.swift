@@ -55,13 +55,15 @@ final class LiveRepositoryScreenDataRepository: RepositoryScreenDataProviding, S
         )
 
         let primaryAction = derivePrimaryAction(
-            changedFilesCount: changedFiles.count,
-            ahead: aheadBehind.0,
-            behind: aheadBehind.1,
-            conflictState: conflictState,
-            remoteName: remoteName,
-            upstream: upstream,
-            forcePushNeeded: forcePushNeeded
+            inputs: .init(
+                changedFilesCount: changedFiles.count,
+                ahead: aheadBehind.0,
+                behind: aheadBehind.1,
+                conflictState: conflictState,
+                remoteName: remoteName,
+                upstream: upstream,
+                forcePushNeeded: forcePushNeeded
+            )
         )
 
         return RepositoryScreenSnapshot(
@@ -148,15 +150,23 @@ final class LiveRepositoryScreenDataRepository: RepositoryScreenDataProviding, S
         return Set(result.stdout.split(whereSeparator: \.isNewline).map(String.init).filter { !$0.isEmpty })
     }
 
-    private func derivePrimaryAction(
-        changedFilesCount: Int,
-        ahead: Int,
-        behind: Int,
-        conflictState: ConflictState,
-        remoteName: String?,
-        upstream: String?,
-        forcePushNeeded: Bool
-    ) -> RepositoryPrimaryAction {
+    private struct PrimaryActionInputs {
+        let changedFilesCount: Int
+        let ahead: Int
+        let behind: Int
+        let conflictState: ConflictState
+        let remoteName: String?
+        let upstream: String?
+        let forcePushNeeded: Bool
+    }
+
+    private func derivePrimaryAction(inputs: PrimaryActionInputs) -> RepositoryPrimaryAction {
+        let ahead = inputs.ahead
+        let behind = inputs.behind
+        let conflictState = inputs.conflictState
+        let remoteName = inputs.remoteName
+        let upstream = inputs.upstream
+        let forcePushNeeded = inputs.forcePushNeeded
         switch conflictState {
         case .merge:      return .merge
         case .rebase:     return .rebase

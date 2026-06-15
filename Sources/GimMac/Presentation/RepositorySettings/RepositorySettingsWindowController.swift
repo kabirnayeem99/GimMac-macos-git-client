@@ -37,17 +37,34 @@ private final class RepositorySettingsViewController: NSViewController {
     private weak var remoteURLField: NSTextField?
     private weak var saveRemoteButton: NSButton?
     private weak var remoteStatusLabel: NSTextField?
+    private var isRemoteFieldVisible: Bool = true
+    private var isRemoteStatusVisible: Bool = false
 
     // Default branch tab controls
     private weak var branchNameField: NSTextField?
     private weak var renameBranchButton: NSButton?
+    private weak var currentBranchLabel: NSTextField?
 
     // LFS tab controls
     private weak var lfsStatusLabel: NSTextField?
     private weak var lfsInitButton: NSButton?
 
+    // Open In tab controls
+    private weak var terminalButton: NSButton?
+    private weak var editorButton: NSButton?
+    private var terminalButtonOriginalTitle: String?
+    private var editorButtonOriginalTitle: String?
+
     // Error / success banner
     private weak var bannerLabel: NSTextField?
+    private var bannerDismissWorkItem: DispatchWorkItem?
+    private var lastSuccessMessage: String?
+    private var lastErrorMessage: String?
+    private var lastAction: RepositorySettingsAction?
+
+    private enum RepositorySettingsAction {
+        case saveRemote, renameBranch, initializeLFS
+    }
 
     init(viewModel: RepositorySettingsViewModel) {
         self.viewModel = viewModel
@@ -122,35 +139,167 @@ private final class RepositorySettingsViewController: NSViewController {
     }
 
     private func syncUIFromViewModel() {
-        remoteURLField?.stringValue = viewModel.pendingRemoteURL
-        remoteStatusLabel?.isHidden = !viewModel.isLoadingRemote
-        saveRemoteButton?.isEnabled = !viewModel.isSavingRemote && !viewModel.isLoadingRemote
+        if !(remoteURLField?.currentEditor() != nil) {
+            remoteURLField?.stringValue = viewModel.pendingRemoteURL
+        }
+        saveRemoteButton?.isEnabled = canSaveRemoteURL
 
-        branchNameField?.stringValue = viewModel.newBranchName
-        renameBranchButton?.isEnabled = !viewModel.isSavingBranch
+        let remoteLoading = viewModel.isLoadingRemote
+        let fieldShouldBeVisible = !remoteLoading
+        if isRemoteFieldVisible != fieldShouldBeVisible {
+            remoteURLField?.fadeBanner(visible: fieldShouldBeVisible)
+            isRemoteFieldVisible = fieldShouldBeVisible
+        }
+        let statusShouldBeVisible = remoteLoading
+        if isRemoteStatusVisible != statusShouldBeVisible {
+            remoteStatusLabel?.fadeBanner(visible: statusShouldBeVisible)
+            isRemoteStatusVisible = statusShouldBeVisible
+        }
 
-        lfsStatusLabel?.stringValue = viewModel.isLoadingLFS
-            ? "Checking LFS status…"
-            : (viewModel.lfsAvailable ? "Git LFS is installed and available." : "Git LFS is not installed.")
+        currentBranchLabel?.stringValue = viewModel.currentBranchName
+        if !(branchNameField?.currentEditor() != nil) {
+            branchNameField?.stringValue = viewModel.newBranchName
+        }
+        renameBranchButton?.isEnabled = canRenameBranch
+
+        updateLFSStatus()
         lfsInitButton?.isHidden = viewModel.lfsAvailable || viewModel.isLoadingLFS
         lfsInitButton?.isEnabled = !viewModel.isInitializingLFS
 
-        if let error = viewModel.errorMessage {
-            bannerLabel?.textColor = .systemRed
-            bannerLabel?.stringValue = error
-            bannerLabel?.isHidden = false
-        } else if let success = viewModel.successMessage {
-            bannerLabel?.textColor = .systemGreen
-            bannerLabel?.stringValue = success
-            bannerLabel?.isHidden = false
+        syncBanner()
+    }
+
+    private func updateLFSStatus() {
+        let newText = viewModel.isLoadingLFS
+            ? "Checking LFS status…"
+            : (viewModel.lfsAvailable ? "Git LFS is installed and available." : "Git LFS is not installed.")
+        guard lfsStatusLabel?.stringValue != newText else { return }
+        if AppKitMotion.reduceMotion {
+            lfsStatusLabel?.stringValue = newText
         } else {
-            bannerLabel?.isHidden = true
+            lfsStatusLabel?.animateAlpha(to: 0, duration: AppKitMotion.feedback) { [weak self] in
+                self?.lfsStatusLabel?.stringValue = newText
+                self?.lfsStatusLabel?.animateAlpha(to: 1, duration: AppKitMotion.feedback)
+            }
         }
     }
 
-    // MARK: - Tab builders
+    private func syncBanner() {
+        bannerDismissWorkItem?.cancel()
+        bannerDismissWorkItem = nil
 
-    private func buildRemoteTab() -> NSTabViewItem {
+        let newError = viewModel.errorMessage
+        let newSuccess = viewModel.successMessage
+
+        if let error = newError, error != lastErrorMessage {
+            bannerLabel?.textColor = .systemRed
+            bannerLabel?.stringValue = error
+            bannerLabel?.fadeBanner(visible: true)
+            lastErrorMessage = error
+            lastSuccessMessage = nil
+        } else if let success = newSuccess, success != lastSuccessMessage {
+            bannerLabel?.textColor = .systemGreen
+            bannerLabel?.stringValue = success
+            bannerLabel?.fadeBanner(visible: true)
+            lastSuccessMessage = success
+            lastErrorMessage = nil
+            flashSuccessFeedback()
+            if let banner = bannerLabel {
+                bannerDismissWorkItem = AppKitMotion.scheduleAutoDismiss(for: banner)
+            }
+        } else if newError == nil, newSuccess == nil {
+            bannerLabel?.fadeBanner(visible: false)
+            lastErrorMessage = nil
+            lastSuccessMessage = nil
+        }
+    }
+
+    private func flashSuccessFeedback() {
+        let button: NSButton?
+        switch lastAction {
+        case .saveRemote:
+            button = saveRemoteButton
+        case .renameBranch:
+            button = renameBranchButton
+        case .initializeLFS:
+            button = lfsInitButton
+        case .none:
+            button = nil
+        }
+        lastAction = nil
+        guard let button, !AppKitMotion.reduceMotion else { return }
+        let originalTitle = button.title
+        button.title = "Saved"
+        button.animateAlpha(to: 0.7, duration: AppKitMotion.feedback) { [weak button] in
+            button?.animateAlpha(to: 1, duration: AppKitMotion.feedback)
+        }
+        DispatchQueue.main.asyncAfter(deadline: .now() + 1.0) { [weak button] in
+            button?.title = originalTitle
+        }
+    }
+
+    // MARK: - Actions
+
+    @objc private func remoteURLChanged(_ sender: NSTextField) {
+        viewModel.pendingRemoteURL = sender.stringValue
+        syncUIFromViewModel()
+    }
+
+    @objc private func branchNameChanged(_ sender: NSTextField) {
+        viewModel.newBranchName = sender.stringValue
+        syncUIFromViewModel()
+    }
+
+    @objc private func saveRemoteTapped() {
+        viewModel.errorMessage = nil
+        viewModel.successMessage = nil
+        lastAction = .saveRemote
+        Task { await viewModel.saveRemoteURL() }
+    }
+
+    @objc private func renameBranchTapped() {
+        viewModel.errorMessage = nil
+        viewModel.successMessage = nil
+        lastAction = .renameBranch
+        Task { await viewModel.renameCurrentBranch() }
+    }
+
+    @objc private func initLFSTapped() {
+        viewModel.errorMessage = nil
+        viewModel.successMessage = nil
+        lastAction = .initializeLFS
+        Task { await viewModel.initializeLFS() }
+    }
+
+    @objc private func openTerminalTapped() {
+        viewModel.openInTerminal()
+        confirmOpenIn(button: terminalButton, originalTitle: terminalButtonOriginalTitle)
+    }
+
+    @objc private func openEditorTapped() {
+        viewModel.errorMessage = nil
+        viewModel.openInExternalEditor()
+        confirmOpenIn(button: editorButton, originalTitle: editorButtonOriginalTitle)
+    }
+
+    private func confirmOpenIn(button: NSButton?, originalTitle: String?) {
+        guard let button, let originalTitle, !AppKitMotion.reduceMotion else { return }
+        button.title = "\(originalTitle) ✓"
+        button.animateAlpha(to: 0.6, duration: AppKitMotion.feedback) { [weak button] in
+            button?.animateAlpha(to: 1, duration: AppKitMotion.feedback)
+        }
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.8) { [weak button] in
+            button?.title = originalTitle
+        }
+    }
+}
+
+// MARK: - Tab builders
+
+@MainActor
+private extension RepositorySettingsViewController {
+
+    func buildRemoteTab() -> NSTabViewItem {
         let item = NSTabViewItem()
         item.label = "Remote"
 
@@ -176,6 +325,7 @@ private final class RepositorySettingsViewController: NSViewController {
         let loadingLabel = NSTextField(labelWithString: "Loading…")
         loadingLabel.textColor = .secondaryLabelColor
         loadingLabel.font = .systemFont(ofSize: 12)
+        loadingLabel.isHidden = true
         remoteStatusLabel = loadingLabel
         container.addArrangedSubview(loadingLabel)
 
@@ -189,7 +339,7 @@ private final class RepositorySettingsViewController: NSViewController {
         return item
     }
 
-    private func buildDefaultBranchTab() -> NSTabViewItem {
+    func buildDefaultBranchTab() -> NSTabViewItem {
         let item = NSTabViewItem()
         item.label = "Default Branch"
 
@@ -211,6 +361,7 @@ private final class RepositorySettingsViewController: NSViewController {
         fromLabel.widthAnchor.constraint(equalToConstant: 48).isActive = true
         let fromValue = NSTextField(labelWithString: viewModel.currentBranchName)
         fromValue.textColor = .secondaryLabelColor
+        currentBranchLabel = fromValue
         row.addArrangedSubview(fromLabel)
         row.addArrangedSubview(fromValue)
         container.addArrangedSubview(row)
@@ -240,7 +391,7 @@ private final class RepositorySettingsViewController: NSViewController {
         return item
     }
 
-    private func buildLFSTab() -> NSTabViewItem {
+    func buildLFSTab() -> NSTabViewItem {
         let item = NSTabViewItem()
         item.label = "Git LFS"
 
@@ -269,7 +420,7 @@ private final class RepositorySettingsViewController: NSViewController {
         return item
     }
 
-    private func buildOpenInTab() -> NSTabViewItem {
+    func buildOpenInTab() -> NSTabViewItem {
         let item = NSTabViewItem()
         item.label = "Open In"
 
@@ -285,62 +436,29 @@ private final class RepositorySettingsViewController: NSViewController {
 
         let terminalButton = NSButton(title: "Open in Terminal", target: self, action: #selector(openTerminalTapped))
         terminalButton.bezelStyle = .rounded
+        self.terminalButton = terminalButton
+        self.terminalButtonOriginalTitle = terminalButton.title
         container.addArrangedSubview(terminalButton)
 
         let editorButton = NSButton(title: "Open in External Editor", target: self, action: #selector(openEditorTapped))
         editorButton.bezelStyle = .rounded
+        self.editorButton = editorButton
+        self.editorButtonOriginalTitle = editorButton.title
         container.addArrangedSubview(editorButton)
 
         wrap(container, in: item)
         return item
     }
 
-    // MARK: - Actions
-
-    @objc private func remoteURLChanged(_ sender: NSTextField) {
-        viewModel.pendingRemoteURL = sender.stringValue
-    }
-
-    @objc private func branchNameChanged(_ sender: NSTextField) {
-        viewModel.newBranchName = sender.stringValue
-    }
-
-    @objc private func saveRemoteTapped() {
-        viewModel.errorMessage = nil
-        viewModel.successMessage = nil
-        Task { await viewModel.saveRemoteURL() }
-    }
-
-    @objc private func renameBranchTapped() {
-        viewModel.errorMessage = nil
-        viewModel.successMessage = nil
-        Task { await viewModel.renameCurrentBranch() }
-    }
-
-    @objc private func initLFSTapped() {
-        viewModel.errorMessage = nil
-        viewModel.successMessage = nil
-        Task { await viewModel.initializeLFS() }
-    }
-
-    @objc private func openTerminalTapped() {
-        viewModel.openInTerminal()
-    }
-
-    @objc private func openEditorTapped() {
-        viewModel.errorMessage = nil
-        viewModel.openInExternalEditor()
-    }
-
     // MARK: - Helpers
 
-    private func sectionTitle(_ text: String) -> NSTextField {
+    func sectionTitle(_ text: String) -> NSTextField {
         let label = NSTextField(labelWithString: text)
         label.font = .systemFont(ofSize: 15, weight: .semibold)
         return label
     }
 
-    private func note(_ text: String) -> NSTextField {
+    func note(_ text: String) -> NSTextField {
         let label = NSTextField(wrappingLabelWithString: text)
         label.textColor = .secondaryLabelColor
         label.font = .systemFont(ofSize: 12)
@@ -349,7 +467,7 @@ private final class RepositorySettingsViewController: NSViewController {
         return label
     }
 
-    private func wrap(_ stack: NSStackView, in item: NSTabViewItem) {
+    func wrap(_ stack: NSStackView, in item: NSTabViewItem) {
         let host = NSView()
         host.translatesAutoresizingMaskIntoConstraints = false
         host.addSubview(stack)
@@ -360,5 +478,15 @@ private final class RepositorySettingsViewController: NSViewController {
             stack.bottomAnchor.constraint(lessThanOrEqualTo: host.bottomAnchor)
         ])
         item.view = host
+    }
+
+    var canSaveRemoteURL: Bool {
+        let trimmed = viewModel.pendingRemoteURL.trimmingCharacters(in: .whitespacesAndNewlines)
+        return !viewModel.isSavingRemote && !viewModel.isLoadingRemote && !trimmed.isEmpty && trimmed != viewModel.remoteURL
+    }
+
+    var canRenameBranch: Bool {
+        let trimmed = viewModel.newBranchName.trimmingCharacters(in: .whitespacesAndNewlines)
+        return !viewModel.isSavingBranch && !trimmed.isEmpty && trimmed != viewModel.currentBranchName
     }
 }

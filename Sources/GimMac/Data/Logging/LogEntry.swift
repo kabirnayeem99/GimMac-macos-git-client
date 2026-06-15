@@ -2,8 +2,8 @@ import Foundation
 
 struct LogEntry: Codable, Sendable {
     enum Kind: String, Codable {
-        case git   = "git"
-        case event = "event"
+        case git
+        case event
     }
 
     let kind: Kind

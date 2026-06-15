@@ -22,6 +22,35 @@ private struct MockRepositoryScreenDataProvider: RepositoryScreenDataProviding, 
     }
 }
 
+private struct DelayedRepositoryInspector: RepositoryInspecting, Sendable {
+    let tipsByPath: [String: TipState]
+    let delaysByPath: [String: Duration]
+
+    func inspectRepository(at url: URL) async throws -> TipState {
+        if let delay = delaysByPath[url.path] {
+            try? await Task.sleep(for: delay)
+        }
+        return tipsByPath[url.path] ?? .unknown
+    }
+}
+
+private struct PerRepositoryScreenDataProvider: RepositoryScreenDataProviding, Sendable {
+    let snapshotsByPath: [String: RepositoryScreenSnapshot]
+    let delaysByPath: [String: Duration]
+
+    func loadSnapshot(for repository: Repository?) async throws -> RepositoryScreenSnapshot {
+        let path = repository?.url.path ?? ""
+        if let delay = delaysByPath[path] {
+            try? await Task.sleep(for: delay)
+        }
+        return snapshotsByPath[path] ?? .testSnapshot
+    }
+
+    func loadMoreCommits(for repository: Repository, skip: Int, maxCount: Int) async throws -> [Commit] {
+        []
+    }
+}
+
 private struct MockDiffProvider: DiffProviding, Sendable {
     func fetchDiff(in repositoryURL: URL, for path: String, oldPath: String?) async throws -> DiffDocument {
         DiffDocument(filePath: path, lines: [])
@@ -56,9 +85,119 @@ private struct MockDiffProvider: DiffProviding, Sendable {
     }
 }
 
+private struct DelayedDiffProvider: DiffProviding, Sendable {
+    let workingTreeDocsByPath: [String: DiffDocument]
+    let workingTreeDelaysByPath: [String: Duration]
+    let commitDocsByRequest: [String: DiffDocument]
+    let commitDelaysByRequest: [String: Duration]
+
+    func fetchDiff(in repositoryURL: URL, for path: String, oldPath: String?) async throws -> DiffDocument {
+        if let delay = workingTreeDelaysByPath[path] {
+            try? await Task.sleep(for: delay)
+        }
+        return workingTreeDocsByPath[path] ?? DiffDocument(filePath: path, lines: [])
+    }
+
+    func fetchCommitDiff(
+        in repositoryURL: URL,
+        for path: String,
+        commitSHA: String
+    ) async throws -> DiffDocument {
+        let key = commitRequestKey(commitSHA: commitSHA, path: path)
+        if let delay = commitDelaysByRequest[key] {
+            try? await Task.sleep(for: delay)
+        }
+        return commitDocsByRequest[key] ?? DiffDocument(filePath: path, lines: [])
+    }
+
+    func submoduleDiff(in repositoryURL: URL, for changedFile: ChangedFile) async throws -> SubmoduleDiffData {
+        SubmoduleDiffData(
+            path: changedFile.path,
+            fullPath: repositoryURL.appendingPathComponent(changedFile.path).path,
+            oldSHA: nil,
+            newSHA: nil,
+            commitChanged: false,
+            modifiedChanges: false,
+            untrackedChanges: false
+        )
+    }
+
+    func workingDirectoryImage(in repositoryURL: URL, for path: String) async throws -> ImageDiffContent {
+        ImageDiffContent(mediaType: "image/png", base64Contents: "")
+    }
+
+    func blobImage(in repositoryURL: URL, for path: String, at ref: String) async throws -> ImageDiffContent {
+        ImageDiffContent(mediaType: "image/png", base64Contents: "")
+    }
+
+    private func commitRequestKey(commitSHA: String, path: String) -> String {
+        "\(commitSHA)|\(path)"
+    }
+}
+
 private struct MockCommitInspector: CommitInspecting, Sendable {
     func fetchFiles(for commitSHA: String, in repositoryURL: URL) async throws -> [CommitFile] {
         []
+    }
+}
+
+private struct DelayedBranchProvider: BranchProviding, Sendable {
+    let branchesByRepositoryPath: [String: [Branch]]
+    let delaysByRepositoryPath: [String: Duration]
+
+    func fetchBranches(in repositoryURL: URL) async throws -> [Branch] {
+        if let delay = delaysByRepositoryPath[repositoryURL.path] {
+            try? await Task.sleep(for: delay)
+        }
+        return branchesByRepositoryPath[repositoryURL.path] ?? []
+    }
+
+    func fetchBranchesPointing(at commitish: String, in repositoryURL: URL) async throws -> [Branch] {
+        []
+    }
+
+    func fetchMergedBranches(into branch: Branch, in repositoryURL: URL) async throws -> [Branch] {
+        []
+    }
+}
+
+private struct DelayedBranchOperator: BranchOperating, Sendable {
+    let delaysByRepositoryPath: [String: Duration]
+
+    func createBranch(
+        named name: String,
+        from startPoint: BranchStartPoint,
+        noTrack: Bool,
+        in repositoryURL: URL
+    ) async throws -> String {
+        name
+    }
+
+    func switchBranch(to branch: Branch, in repositoryURL: URL) async throws {
+        if let delay = delaysByRepositoryPath[repositoryURL.path] {
+            try? await Task.sleep(for: delay)
+        }
+    }
+
+    func deleteLocalBranch(_ branch: Branch, force: Bool, in repositoryURL: URL) async throws {}
+
+    func deleteRemoteBranch(_ branch: Branch, remote: String, in repositoryURL: URL) async throws {}
+
+    func renameBranch(
+        _ branch: Branch,
+        to newName: String,
+        force: Bool,
+        in repositoryURL: URL
+    ) async throws -> String {
+        newName
+    }
+}
+
+private struct StaticStatusProvider: StatusProviding, Sendable {
+    let files: [ChangedFile]
+
+    func fetchStatus(in repositoryURL: URL) async throws -> [ChangedFile] {
+        files
     }
 }
 
@@ -218,6 +357,41 @@ private extension RepositoryScreenSnapshot {
             unpushedSHAs: []
         )
     }
+
+    static func snapshot(changedFiles: [ChangedFile]) -> RepositoryScreenSnapshot {
+        RepositoryScreenSnapshot(
+            changedFiles: changedFiles,
+            commits: [],
+            userProfile: GitUserProfile(name: "Test User", email: "test@example.com"),
+            primaryAction: .publishRepository,
+            remoteName: nil,
+            forcePushNeeded: false,
+            unpushedSHAs: []
+        )
+    }
+}
+
+private extension Branch {
+    static func test(
+        name: String,
+        ref: String? = nil,
+        type: BranchType = .local,
+        date: Date = .distantPast
+    ) -> Branch {
+        Branch(
+            name: name,
+            ref: ref ?? "refs/heads/\(name)",
+            tip: BranchTip(
+                sha: "abc1234567890",
+                shortSHA: "abc1234",
+                authorName: "Test User",
+                summary: "Test",
+                date: date
+            ),
+            type: type,
+            upstream: nil
+        )
+    }
 }
 
 @MainActor
@@ -373,5 +547,150 @@ final class RepositoryStoreViewModelTests: XCTestCase {
         let selected = try await persistence.selectMostRecentlyOpenedRepositoryOnLaunch()
 
         XCTAssertEqual(selected?.path, existingRepo.path)
+    }
+
+    func testSelectRepositoryDropsStaleSnapshotFromOlderSelection() async {
+        let repo1 = URL(fileURLWithPath: "/tmp/repo-one", isDirectory: true)
+        let repo2 = URL(fileURLWithPath: "/tmp/repo-two", isDirectory: true)
+        let inspector = DelayedRepositoryInspector(
+            tipsByPath: [
+                repo1.path: .valid(branch: BranchSummary(name: "one", upstream: nil, sha: "1111111")),
+                repo2.path: .valid(branch: BranchSummary(name: "two", upstream: nil, sha: "2222222"))
+            ],
+            delaysByPath: [repo1.path: .milliseconds(80), repo2.path: .milliseconds(5)]
+        )
+        let screenRepository = PerRepositoryScreenDataProvider(
+            snapshotsByPath: [
+                repo1.path: .snapshot(changedFiles: [ChangedFile(path: "old.txt", status: .modified, oldPath: nil, isStaged: false, hasConflict: false)]),
+                repo2.path: .snapshot(changedFiles: [ChangedFile(path: "new.txt", status: .modified, oldPath: nil, isStaged: false, hasConflict: false)])
+            ],
+            delaysByPath: [repo1.path: .milliseconds(80), repo2.path: .milliseconds(5)]
+        )
+        let sut = RepositoryStoreViewModel(
+            logger: GimMacLogger(),
+            inspector: inspector,
+            screenRepository: screenRepository,
+            diffProvider: MockDiffProvider(),
+            commitInspector: MockCommitInspector(),
+            commitProvider: MockCommitProvider(),
+            repositoryPersistence: MockRepositoryPersistence()
+        )
+
+        let first = Task { await sut.selectRepository(at: repo1) }
+        try? await Task.sleep(for: .milliseconds(10))
+        let second = Task { await sut.selectRepository(at: repo2) }
+        _ = await (first.value, second.value)
+
+        XCTAssertEqual(sut.selectedRepository?.url, repo2)
+        XCTAssertEqual(RepositoryBranchDisplayFormatter.displayText(for: sut.tip), "two")
+        XCTAssertEqual(sut.changedFiles.map(\.path), ["new.txt"])
+        XCTAssertFalse(sut.isLoading)
+    }
+
+    func testDiffHandlerDropsStaleWorkingTreeDiff() async {
+        let provider = DelayedDiffProvider(
+            workingTreeDocsByPath: [
+                "A.swift": DiffDocument(filePath: "A.swift", lines: [DiffDocumentLine(kind: .added, oldNumber: nil, newNumber: 1, text: "A")]),
+                "B.swift": DiffDocument(filePath: "B.swift", lines: [DiffDocumentLine(kind: .added, oldNumber: nil, newNumber: 1, text: "B")])
+            ],
+            workingTreeDelaysByPath: ["A.swift": .milliseconds(80), "B.swift": .milliseconds(5)],
+            commitDocsByRequest: [:],
+            commitDelaysByRequest: [:]
+        )
+        let sut = DiffHandler(diffProvider: provider)
+        let repository = Repository(url: URL(fileURLWithPath: "/tmp/repo", isDirectory: true))
+        let changedFiles = [
+            ChangedFile(path: "A.swift", status: .modified, oldPath: nil, isStaged: false, hasConflict: false),
+            ChangedFile(path: "B.swift", status: .modified, oldPath: nil, isStaged: false, hasConflict: false)
+        ]
+
+        sut.selectFile("A.swift")
+        let first = Task { await sut.loadDiff(in: repository, changedFiles: changedFiles) }
+        try? await Task.sleep(for: .milliseconds(10))
+        sut.selectFile("B.swift")
+        let second = Task { await sut.loadDiff(in: repository, changedFiles: changedFiles) }
+        _ = await (first.value, second.value)
+
+        XCTAssertEqual(sut.selectedFilePath, "B.swift")
+        XCTAssertEqual(sut.selectedDiffDocument.filePath, "B.swift")
+    }
+
+    func testHistoryHandlerDropsStaleDiffForOlderCommitWithSamePath() async {
+        let provider = DelayedDiffProvider(
+            workingTreeDocsByPath: [:],
+            workingTreeDelaysByPath: [:],
+            commitDocsByRequest: [
+                "commit-a|README.md": DiffDocument(filePath: "README.md", lines: [DiffDocumentLine(kind: .added, oldNumber: nil, newNumber: 1, text: "old")]),
+                "commit-b|README.md": DiffDocument(filePath: "README.md", lines: [DiffDocumentLine(kind: .added, oldNumber: nil, newNumber: 1, text: "new")])
+            ],
+            commitDelaysByRequest: [
+                "commit-a|README.md": .milliseconds(80),
+                "commit-b|README.md": .milliseconds(5)
+            ]
+        )
+        let sut = HistoryHandler()
+        let repositoryURL = URL(fileURLWithPath: "/tmp/repo", isDirectory: true)
+
+        let first = Task {
+            await sut.loadDiff(for: "README.md", commitSHA: "commit-a", using: provider, in: repositoryURL)
+        }
+        try? await Task.sleep(for: .milliseconds(10))
+        let second = Task {
+            await sut.loadDiff(for: "README.md", commitSHA: "commit-b", using: provider, in: repositoryURL)
+        }
+        _ = await (first.value, second.value)
+
+        XCTAssertEqual(sut.selectedCommitFilePath, "README.md")
+        XCTAssertEqual(sut.selectedCommitDiffSHA, "commit-b")
+        XCTAssertEqual(sut.diffDocument.lines.first?.text, "new")
+    }
+
+    func testBranchesViewModelDropsStaleBranchListAfterRepositoryRetarget() async {
+        let repo1 = URL(fileURLWithPath: "/tmp/repo-one", isDirectory: true)
+        let repo2 = URL(fileURLWithPath: "/tmp/repo-two", isDirectory: true)
+        let sut = BranchesViewModel(
+            branchProvider: DelayedBranchProvider(
+                branchesByRepositoryPath: [
+                    repo1.path: [.test(name: "old-branch")],
+                    repo2.path: [.test(name: "new-branch")]
+                ],
+                delaysByRepositoryPath: [repo1.path: .milliseconds(80), repo2.path: .milliseconds(5)]
+            ),
+            branchOperator: DelayedBranchOperator(delaysByRepositoryPath: [:]),
+            statusProvider: StaticStatusProvider(files: [])
+        )
+
+        sut.setRepository(repo1, currentBranchName: "old-branch")
+        let first = Task { await sut.loadBranches() }
+        try? await Task.sleep(for: .milliseconds(10))
+        sut.setRepository(repo2, currentBranchName: "new-branch")
+        let second = Task { await sut.loadBranches() }
+        _ = await (first.value, second.value)
+
+        XCTAssertEqual(sut.repositoryURL, repo2)
+        XCTAssertEqual(sut.currentBranchName, "new-branch")
+        XCTAssertEqual(sut.localBranches.map(\.name), ["new-branch"])
+    }
+
+    func testBranchesViewModelDropsStaleSwitchResultAfterRepositoryRetarget() async {
+        let repo1 = URL(fileURLWithPath: "/tmp/repo-one", isDirectory: true)
+        let repo2 = URL(fileURLWithPath: "/tmp/repo-two", isDirectory: true)
+        let targetBranch = Branch.test(name: "feature")
+        let sut = BranchesViewModel(
+            branchProvider: DelayedBranchProvider(branchesByRepositoryPath: [:], delaysByRepositoryPath: [:]),
+            branchOperator: DelayedBranchOperator(delaysByRepositoryPath: [repo1.path: .milliseconds(80)]),
+            statusProvider: StaticStatusProvider(files: [])
+        )
+
+        sut.setRepository(repo1, currentBranchName: "main")
+        let first = Task { await sut.switchBranch(to: targetBranch) }
+        try? await Task.sleep(for: .milliseconds(10))
+        sut.setRepository(repo2, currentBranchName: "develop")
+        await first.value
+
+        XCTAssertEqual(sut.repositoryURL, repo2)
+        XCTAssertEqual(sut.currentBranchName, "develop")
+        XCTAssertNil(sut.stashGuardNeeded)
+        XCTAssertNil(sut.pendingBranchName)
     }
 }

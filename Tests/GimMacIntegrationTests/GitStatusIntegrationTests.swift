@@ -259,11 +259,6 @@ final class GitStatusIntegrationTests: XCTestCase {
         XCTAssertFalse(sub.untrackedChanges)
     }
 
-    private func fetchSubmoduleEntry(in superRepo: URL) async throws -> ChangedFile {
-        let files = try await makeProvider().fetchStatus(in: superRepo)
-        return try XCTUnwrap(files.first { $0.path == "sub" })
-    }
-
     // MARK: - Fixtures
 
     private func makeInitialCommitRepo(fileName: String, contents: String) throws -> URL {
@@ -351,9 +346,9 @@ final class GitStatusIntegrationTests: XCTestCase {
 
     @discardableResult
     private func runGitCapturing(_ args: [String], in directory: URL) throws -> String {
-        let (output, status, err) = try runGitRaw(args, in: directory)
-        if status != 0 { XCTFail("git \(args.joined(separator: " ")) failed: \(err)") }
-        return output
+        let result = try runGitRaw(args, in: directory)
+        if result.status != 0 { XCTFail("git \(args.joined(separator: " ")) failed: \(result.stderr)") }
+        return result.output
     }
 
     /// Runs git without failing the test on a non-zero exit — used for the merge
@@ -363,9 +358,13 @@ final class GitStatusIntegrationTests: XCTestCase {
         try runGitRaw(args, in: directory).output
     }
 
-    private func runGitRaw(
-        _ args: [String], in directory: URL
-    ) throws -> (output: String, status: Int32, stderr: String) {
+    private struct GitRunResult {
+        let output: String
+        let status: Int32
+        let stderr: String
+    }
+
+    private func runGitRaw(_ args: [String], in directory: URL) throws -> GitRunResult {
         let process = Process()
         process.currentDirectoryURL = directory
         process.executableURL = URL(fileURLWithPath: "/usr/bin/env")
@@ -381,10 +380,17 @@ final class GitStatusIntegrationTests: XCTestCase {
         let errData = stderr.fileHandleForReading.readDataToEndOfFile()
         process.waitUntilExit()
 
-        return (
-            String(data: outData, encoding: .utf8) ?? "",
-            process.terminationStatus,
-            String(data: errData, encoding: .utf8) ?? ""
+        return GitRunResult(
+            output: String(data: outData, encoding: .utf8) ?? "",
+            status: process.terminationStatus,
+            stderr: String(data: errData, encoding: .utf8) ?? ""
         )
+    }
+}
+
+extension GitStatusIntegrationTests {
+    private func fetchSubmoduleEntry(in superRepo: URL) async throws -> ChangedFile {
+        let files = try await makeProvider().fetchStatus(in: superRepo)
+        return try XCTUnwrap(files.first { $0.path == "sub" })
     }
 }

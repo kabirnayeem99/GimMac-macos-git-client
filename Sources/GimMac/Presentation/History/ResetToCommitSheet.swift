@@ -7,6 +7,7 @@ struct ResetToCommitSheet: View {
 
     @State private var mode: ResetMode = .mixed
     @State private var isWorking = false
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
     var body: some View {
         VStack(alignment: .leading, spacing: 14) {
@@ -34,6 +35,7 @@ struct ResetToCommitSheet: View {
                 .font(.caption)
                 .foregroundStyle(.orange)
                 .fixedSize(horizontal: false, vertical: true)
+                .transition(Motion.inlineStatus(reduceMotion: reduceMotion))
             }
 
             HStack(spacing: 8) {
@@ -58,5 +60,6 @@ struct ResetToCommitSheet: View {
         }
         .padding(16)
         .frame(width: 440)
+        .motion(Motion.feedback, reduceMotion: reduceMotion, value: mode)
     }
 }

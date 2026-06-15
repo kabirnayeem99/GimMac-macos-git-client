@@ -2,6 +2,7 @@ import SwiftUI
 
 struct HistoryFilesColumn: View {
     let viewModel: RepositoryStoreViewModel
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
     // Bridges the view model's path-based selection onto the List's id-based
     // selection (CommitFile.id == path). Native List selection provides keyboard
@@ -33,6 +34,8 @@ struct HistoryFilesColumn: View {
                 Text("\(viewModel.historyFiles.count)")
                     .font(.system(size: 11, weight: .semibold))
                     .foregroundStyle(.secondary)
+                    .contentTransition(.numericText())
+                    .motion(Motion.feedback, reduceMotion: reduceMotion, value: viewModel.historyFiles.count)
             }
             .padding(.horizontal, 12)
             .frame(height: 32)
@@ -86,7 +89,7 @@ struct HistoryFileRow: View {
     var onOpenWithDefault: () -> Void = {}
     var onCopyPath: () -> Void = {}
     var onCopyRelativePath: () -> Void = {}
-    var editorName: String? = nil
+    var editorName: String?
 
     private var statusIcon: String {
         switch file.status {

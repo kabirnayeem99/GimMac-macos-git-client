@@ -5,25 +5,33 @@ import Foundation
 @MainActor
 extension RepositoryStoreViewModel {
     func selectRepository(at url: URL) async {
+        let selectionGeneration = beginRepositorySelection(for: url)
         isLoading = true
         errorMessage = nil
-        selectedRepository = Repository(url: url)
         resetPerRepositoryState()
-        defer { isLoading = false }
 
         do {
-            tip = try await inspector.inspectRepository(at: url)
+            let inspectedTip = try await inspector.inspectRepository(at: url)
+            guard isCurrentRepositorySelection(url: url, generation: selectionGeneration) else { return }
+            tip = inspectedTip
             _ = try await repositoryPersistence.saveOrUpdateRepository(path: url.path)
         } catch {
+            guard isCurrentRepositorySelection(url: url, generation: selectionGeneration) else { return }
             tip = .unknown
             errorMessage = error.localizedDescription
         }
 
-        await refreshRepositoryScreenData()
+        guard isCurrentRepositorySelection(url: url, generation: selectionGeneration) else { return }
+        await refreshRepositoryScreenData(for: Repository(url: url), selectionGeneration: selectionGeneration)
+        guard isCurrentRepositorySelection(url: url, generation: selectionGeneration) else { return }
         await loadSavedRepositories()
+        guard isCurrentRepositorySelection(url: url, generation: selectionGeneration) else { return }
+        isLoading = false
     }
 
     func resetPerRepositoryState() {
+        changedFileDiffTask?.cancel()
+        changedFileDiffTask = nil
         historyLoadTask?.cancel()
         historyLoadTask = nil
         historyFileDiffTask?.cancel()
@@ -36,12 +44,13 @@ extension RepositoryStoreViewModel {
         primaryAction = .publishRepository
         remoteName = nil
         forcePushNeeded = false
+        resetOperationOutcomes()
         lastFetched = nil
         stashEntry = nil
         errorMessage = nil
         diffHandler.clearSelection()
         historyHandler.clearSelection()
-        changedFilesHandler.deselectAll()
+        changedFilesHandler.resetForRepositoryChange()
         commitForm.reset()
     }
 
@@ -80,8 +89,20 @@ extension RepositoryStoreViewModel {
     }
 
     func refreshRepositoryScreenData() async {
+        guard let repository = selectedRepository else {
+            stashEntry = nil
+            return
+        }
+        await refreshRepositoryScreenData(for: repository)
+    }
+
+    private func refreshRepositoryScreenData(
+        for repository: Repository,
+        selectionGeneration: Int? = nil
+    ) async {
         do {
-            let snapshot = try await screenRepository.loadSnapshot(for: selectedRepository)
+            let snapshot = try await screenRepository.loadSnapshot(for: repository)
+            guard isCurrentRepositoryRefreshTarget(repository, selectionGeneration: selectionGeneration) else { return }
             primaryAction = snapshot.primaryAction
             remoteName = snapshot.remoteName
             forcePushNeeded = snapshot.forcePushNeeded
@@ -105,18 +126,35 @@ extension RepositoryStoreViewModel {
                 selectHistoryCommit(sha: sha)
             }
 
-            if let repository = selectedRepository {
-                await diffHandler.loadDiff(in: repository, changedFiles: changedFiles)
-                if let stashProvider {
-                    stashEntry = try? await stashProvider.fetchStash(in: repository.url)
-                } else {
-                    stashEntry = nil
-                }
+            await diffHandler.loadDiff(in: repository, changedFiles: changedFiles)
+            guard isCurrentRepositoryRefreshTarget(repository, selectionGeneration: selectionGeneration) else { return }
+            if let stashProvider {
+                stashEntry = try? await stashProvider.fetchStash(in: repository.url)
+                guard isCurrentRepositoryRefreshTarget(repository, selectionGeneration: selectionGeneration) else { return }
             } else {
                 stashEntry = nil
             }
         } catch {
+            guard isCurrentRepositoryRefreshTarget(repository, selectionGeneration: selectionGeneration) else { return }
             errorMessage = error.localizedDescription
         }
+    }
+
+    private func beginRepositorySelection(for url: URL) -> Int {
+        repositorySelectionGeneration += 1
+        selectedRepository = Repository(url: url)
+        return repositorySelectionGeneration
+    }
+
+    private func isCurrentRepositorySelection(url: URL, generation: Int) -> Bool {
+        repositorySelectionGeneration == generation && selectedRepository?.url == url
+    }
+
+    private func isCurrentRepositoryRefreshTarget(
+        _ repository: Repository,
+        selectionGeneration: Int?
+    ) -> Bool {
+        selectedRepository?.url == repository.url &&
+            (selectionGeneration == nil || repositorySelectionGeneration == selectionGeneration)
     }
 }

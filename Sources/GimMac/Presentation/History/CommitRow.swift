@@ -4,6 +4,9 @@ struct CommitRow: View {
     let title: String
     let subtitle: String
     let isUnpushed: Bool
+    let isSelected: Bool
+
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
     var body: some View {
         HStack(spacing: 9) {
@@ -42,5 +45,7 @@ struct CommitRow: View {
         .padding(.horizontal, 10)
         .frame(height: 58)
         .contentShape(Rectangle())
+        .background(isSelected ? Color.accentColor.opacity(0.12) : Color.clear)
+        .motion(Motion.snappy, reduceMotion: reduceMotion, value: isSelected)
     }
 }

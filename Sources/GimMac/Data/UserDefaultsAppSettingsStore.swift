@@ -77,7 +77,7 @@ final class UserDefaultsAppSettingsStore: AppSettingsStoring, @unchecked Sendabl
         Key.useExternalCredentialHelper: false,
         Key.notificationsEnabled: true,
         Key.underlineLinks: true,
-        Key.showDiffCheckMarks: true,
+        Key.showDiffCheckMarks: true
     ]}
 
     // MARK: - Confirmations

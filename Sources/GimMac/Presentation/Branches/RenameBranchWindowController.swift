@@ -44,6 +44,7 @@ private final class RenameBranchSheetViewController: NSViewController {
 
         let currentLabel = NSTextField(labelWithString: "Current: \(branch.name)")
         currentLabel.translatesAutoresizingMaskIntoConstraints = false
+        currentLabel.lineBreakMode = .byTruncatingMiddle
 
         let newLabel = NSTextField(labelWithString: "New name")
         newLabel.translatesAutoresizingMaskIntoConstraints = false
@@ -86,6 +87,7 @@ private final class RenameBranchSheetViewController: NSViewController {
 
             currentLabel.topAnchor.constraint(equalTo: title.bottomAnchor, constant: 10),
             currentLabel.leadingAnchor.constraint(equalTo: container.leadingAnchor, constant: 16),
+            currentLabel.trailingAnchor.constraint(equalTo: container.trailingAnchor, constant: -16),
 
             newLabel.topAnchor.constraint(equalTo: currentLabel.bottomAnchor, constant: 10),
             newLabel.leadingAnchor.constraint(equalTo: container.leadingAnchor, constant: 16),

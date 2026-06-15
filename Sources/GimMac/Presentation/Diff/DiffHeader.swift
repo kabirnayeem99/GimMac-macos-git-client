@@ -5,6 +5,8 @@ struct DiffHeader: View {
     let addedCount: Int
     let removedCount: Int
 
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+
     var body: some View {
         HStack(spacing: 10) {
             Image(systemName: "doc.text")
@@ -20,9 +22,13 @@ struct DiffHeader: View {
             HStack(spacing: 6) {
                 Text("+\(addedCount)")
                     .foregroundStyle(.green)
+                    .contentTransition(.numericText(value: Double(addedCount)))
+                    .motion(Motion.feedback, reduceMotion: reduceMotion, value: addedCount)
 
                 Text("-\(removedCount)")
                     .foregroundStyle(.red)
+                    .contentTransition(.numericText(value: Double(removedCount)))
+                    .motion(Motion.feedback, reduceMotion: reduceMotion, value: removedCount)
             }
             .font(.system(size: 11, weight: .semibold, design: .monospaced))
 

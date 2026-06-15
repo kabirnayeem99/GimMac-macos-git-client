@@ -2,23 +2,73 @@ import SwiftUI
 
 struct OnboardingView: View {
     @Bindable var viewModel: OnboardingViewModel
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+    @State private var slideDirection: SlideDirection = .forward
 
     var body: some View {
+        VStack(spacing: 0) {
+            progressIndicator
+                .padding(.top, 16)
+
+            ZStack {
+                stepContent
+            }
+            .frame(maxWidth: .infinity, maxHeight: .infinity)
+        }
+        .frame(width: 480, height: 380)
+    }
+
+    private var progressIndicator: some View {
+        HStack(spacing: 6) {
+            ForEach(OnboardingStep.allCases, id: \.self) { step in
+                RoundedRectangle(cornerRadius: 2, style: .continuous)
+                    .fill(step == viewModel.step ? Color.accentColor : Color.secondary.opacity(0.3))
+                    .frame(width: step == viewModel.step ? 18 : 8, height: 4)
+                    .motion(Motion.snappy, reduceMotion: reduceMotion, value: viewModel.step)
+            }
+        }
+        .frame(height: 4)
+    }
+
+    private var stepContent: some View {
         Group {
             switch viewModel.step {
             case .welcome:
-                WelcomeStepView(viewModel: viewModel)
+                WelcomeStepView(
+                    viewModel: viewModel,
+                    onAdvance: { slideDirection = .forward }
+                )
             case .configureGit:
-                ConfigureGitStepView(viewModel: viewModel)
+                ConfigureGitStepView(
+                    viewModel: viewModel,
+                    onGoBack: { slideDirection = .backward }
+                )
             }
         }
-        .frame(width: 480, height: 380)
-        .animation(.easeInOut(duration: 0.18), value: viewModel.step)
+        .transition(stepTransition)
+        .motion(Motion.spatial, reduceMotion: reduceMotion, value: viewModel.step)
+    }
+
+    private var stepTransition: AnyTransition {
+        if reduceMotion {
+            return .opacity
+        }
+        let enteringEdge: Edge = slideDirection == .forward ? .trailing : .leading
+        let exitingEdge: Edge = slideDirection == .forward ? .leading : .trailing
+        return .asymmetric(
+            insertion: .move(edge: enteringEdge).combined(with: .opacity),
+            removal: .move(edge: exitingEdge).combined(with: .opacity)
+        )
+    }
+
+    private enum SlideDirection {
+        case forward, backward
     }
 }
 
 struct WelcomeStepView: View {
     let viewModel: OnboardingViewModel
+    var onAdvance: () -> Void
 
     var body: some View {
         VStack(spacing: 0) {
@@ -43,9 +93,12 @@ struct WelcomeStepView: View {
                     .buttonStyle(.borderless)
                     .foregroundStyle(.secondary)
                 Spacer()
-                Button("Get Started") { viewModel.advance() }
-                    .buttonStyle(.borderedProminent)
-                    .keyboardShortcut(.defaultAction)
+                Button("Get Started") {
+                    onAdvance()
+                    viewModel.advance()
+                }
+                .buttonStyle(.borderedProminent)
+                .keyboardShortcut(.defaultAction)
             }
             .padding(.horizontal, 28)
             .padding(.bottom, 24)
@@ -55,6 +108,8 @@ struct WelcomeStepView: View {
 
 struct ConfigureGitStepView: View {
     @Bindable var viewModel: OnboardingViewModel
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+    var onGoBack: () -> Void
 
     var body: some View {
         VStack(alignment: .leading, spacing: 0) {
@@ -94,24 +149,52 @@ struct ConfigureGitStepView: View {
                     .foregroundStyle(.red)
                     .padding(.horizontal, 28)
                     .padding(.top, 8)
+                    .transition(Motion.inlineStatus(reduceMotion: reduceMotion))
             }
 
             Spacer()
 
-            HStack {
-                Button("Back") { viewModel.goBack() }
-                    .buttonStyle(.borderless)
+            HStack(spacing: 8) {
+                Button("Back") {
+                    onGoBack()
+                    viewModel.goBack()
+                }
+                .buttonStyle(.borderless)
+
                 Spacer()
+
+                if viewModel.isSaving {
+                    ProgressView()
+                        .controlSize(.small)
+                        .transition(Motion.inlineStatus(reduceMotion: reduceMotion))
+                }
+
                 Button("Finish") {
                     Task { await viewModel.save() }
                 }
                 .buttonStyle(.borderedProminent)
                 .keyboardShortcut(.defaultAction)
                 .disabled(!viewModel.canFinish || viewModel.isSaving)
+
+                if viewModel.completionOutcome == .success {
+                    Image(systemName: "checkmark.circle.fill")
+                        .foregroundStyle(.green)
+                        .symbolReplacement(reduceMotion: reduceMotion)
+                        .transition(Motion.inlineStatus(reduceMotion: reduceMotion))
+                        .onAppear { scheduleCompletion() }
+                }
             }
             .padding(.horizontal, 28)
             .padding(.bottom, 24)
         }
         .task { await viewModel.loadExistingConfig() }
+    }
+
+    private func scheduleCompletion() {
+        let delay = reduceMotion ? 0.05 : 0.4
+        DispatchQueue.main.asyncAfter(deadline: .now() + delay) { [weak viewModel] in
+            viewModel?.onComplete?()
+            viewModel?.clearCompletionOutcome()
+        }
     }
 }

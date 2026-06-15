@@ -20,6 +20,7 @@ final class BranchesViewController: NSViewController {
     private let scrollView = NSScrollView()
     private let newBranchButton = NSButton(title: "New Branch", target: nil, action: nil)
     private let progressIndicator = NSProgressIndicator()
+    private let emptyStateLabel = NSTextField(labelWithString: "")
 
     private var renderedBranches: [Branch] = []
 
@@ -82,11 +83,19 @@ final class BranchesViewController: NSViewController {
         progressIndicator.controlSize = .small
         progressIndicator.isDisplayedWhenStopped = false
 
+        emptyStateLabel.translatesAutoresizingMaskIntoConstraints = false
+        emptyStateLabel.alignment = .center
+        emptyStateLabel.textColor = .secondaryLabelColor
+        emptyStateLabel.font = .systemFont(ofSize: 12)
+        emptyStateLabel.maximumNumberOfLines = 2
+        emptyStateLabel.isHidden = true
+
         container.addSubview(tabControl)
         container.addSubview(searchField)
         container.addSubview(scrollView)
         container.addSubview(newBranchButton)
         container.addSubview(progressIndicator)
+        container.addSubview(emptyStateLabel)
 
         NSLayoutConstraint.activate([
             tabControl.topAnchor.constraint(equalTo: container.topAnchor, constant: 10),
@@ -101,6 +110,11 @@ final class BranchesViewController: NSViewController {
             scrollView.leadingAnchor.constraint(equalTo: container.leadingAnchor, constant: 8),
             scrollView.trailingAnchor.constraint(equalTo: container.trailingAnchor, constant: -8),
             scrollView.bottomAnchor.constraint(equalTo: newBranchButton.topAnchor, constant: -8),
+
+            emptyStateLabel.centerXAnchor.constraint(equalTo: scrollView.centerXAnchor),
+            emptyStateLabel.centerYAnchor.constraint(equalTo: scrollView.centerYAnchor),
+            emptyStateLabel.leadingAnchor.constraint(greaterThanOrEqualTo: scrollView.leadingAnchor, constant: 16),
+            emptyStateLabel.trailingAnchor.constraint(lessThanOrEqualTo: scrollView.trailingAnchor, constant: -16),
 
             newBranchButton.leadingAnchor.constraint(equalTo: container.leadingAnchor, constant: 12),
             newBranchButton.bottomAnchor.constraint(equalTo: container.bottomAnchor, constant: -10),
@@ -145,6 +159,8 @@ final class BranchesViewController: NSViewController {
             _ = self.viewModel.errorMessage
             _ = self.viewModel.stashGuardNeeded
             _ = self.viewModel.currentBranchName
+            _ = self.viewModel.lastOutcome
+            _ = self.viewModel.pendingBranchName
         } onChange: { [weak self] in
             Task { @MainActor in
                 self?.render()
@@ -163,9 +179,31 @@ final class BranchesViewController: NSViewController {
         }
         let newRows = viewModel.filteredBranches
         if newRows != renderedBranches {
+            let selectedIDs = selectedRowIDs()
+            let oldRows = renderedBranches
             renderedBranches = newRows
-            tableView.reloadData()
+            let restored = tableView.animatedReload(
+                old: oldRows,
+                new: newRows,
+                idKeyPath: \.id,
+                preservingSelection: selectedIDs
+            )
+            if !restored.isEmpty {
+                tableView.selectRowIndexes(restored, byExtendingSelection: false)
+            }
         }
+        // Refresh visible cells so transient states (pending/success/current)
+        // update even when the branch array itself is unchanged.
+        for row in tableView.visibleRows {
+            guard renderedBranches.indices.contains(row) else { continue }
+            if let cell = tableView.view(atColumn: 0, row: row, makeIfNecessary: false) as? BranchCellView {
+                configure(cell: cell, for: row)
+            }
+        }
+        let hasFilter = !viewModel.searchQuery.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+        let isEmpty = renderedBranches.isEmpty && !viewModel.isLoading
+        emptyStateLabel.stringValue = hasFilter ? "No matching branches\nClear the filter to see all branches." : "No branches found"
+        emptyStateLabel.isHidden = !isEmpty
         if let guardState = viewModel.stashGuardNeeded {
             presentStashGuard(guardState)
         }
@@ -289,6 +327,25 @@ final class BranchesViewController: NSViewController {
     }
 }
 
+private extension BranchesViewController {
+    func selectedRowIDs() -> Set<Branch.ID> {
+        var ids = Set<Branch.ID>()
+        for idx in tableView.selectedRowIndexes where renderedBranches.indices.contains(idx) {
+            ids.insert(renderedBranches[idx].id)
+        }
+        return ids
+    }
+
+    func configure(cell: BranchCellView, for row: Int) {
+        let branch = renderedBranches[row]
+        let isCurrent = (viewModel.currentBranchName == branch.name) ||
+            (!branch.isLocal && viewModel.currentBranchName == branch.nameWithoutRemote)
+        let isPending = branch.name == viewModel.pendingBranchName
+        let showSuccess = viewModel.lastOutcome == .success && isCurrent
+        cell.configure(with: branch, isCurrent: isCurrent, isPending: isPending, showSuccess: showSuccess)
+    }
+}
+
 // MARK: - NSTableViewDataSource
 
 extension BranchesViewController: NSTableViewDataSource, NSTableViewDelegate {
@@ -305,10 +362,7 @@ extension BranchesViewController: NSTableViewDataSource, NSTableViewDelegate {
             cell = BranchCellView()
             cell.identifier = BranchCellView.reuseIdentifier
         }
-        let branch = renderedBranches[row]
-        let isCurrent = (viewModel.currentBranchName == branch.name) ||
-            (!branch.isLocal && viewModel.currentBranchName == branch.nameWithoutRemote)
-        cell.configure(with: branch, isCurrent: isCurrent)
+        configure(cell: cell, for: row)
         return cell
     }
 }
@@ -328,5 +382,15 @@ extension BranchesViewController: NSMenuDelegate {
         if let update = menu.items.first(where: { $0.action == #selector(menuUpdateFromDefault(_:)) }) {
             update.isEnabled = viewModel.updateFromDefaultProvider != nil
         }
+    }
+}
+
+private extension NSTableView {
+    var visibleRows: IndexSet {
+        let range = rows(in: bounds)
+        guard range.length > 0 else { return IndexSet() }
+        let start = Int(range.location)
+        let end = start + Int(range.length)
+        return IndexSet(start ..< end)
     }
 }

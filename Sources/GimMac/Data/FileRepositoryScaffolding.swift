@@ -55,7 +55,7 @@ final class FileRepositoryScaffolding: RepositoryScaffolding, Sendable {
             ("fullname", fields.fullname),
             ("email", fields.email),
             ("project", fields.project),
-            ("year", fields.year),
+            ("year", fields.year)
         ]
         var result = body
         for (token, value) in replacements {

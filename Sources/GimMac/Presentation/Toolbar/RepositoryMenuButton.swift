@@ -7,6 +7,11 @@ struct RepositoryMenuButton: View {
     let viewModel: RepositoryStoreViewModel
     let openRepositoryAction: () -> Void
     let selectRepositoryAction: (UUID) -> Void
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+
+    private var repositoryDisplayName: String {
+        viewModel.selectedRepository?.displayName ?? "No Repository"
+    }
 
     /// Path of the repository currently open, used to flag the matching row in
     /// the list. `selectedRepository` is a `Repository` (a URL); saved rows are
@@ -66,10 +71,12 @@ struct RepositoryMenuButton: View {
                     .font(.system(size: 13, weight: .regular))
                     .foregroundStyle(.secondary)
 
-                Text(viewModel.selectedRepository?.displayName ?? "No Repository")
+                Text(repositoryDisplayName)
                     .font(.system(size: 13, weight: .semibold))
                     .foregroundStyle(.primary)
                     .lineLimit(1)
+                    .id(repositoryDisplayName)
+                    .transition(.opacity)
 
                 Image(systemName: "chevron.down")
                     .font(.system(size: 9, weight: .semibold))
@@ -78,6 +85,7 @@ struct RepositoryMenuButton: View {
             .frame(height: 28)
             .padding(.horizontal, 12)
             .toolbarItemStyle()
+            .motion(Motion.feedback, reduceMotion: reduceMotion, value: repositoryDisplayName)
             .help(viewModel.selectedRepository?.url.path ?? "No repository selected")
         }
         .buttonStyle(.plain)

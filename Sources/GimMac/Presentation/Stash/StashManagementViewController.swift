@@ -1,5 +1,6 @@
 import AppKit
 import Observation
+import SwiftUI
 
 /// Stash management sheet: lists every stash with apply / pop / drop actions.
 ///
@@ -23,9 +24,13 @@ final class StashManagementViewController: NSViewController {
     private let scrollView = NSScrollView()
     private let emptyLabel = NSTextField(labelWithString: "No stashes")
     private let progressIndicator = NSProgressIndicator()
+    private let loadingPlaceholderHost = NSHostingView(rootView: LoadingPlaceholder(title: "Loading stashes…"))
     private let applyButton = NSButton(title: "Apply", target: nil, action: nil)
+    private let applyStatusImageView = NSImageView()
     private let popButton = NSButton(title: "Pop", target: nil, action: nil)
+    private let popStatusImageView = NSImageView()
     private let dropButton = NSButton(title: "Drop", target: nil, action: nil)
+    private let dropStatusImageView = NSImageView()
     private let doneButton = NSButton(title: "Done", target: nil, action: nil)
 
     private var renderedStashes: [StashEntry] = []
@@ -78,6 +83,9 @@ final class StashManagementViewController: NSViewController {
         emptyLabel.alignment = .center
         emptyLabel.isHidden = true
 
+        loadingPlaceholderHost.translatesAutoresizingMaskIntoConstraints = false
+        loadingPlaceholderHost.isHidden = true
+
         progressIndicator.translatesAutoresizingMaskIntoConstraints = false
         progressIndicator.style = .spinning
         progressIndicator.controlSize = .small
@@ -95,9 +103,19 @@ final class StashManagementViewController: NSViewController {
         doneButton.action = #selector(doneTapped(_:))
         doneButton.keyEquivalent = "\r"
 
-        for subview in [titleLabel, scrollView, emptyLabel, progressIndicator,
+        for imageView in [applyStatusImageView, popStatusImageView, dropStatusImageView] {
+            imageView.translatesAutoresizingMaskIntoConstraints = false
+            imageView.contentTintColor = .systemGreen
+            imageView.alphaValue = 0
+            imageView.isHidden = true
+        }
+
+        for subview in [titleLabel, scrollView, emptyLabel, loadingPlaceholderHost, progressIndicator,
                         applyButton, popButton, dropButton, doneButton] {
             container.addSubview(subview)
+        }
+        for imageView in [applyStatusImageView, popStatusImageView, dropStatusImageView] {
+            container.addSubview(imageView)
         }
 
         NSLayoutConstraint.activate([
@@ -115,14 +133,34 @@ final class StashManagementViewController: NSViewController {
             emptyLabel.centerXAnchor.constraint(equalTo: scrollView.centerXAnchor),
             emptyLabel.centerYAnchor.constraint(equalTo: scrollView.centerYAnchor),
 
+            loadingPlaceholderHost.topAnchor.constraint(equalTo: scrollView.topAnchor),
+            loadingPlaceholderHost.leadingAnchor.constraint(equalTo: scrollView.leadingAnchor),
+            loadingPlaceholderHost.trailingAnchor.constraint(equalTo: scrollView.trailingAnchor),
+            loadingPlaceholderHost.bottomAnchor.constraint(equalTo: scrollView.bottomAnchor),
+
             applyButton.leadingAnchor.constraint(equalTo: container.leadingAnchor, constant: 16),
             applyButton.bottomAnchor.constraint(equalTo: container.bottomAnchor, constant: -16),
 
-            popButton.leadingAnchor.constraint(equalTo: applyButton.trailingAnchor, constant: 8),
+            applyStatusImageView.leadingAnchor.constraint(equalTo: applyButton.trailingAnchor, constant: 6),
+            applyStatusImageView.centerYAnchor.constraint(equalTo: applyButton.centerYAnchor),
+            applyStatusImageView.widthAnchor.constraint(equalToConstant: 14),
+            applyStatusImageView.heightAnchor.constraint(equalToConstant: 14),
+
+            popButton.leadingAnchor.constraint(equalTo: applyStatusImageView.trailingAnchor, constant: 12),
             popButton.centerYAnchor.constraint(equalTo: applyButton.centerYAnchor),
 
-            dropButton.leadingAnchor.constraint(equalTo: popButton.trailingAnchor, constant: 8),
+            popStatusImageView.leadingAnchor.constraint(equalTo: popButton.trailingAnchor, constant: 6),
+            popStatusImageView.centerYAnchor.constraint(equalTo: popButton.centerYAnchor),
+            popStatusImageView.widthAnchor.constraint(equalToConstant: 14),
+            popStatusImageView.heightAnchor.constraint(equalToConstant: 14),
+
+            dropButton.leadingAnchor.constraint(equalTo: popStatusImageView.trailingAnchor, constant: 12),
             dropButton.centerYAnchor.constraint(equalTo: applyButton.centerYAnchor),
+
+            dropStatusImageView.leadingAnchor.constraint(equalTo: dropButton.trailingAnchor, constant: 6),
+            dropStatusImageView.centerYAnchor.constraint(equalTo: dropButton.centerYAnchor),
+            dropStatusImageView.widthAnchor.constraint(equalToConstant: 14),
+            dropStatusImageView.heightAnchor.constraint(equalToConstant: 14),
 
             doneButton.trailingAnchor.constraint(equalTo: container.trailingAnchor, constant: -16),
             doneButton.centerYAnchor.constraint(equalTo: applyButton.centerYAnchor)
@@ -159,6 +197,8 @@ final class StashManagementViewController: NSViewController {
             _ = self.viewModel.stashes
             _ = self.viewModel.isLoading
             _ = self.viewModel.errorMessage
+            _ = self.viewModel.activeAction
+            _ = self.viewModel.completedAction
         } onChange: { [weak self] in
             Task { @MainActor in
                 self?.render()
@@ -176,12 +216,25 @@ final class StashManagementViewController: NSViewController {
         }
 
         if viewModel.stashes != renderedStashes {
+            let selectedIDs = selectedStashIDs()
+            let visibleOrigin = scrollView.contentView.bounds.origin
+            let previousStashes = renderedStashes
             renderedStashes = viewModel.stashes
-            tableView.reloadData()
+            let restoredSelection = tableView.animatedReload(
+                old: previousStashes,
+                new: renderedStashes,
+                idKeyPath: \.id,
+                preservingSelection: selectedIDs
+            )
+            tableView.selectRowIndexes(restoredSelection, byExtendingSelection: false)
+            scrollView.contentView.scroll(to: visibleOrigin)
+            scrollView.reflectScrolledClipView(scrollView.contentView)
         }
 
+        loadingPlaceholderHost.isHidden = !viewModel.isLoading
         emptyLabel.isHidden = viewModel.isLoading || !renderedStashes.isEmpty
         updateButtonState()
+        renderActionFeedback()
 
         if let message = viewModel.errorMessage, !message.isEmpty {
             presentErrorIfNeeded(message)
@@ -190,43 +243,33 @@ final class StashManagementViewController: NSViewController {
 
     private func updateButtonState() {
         let hasSelection = tableView.selectedRow >= 0 && renderedStashes.indices.contains(tableView.selectedRow)
-        applyButton.isEnabled = hasSelection
-        popButton.isEnabled = hasSelection
-        dropButton.isEnabled = hasSelection
+        let actionsEnabled = hasSelection && !viewModel.isLoading && viewModel.activeAction == nil
+        applyButton.isEnabled = actionsEnabled
+        popButton.isEnabled = actionsEnabled
+        dropButton.isEnabled = actionsEnabled
+
+        let alpha: CGFloat = actionsEnabled ? 1 : 0.45
+        applyButton.animateAlpha(to: alpha)
+        popButton.animateAlpha(to: alpha)
+        dropButton.animateAlpha(to: alpha)
     }
 
     private var presentedErrors: Set<String> = []
-    private func presentErrorIfNeeded(_ message: String) {
-        guard !presentedErrors.contains(message) else { return }
-        presentedErrors.insert(message)
-        let alert = NSAlert()
-        alert.messageText = "Stash operation failed"
-        alert.informativeText = message
-        alert.alertStyle = .warning
-        alert.runModal()
-        viewModel.errorMessage = nil
-        presentedErrors.remove(message)
-    }
-
-    // MARK: - Actions
-
-    private func selectedStash() -> StashEntry? {
-        let row = tableView.selectedRow
-        guard renderedStashes.indices.contains(row) else { return nil }
-        return renderedStashes[row]
-    }
 
     @objc private func applyTapped(_ sender: Any?) {
+        guard viewModel.activeAction == nil else { return }
         guard let entry = selectedStash() else { return }
         Task { await viewModel.apply(entry) }
     }
 
     @objc private func popTapped(_ sender: Any?) {
+        guard viewModel.activeAction == nil else { return }
         guard let entry = selectedStash() else { return }
         Task { await viewModel.pop(entry) }
     }
 
     @objc private func dropTapped(_ sender: Any?) {
+        guard viewModel.activeAction == nil else { return }
         guard let entry = selectedStash() else { return }
         let alert = NSAlert()
         alert.messageText = "Drop this stash?"
@@ -249,6 +292,71 @@ final class StashManagementViewController: NSViewController {
 
     @objc private func doneTapped(_ sender: Any?) {
         dismiss(nil)
+    }
+}
+
+private extension StashManagementViewController {
+    func presentErrorIfNeeded(_ message: String) {
+        guard !presentedErrors.contains(message) else { return }
+        presentedErrors.insert(message)
+        let alert = NSAlert()
+        alert.messageText = "Stash operation failed"
+        alert.informativeText = message
+        alert.alertStyle = .warning
+        alert.runModal()
+        viewModel.errorMessage = nil
+        presentedErrors.remove(message)
+    }
+
+    func selectedStash() -> StashEntry? {
+        let row = tableView.selectedRow
+        guard renderedStashes.indices.contains(row) else { return nil }
+        return renderedStashes[row]
+    }
+
+    func selectedStashIDs() -> Set<String> {
+        guard let selected = selectedStash() else { return [] }
+        return [selected.id]
+    }
+
+    func renderActionFeedback() {
+        updateStatusImageView(applyStatusImageView, active: viewModel.activeAction == .apply, completed: viewModel.completedAction == .apply)
+        updateStatusImageView(popStatusImageView, active: viewModel.activeAction == .pop, completed: viewModel.completedAction == .pop)
+        updateStatusImageView(dropStatusImageView, active: viewModel.activeAction == .drop, completed: viewModel.completedAction == .drop)
+    }
+
+    func updateStatusImageView(_ imageView: NSImageView, active: Bool, completed: Bool) {
+        if completed {
+            let image = NSImage(systemSymbolName: "checkmark.circle.fill", accessibilityDescription: "Completed")
+            if let image {
+                imageView.isHidden = false
+                imageView.setSymbolImage(image)
+                imageView.animateAlpha(to: 1)
+            }
+            return
+        }
+
+        if active {
+            let image = NSImage(systemSymbolName: "ellipsis.circle", accessibilityDescription: "Working")
+            if let image {
+                imageView.isHidden = false
+                imageView.image = image
+                imageView.contentTintColor = .secondaryLabelColor
+                imageView.animateAlpha(to: 1)
+            }
+            return
+        }
+
+        imageView.contentTintColor = .systemGreen
+        imageView.animateAlpha(to: 0)
+        if AppKitMotion.reduceMotion {
+            imageView.isHidden = true
+        } else {
+            Task { @MainActor [weak imageView] in
+                try? await Task.sleep(for: .seconds(AppKitMotion.feedback))
+                imageView?.isHidden = true
+            }
+        }
     }
 }
 

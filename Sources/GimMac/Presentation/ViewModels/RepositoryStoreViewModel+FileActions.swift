@@ -13,13 +13,26 @@ extension RepositoryStoreViewModel {
     func selectChangedFile(path: String) {
         diffHandler.selectFile(path)
         guard let repository = selectedRepository else { return }
-        Task { [weak self] in
+        changedFileDiffTask?.cancel()
+        changedFileDiffTask = Task { [weak self] in
             await self?.diffHandler.loadDiff(in: repository, changedFiles: self?.changedFiles ?? [])
         }
     }
 
     func isChangedFileChecked(path: String) -> Bool {
         changedFilesHandler.isChecked(path)
+    }
+
+    func wasChangedFileRecentlyToggled(path: String) -> Bool {
+        changedFilesHandler.recentlyToggled.contains(path)
+    }
+
+    var animatesChangedFileUpdates: Bool {
+        changedFilesHandler.animatesNextFileChange
+    }
+
+    var hasLoadedChangedFilesOnce: Bool {
+        changedFilesHandler.hasLoadedOnce
     }
 
     func toggleChangedFileChecked(path: String) {

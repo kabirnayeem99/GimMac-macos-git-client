@@ -62,6 +62,7 @@ private final class CloneRepositorySheetViewController: NSViewController {
         cloneButton.target = self
         cloneButton.action = #selector(performClone(_:))
         cloneButton.isEnabled = false
+        cloneButton.alphaValue = 0.5
 
         cancelButton.translatesAutoresizingMaskIntoConstraints = false
         cancelButton.bezelStyle = .rounded
@@ -115,7 +116,7 @@ private final class CloneRepositorySheetViewController: NSViewController {
             guard let self, response == .OK, let parent = panel.url else { return }
             let folderName = self.defaultFolderName(forURL: self.urlField.stringValue)
             let destination = parent.appendingPathComponent(folderName, isDirectory: true)
-            self.destinationField.stringValue = destination.path
+            self.animateDestinationChange(destination.path)
             self.updateCloneEnabled()
         }
         if let window = view.window {
@@ -131,7 +132,13 @@ private final class CloneRepositorySheetViewController: NSViewController {
         guard !url.isEmpty, !path.isEmpty else { return }
         let destination = URL(fileURLWithPath: path, isDirectory: true)
         completion(url, destination)
-        dismiss(nil)
+
+        cloneButton.title = "Cloning…"
+        cloneButton.isEnabled = false
+        let delay = AppKitMotion.reduceMotion ? 0.0 : 0.35
+        DispatchQueue.main.asyncAfter(deadline: .now() + delay) { [weak self] in
+            self?.dismiss(nil)
+        }
     }
 
     @objc private func cancel(_ sender: Any?) {
@@ -153,7 +160,22 @@ private final class CloneRepositorySheetViewController: NSViewController {
     fileprivate func updateCloneEnabled() {
         let urlOK = !urlField.stringValue.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
         let pathOK = !destinationField.stringValue.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
-        cloneButton.isEnabled = urlOK && pathOK
+        let enabled = urlOK && pathOK
+        cloneButton.isEnabled = enabled
+        cloneButton.animateAlpha(to: enabled ? 1 : 0.5)
+    }
+
+    private func animateDestinationChange(_ path: String) {
+        let reduceMotion = AppKitMotion.reduceMotion
+        guard destinationField.stringValue != path else { return }
+        guard !reduceMotion else {
+            destinationField.stringValue = path
+            return
+        }
+        destinationField.animateAlpha(to: 0, duration: AppKitMotion.feedback) { [weak self] in
+            self?.destinationField.stringValue = path
+            self?.destinationField.animateAlpha(to: 1, duration: AppKitMotion.feedback)
+        }
     }
 }
 

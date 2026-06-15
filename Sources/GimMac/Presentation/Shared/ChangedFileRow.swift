@@ -4,6 +4,7 @@ struct ChangedFileRow: View {
     let file: ChangedFile
     let selected: Bool
     let checked: Bool
+    var recentlyToggled = false
     let onToggleChecked: () -> Void
     var onDiscardChanges: () -> Void = {}
     var onRevealInFinder: () -> Void = {}
@@ -15,6 +16,7 @@ struct ChangedFileRow: View {
     var onIgnoreFolder: (String) -> Void = { _ in }
     var onIgnoreExtension: () -> Void = {}
     var editorName: String?
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
     private var ignoreFolders: [String] { GitIgnoreRule.ancestorFolders(ofRelativePath: file.path) }
     private var ignorableExtension: String? { GitIgnoreRule.fileExtension(ofRelativePath: file.path) }
@@ -66,13 +68,17 @@ struct ChangedFileRow: View {
                 Image(systemName: checked ? "checkmark.square.fill" : "square")
                     .font(.callout.weight(.semibold))
                     .foregroundStyle(.secondary)
+                    .symbolReplacement(reduceMotion: reduceMotion)
+                    .motion(Motion.feedback, reduceMotion: reduceMotion, value: checked)
             }
             .buttonStyle(.plain)
             .accessibilityLabel(checked ? "Included in commit" : "Excluded from commit")
 
             Text(file.path)
                 .font(.callout.weight(selected ? .semibold : .regular))
+                .foregroundStyle(selected ? .primary : .secondary)
                 .lineLimit(1)
+                .motion(Motion.snappy, reduceMotion: reduceMotion, value: selected)
 
             Spacer()
 
@@ -85,6 +91,8 @@ struct ChangedFileRow: View {
         .padding(.horizontal, 10)
         .frame(height: 36)
         .frame(maxWidth: .infinity, alignment: .leading)
+        .background(rowTint)
+        .motion(Motion.feedback, reduceMotion: reduceMotion, value: recentlyToggled)
         .contentShape(Rectangle())
         .contextMenu {
             Button("Reveal in Finder", action: onRevealInFinder)
@@ -116,5 +124,9 @@ struct ChangedFileRow: View {
             Divider()
             Button("Discard Changes…", role: .destructive, action: onDiscardChanges)
         }
+    }
+
+    private var rowTint: Color {
+        recentlyToggled ? statusColor.opacity(0.16) : .clear
     }
 }

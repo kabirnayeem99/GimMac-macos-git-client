@@ -4,14 +4,15 @@ import AppKit
 ///
 /// Layout:
 /// ```
-/// [•] feature/foo          [↑2 ↓1]   commit subject…
+/// [•/✓] feature/foo          [↑2 ↓1]   commit subject…
 ///                          ^ ahead/behind badges (only when upstream tracked)
 /// ```
 final class BranchCellView: NSTableCellView {
     static let reuseIdentifier = NSUserInterfaceItemIdentifier("BranchCellView")
     static let rowHeight: CGFloat = 44
 
-    private let currentIndicator = NSTextField(labelWithString: "•")
+    private let currentIndicator = NSImageView()
+    private let pendingIndicator = NSProgressIndicator()
     private let nameLabel = NSTextField(labelWithString: "")
     private let subjectLabel = NSTextField(labelWithString: "")
     private let aheadBehindLabel = NSTextField(labelWithString: "")
@@ -29,10 +30,15 @@ final class BranchCellView: NSTableCellView {
     private func configure() {
         translatesAutoresizingMaskIntoConstraints = false
 
-        currentIndicator.font = NSFont.boldSystemFont(ofSize: 14)
-        currentIndicator.textColor = .systemBlue
-        currentIndicator.alignment = .center
         currentIndicator.translatesAutoresizingMaskIntoConstraints = false
+        currentIndicator.imageScaling = .scaleProportionallyDown
+        currentIndicator.contentTintColor = .systemBlue
+        currentIndicator.wantsLayer = true
+
+        pendingIndicator.translatesAutoresizingMaskIntoConstraints = false
+        pendingIndicator.style = .spinning
+        pendingIndicator.controlSize = .small
+        pendingIndicator.isDisplayedWhenStopped = false
 
         nameLabel.font = NSFont.systemFont(ofSize: 13, weight: .semibold)
         nameLabel.lineBreakMode = .byTruncatingTail
@@ -49,6 +55,7 @@ final class BranchCellView: NSTableCellView {
         aheadBehindLabel.translatesAutoresizingMaskIntoConstraints = false
 
         addSubview(currentIndicator)
+        addSubview(pendingIndicator)
         addSubview(nameLabel)
         addSubview(subjectLabel)
         addSubview(aheadBehindLabel)
@@ -57,6 +64,12 @@ final class BranchCellView: NSTableCellView {
             currentIndicator.leadingAnchor.constraint(equalTo: leadingAnchor, constant: 8),
             currentIndicator.centerYAnchor.constraint(equalTo: centerYAnchor),
             currentIndicator.widthAnchor.constraint(equalToConstant: 14),
+            currentIndicator.heightAnchor.constraint(equalToConstant: 14),
+
+            pendingIndicator.centerXAnchor.constraint(equalTo: currentIndicator.centerXAnchor),
+            pendingIndicator.centerYAnchor.constraint(equalTo: currentIndicator.centerYAnchor),
+            pendingIndicator.widthAnchor.constraint(equalToConstant: 12),
+            pendingIndicator.heightAnchor.constraint(equalToConstant: 12),
 
             nameLabel.leadingAnchor.constraint(equalTo: currentIndicator.trailingAnchor, constant: 4),
             nameLabel.topAnchor.constraint(equalTo: topAnchor, constant: 6),
@@ -72,11 +85,56 @@ final class BranchCellView: NSTableCellView {
         ])
     }
 
-    func configure(with branch: Branch, isCurrent: Bool) {
-        currentIndicator.isHidden = !isCurrent
+    func configure(with branch: Branch, isCurrent: Bool, isPending: Bool, showSuccess: Bool) {
         nameLabel.stringValue = branch.name
         nameLabel.font = NSFont.systemFont(ofSize: 13, weight: isCurrent ? .bold : .semibold)
         subjectLabel.stringValue = "\(branch.tip.shortSHA)  \(branch.tip.summary)"
+
+        if isPending {
+            pendingIndicator.isHidden = false
+            pendingIndicator.startAnimation(nil)
+            currentIndicator.isHidden = true
+        } else {
+            pendingIndicator.stopAnimation(nil)
+            pendingIndicator.isHidden = true
+
+            let targetImage: NSImage?
+            let targetTint: NSColor?
+            if showSuccess {
+                targetImage = NSImage(systemSymbolName: "checkmark.circle.fill", accessibilityDescription: "Success")
+                targetTint = .systemGreen
+            } else if isCurrent {
+                targetImage = NSImage(systemSymbolName: "circle.fill", accessibilityDescription: "Current branch")
+                targetTint = .systemBlue
+            } else {
+                targetImage = nil
+                targetTint = nil
+            }
+
+            if let targetImage {
+                if currentIndicator.isHidden {
+                    currentIndicator.isHidden = false
+                    currentIndicator.alphaValue = 0
+                    currentIndicator.image = targetImage
+                    currentIndicator.contentTintColor = targetTint
+                    currentIndicator.animateAlpha(to: 1)
+                } else {
+                    currentIndicator.setSymbolImage(targetImage, contentTransition: !AppKitMotion.reduceMotion)
+                    currentIndicator.contentTintColor = targetTint
+                }
+            } else if !currentIndicator.isHidden {
+                currentIndicator.animateAlpha(to: 0)
+                if AppKitMotion.reduceMotion {
+                    currentIndicator.isHidden = true
+                } else {
+                    Task { @MainActor [currentIndicator] in
+                        try? await Task.sleep(for: .seconds(AppKitMotion.feedback))
+                        currentIndicator.isHidden = true
+                    }
+                }
+            }
+        }
+
         // Ahead/behind badges only meaningful for tracked local branches —
         // populated when the compare data is available. For the MVP cell we
         // show the upstream short name as a hint when present.
@@ -84,6 +142,20 @@ final class BranchCellView: NSTableCellView {
             aheadBehindLabel.stringValue = upstream
         } else {
             aheadBehindLabel.stringValue = ""
+        }
+    }
+}
+
+private extension NSView {
+    func animateAlpha(to target: CGFloat) {
+        guard !AppKitMotion.reduceMotion else {
+            alphaValue = target
+            return
+        }
+        NSAnimationContext.runAnimationGroup { context in
+            context.duration = AppKitMotion.feedback
+            context.timingFunction = CAMediaTimingFunction(name: .easeInEaseOut)
+            animator().alphaValue = target
         }
     }
 }

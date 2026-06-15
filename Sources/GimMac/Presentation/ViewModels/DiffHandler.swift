@@ -5,6 +5,7 @@ import Observation
 @Observable
 final class DiffHandler {
     private let diffProvider: DiffProviding
+    private var diffRequestID: Int = 0
 
     private(set) var selectedDiffDocument = DiffDocument.empty
     private(set) var isLoadingDiff = false
@@ -19,6 +20,7 @@ final class DiffHandler {
     }
 
     func clearSelection() {
+        diffRequestID += 1
         selectedFilePath = nil
         selectedDiffDocument = .empty
     }
@@ -29,27 +31,44 @@ final class DiffHandler {
             return
         }
 
+        diffRequestID += 1
+        let requestID = diffRequestID
+
         let changedFile = changedFiles.first(where: { $0.path == path })
         if changedFile?.status == .untracked {
-            selectedDiffDocument = await loadUntrackedFileDiff(repositoryURL: repository.url, path: path)
+            let document = await loadUntrackedFileDiff(repositoryURL: repository.url, path: path)
+            guard isCurrentDiffRequest(id: requestID, path: path) else { return }
+            selectedDiffDocument = document
             return
         }
 
         isLoadingDiff = true
-        defer { isLoadingDiff = false }
+        defer {
+            if diffRequestID == requestID {
+                isLoadingDiff = false
+            }
+        }
 
         do {
             if let changedFile, changedFile.submoduleStatus != nil {
                 let data = try await diffProvider.submoduleDiff(in: repository.url, for: changedFile)
+                guard isCurrentDiffRequest(id: requestID, path: path) else { return }
                 selectedDiffDocument = DiffDocument(filePath: path, lines: [], kind: .submodule(data))
                 return
             }
             // Pass the rename's old path so the diff shows the move correctly
             // rather than as a brand-new file.
-            selectedDiffDocument = try await diffProvider.fetchDiff(in: repository.url, for: path, oldPath: changedFile?.oldPath)
+            let diff = try await diffProvider.fetchDiff(in: repository.url, for: path, oldPath: changedFile?.oldPath)
+            guard isCurrentDiffRequest(id: requestID, path: path) else { return }
+            selectedDiffDocument = diff
         } catch {
+            guard isCurrentDiffRequest(id: requestID, path: path) else { return }
             selectedDiffDocument = DiffDocument(filePath: path, lines: [])
         }
+    }
+
+    private func isCurrentDiffRequest(id: Int, path: String) -> Bool {
+        diffRequestID == id && selectedFilePath == path
     }
 
     private func loadUntrackedFileDiff(repositoryURL: URL, path: String) async -> DiffDocument {

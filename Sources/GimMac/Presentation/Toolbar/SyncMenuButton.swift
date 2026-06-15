@@ -9,6 +9,22 @@ struct SyncMenuButton: View {
     let viewModel: RepositoryStoreViewModel
 
     @State private var showForcePushAlert = false
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+
+    private var accessibilityValue: String {
+        if viewModel.isSyncInProgress {
+            return "\(viewModel.primaryAction.label), in progress"
+        }
+
+        switch viewModel.syncOutcome {
+        case .none:
+            return "\(viewModel.primaryAction.label). \(viewModel.primaryAction.subtitle)"
+        case .success:
+            return "\(viewModel.primaryAction.label), completed"
+        case .failure:
+            return "\(viewModel.primaryAction.label), failed"
+        }
+    }
 
     var body: some View {
         Menu {
@@ -30,12 +46,16 @@ struct SyncMenuButton: View {
                 subtitle: viewModel.primaryAction.subtitle,
                 badge: viewModel.primaryAction.badge,
                 lastFetched: viewModel.lastFetched,
-                isLoading: viewModel.isSyncInProgress
+                isLoading: viewModel.isSyncInProgress,
+                outcome: viewModel.syncOutcome
             )
         }
-        .buttonStyle(.plain)
+        .buttonStyle(SyncToolbarButtonStyle(reduceMotion: reduceMotion))
         .menuIndicator(.hidden) // Manual chevron in PushToolbarCard is better placed
         .fixedSize()
+        .accessibilityLabel("Repository sync")
+        .accessibilityValue(accessibilityValue)
+        .accessibilityHint("Opens repository sync actions")
         .alert(
             "Force Push to \(viewModel.remoteName ?? "origin")?",
             isPresented: $showForcePushAlert
@@ -47,5 +67,16 @@ struct SyncMenuButton: View {
         } message: {
             Text("This overwrites the remote branch history with your local commits and cannot be undone.")
         }
+    }
+}
+
+private struct SyncToolbarButtonStyle: ButtonStyle {
+    let reduceMotion: Bool
+
+    func makeBody(configuration: Configuration) -> some View {
+        configuration.label
+            .scaleEffect(reduceMotion || !configuration.isPressed ? 1 : 0.96)
+            .opacity(configuration.isPressed ? 0.82 : 1)
+            .motion(Motion.snappy, reduceMotion: reduceMotion, value: configuration.isPressed)
     }
 }

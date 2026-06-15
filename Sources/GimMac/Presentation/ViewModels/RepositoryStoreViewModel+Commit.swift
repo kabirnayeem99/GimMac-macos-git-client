@@ -5,9 +5,26 @@ import Foundation
 @MainActor
 extension RepositoryStoreViewModel {
     func commitChanges() async {
-        guard canCommitChanges, !hasUnresolvedConflicts, let repository = selectedRepository else {
+        guard !commitForm.isCommitting else { return }
+        guard let repository = selectedRepository else {
+            rejectCommit(message: "Select a repository before committing.")
+            return
+        }
+        guard !hasUnresolvedConflicts else {
+            rejectCommit(message: "Resolve all conflicts before committing.")
+            return
+        }
+        guard commitForm.isAmendMode || !changedFilesHandler.checkedPaths.isEmpty else {
+            rejectCommit(message: "Select at least one changed file to commit.")
+            return
+        }
+        guard !commitForm.trimmedSummary.isEmpty else {
+            rejectCommit(message: "Enter a commit summary.")
+            return
+        }
+        guard canCommitChanges else {
             logger.warning(
-                "Commit guard failed — nothing to do",
+                "Commit guard failed after validation",
                 category: .commit,
                 metadata: [
                     "canCommit": "\(canCommitChanges)",
@@ -15,6 +32,7 @@ extension RepositoryStoreViewModel {
                     "hasRepository": "\(selectedRepository != nil)"
                 ]
             )
+            rejectCommit(message: "The commit cannot be created right now.")
             return
         }
 
@@ -54,7 +72,11 @@ extension RepositoryStoreViewModel {
                 options: options
             )
             logger.info("Commit succeeded", category: .commit)
-            commitForm.reset()
+            signalCommitOutcome(.success)
+            try? await Task.sleep(for: .milliseconds(650))
+            if commitOutcome == .success {
+                commitForm.reset()
+            }
             await refreshRepositoryScreenData()
         } catch {
             logger.error(
@@ -63,7 +85,14 @@ extension RepositoryStoreViewModel {
                 metadata: ["error": error.localizedDescription]
             )
             errorMessage = error.localizedDescription
+            signalCommitOutcome(.failure)
         }
+    }
+
+    private func rejectCommit(message: String) {
+        errorMessage = message
+        signalCommitOutcome(.failure)
+        logger.warning("Commit validation failed", category: .commit, metadata: ["reason": message])
     }
 
     func undoCommit() async {

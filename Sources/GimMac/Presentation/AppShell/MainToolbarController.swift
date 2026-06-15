@@ -12,9 +12,9 @@ import SwiftUI
 /// **One hosted item, not three.** Each control was tried as its own custom-view
 /// `NSToolbarItem`, but adjacent custom views sized with `.intrinsicContentSize`
 /// don't reserve width against one another and overlap. Hosting all three in a
-/// single SwiftUI `HStack` lets SwiftUI lay them out (no overlap) and lets the
-/// push/sync card show/hide reactively via `if viewModel.showSyncBar` — no
-/// `withObservationTracking` re-arm or live `insertItem`/`removeItem` needed.
+/// single SwiftUI `HStack` lets SwiftUI lay them out without overlap. The sync
+/// card stays in that layout and changes opacity when unavailable, avoiding
+/// `withObservationTracking` re-arm or live item insertion/removal.
 @MainActor
 final class MainToolbarController: NSObject, NSToolbarDelegate {
     private enum ItemID {
@@ -115,18 +115,21 @@ final class MainToolbarController: NSObject, NSToolbarDelegate {
 }
 
 /// Trailing icon buttons (branch picker + push/sync), laid out by SwiftUI inside
-/// the trailing hosted toolbar item. The push/sync card appears only when
-/// `showSyncBar` is set — the `@Observable` view model drives show/hide reactively.
+/// the trailing hosted toolbar item. The push/sync card keeps its layout slot
+/// when hidden so changes to `showSyncBar` never move the branch control.
 private struct TrailingToolbarControls: View {
     let viewModel: RepositoryStoreViewModel
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
     var body: some View {
         HStack(spacing: 6) {
             BranchToolbarButton(viewModel: viewModel)
 
-            if viewModel.showSyncBar {
-                SyncMenuButton(viewModel: viewModel)
-            }
+            SyncMenuButton(viewModel: viewModel)
+                .opacity(viewModel.showSyncBar ? 1 : 0)
+                .allowsHitTesting(viewModel.showSyncBar)
+                .accessibilityHidden(!viewModel.showSyncBar)
+                .motion(Motion.spatial, reduceMotion: reduceMotion, value: viewModel.showSyncBar)
         }
         .fixedSize()
     }

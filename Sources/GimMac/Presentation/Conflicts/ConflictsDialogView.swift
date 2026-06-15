@@ -10,6 +10,15 @@ import SwiftUI
 /// `CommitBox` rather than the one-shot value+closure sheets.
 struct ConflictsDialogView: View {
     let viewModel: RepositoryStoreViewModel
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+
+    private var displayedFiles: [ConflictedFileStatus] {
+        guard let resolved = viewModel.recentlyResolvedConflict,
+              !viewModel.conflictedFiles.contains(where: { $0.path == resolved.path }) else {
+            return viewModel.conflictedFiles
+        }
+        return viewModel.conflictedFiles + [resolved]
+    }
 
     var body: some View {
         VStack(alignment: .leading, spacing: 0) {
@@ -31,6 +40,8 @@ struct ConflictsDialogView: View {
             Text(progressText)
                 .font(.caption)
                 .foregroundStyle(viewModel.canContinueConflictOperation ? Color.green : .secondary)
+                .contentTransition(.numericText(value: Double(viewModel.resolvedConflictCount)))
+                .motion(Motion.feedback, reduceMotion: reduceMotion, value: viewModel.resolvedConflictCount)
         }
         .frame(maxWidth: .infinity, alignment: .leading)
         .padding(16)
@@ -47,18 +58,30 @@ struct ConflictsDialogView: View {
 
     private var fileList: some View {
         ScrollView {
-            if viewModel.conflictedFiles.isEmpty {
-                Text("No remaining conflicts.")
-                    .font(.callout)
-                    .foregroundStyle(.secondary)
-                    .frame(maxWidth: .infinity, maxHeight: .infinity)
-                    .padding(40)
-            } else {
-                LazyVStack(spacing: 0) {
-                    ForEach(viewModel.conflictedFiles) { file in
-                        UnmergedFileRow(viewModel: viewModel, file: file)
-                        Divider()
+            Group {
+                if displayedFiles.isEmpty {
+                    Text("No remaining conflicts.")
+                        .font(.callout)
+                        .foregroundStyle(.secondary)
+                        .frame(maxWidth: .infinity, maxHeight: .infinity)
+                        .padding(40)
+                        .transition(Motion.contentCrossfade(reduceMotion: reduceMotion))
+                } else {
+                    LazyVStack(spacing: 0) {
+                        ForEach(displayedFiles) { file in
+                            UnmergedFileRow(
+                                viewModel: viewModel,
+                                file: file,
+                                isResolved: viewModel.recentlyResolvedConflict?.path == file.path
+                            )
+                            Divider()
+                        }
                     }
+                    .transition(Motion.contentCrossfade(reduceMotion: reduceMotion))
+                    .animation(
+                        Motion.resolve(Motion.snappy, reduceMotion: reduceMotion),
+                        value: displayedFiles.map(\.path)
+                    )
                 }
             }
         }
@@ -86,7 +109,16 @@ struct ConflictsDialogView: View {
             }
             .keyboardShortcut(.return, modifiers: .command)
             .buttonStyle(.borderedProminent)
-            .disabled(!viewModel.canContinueConflictOperation)
+            .disabled(!viewModel.canContinueConflictOperation || viewModel.conflictContinueOutcome == .success)
+            .overlay {
+                if viewModel.conflictContinueOutcome == .success {
+                    Image(systemName: "checkmark")
+                        .foregroundStyle(.white)
+                        .symbolReplacement(reduceMotion: reduceMotion)
+                        .transition(.opacity)
+                }
+            }
+            .motion(Motion.feedback, reduceMotion: reduceMotion, value: viewModel.conflictContinueOutcome)
         }
         .padding(16)
     }
@@ -98,25 +130,31 @@ struct ConflictsDialogView: View {
 private struct UnmergedFileRow: View {
     let viewModel: RepositoryStoreViewModel
     let file: ConflictedFileStatus
+    let isResolved: Bool
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
     var body: some View {
         HStack(spacing: 10) {
-            Image(systemName: "exclamationmark.triangle.fill")
-                .foregroundStyle(.orange)
+            Image(systemName: isResolved ? "checkmark.circle.fill" : "exclamationmark.triangle.fill")
+                .foregroundStyle(isResolved ? .green : .orange)
+                .symbolReplacement(reduceMotion: reduceMotion)
+                .motion(Motion.feedback, reduceMotion: reduceMotion, value: isResolved)
 
             VStack(alignment: .leading, spacing: 2) {
                 Text((file.path as NSString).lastPathComponent)
                     .font(.system(size: 13, weight: .medium))
                     .lineLimit(1)
                     .truncationMode(.middle)
-                Text(detailText)
+                Text(isResolved ? "Resolved" : detailText)
                     .font(.caption)
                     .foregroundStyle(.secondary)
             }
 
             Spacer()
 
-            actions
+            if !isResolved {
+                actions
+            }
         }
         .padding(.horizontal, 16)
         .padding(.vertical, 10)

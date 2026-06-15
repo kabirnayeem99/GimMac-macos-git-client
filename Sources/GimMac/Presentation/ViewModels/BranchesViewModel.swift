@@ -41,6 +41,17 @@ final class BranchesViewModel {
     /// pending branch. The VM remembers the dirty-file count + target branch.
     private(set) var stashGuardNeeded: StashGuard?
 
+    /// Branch currently being acted on for checkout/update, for inline progress.
+    private(set) var pendingBranchName: String?
+
+    /// Transient success/failure feedback after a branch operation.
+    private(set) var lastOutcome: OpOutcome = .none
+
+    /// Tracks the delayed reset of `lastOutcome` so overlapping operations
+    /// don't clear a newer result early.
+    private var outcomeResetTask: Task<Void, Never>?
+    private var repositoryGeneration: Int = 0
+
     struct StashGuard: Equatable {
         let pendingBranch: Branch
         let dirtyFileCount: Int
@@ -93,21 +104,31 @@ final class BranchesViewModel {
     // MARK: - Actions
 
     func setRepository(_ url: URL?, currentBranchName: String?) {
+        repositoryGeneration += 1
         self.repositoryURL = url
         self.currentBranchName = currentBranchName
+        stashGuardNeeded = nil
+        pendingBranchName = nil
     }
 
     func loadBranches() async {
         guard let repositoryURL else { return }
+        let generation = repositoryGeneration
         isLoading = true
         errorMessage = nil
-        defer { isLoading = false }
+        defer {
+            if isCurrentRepositoryTarget(repositoryURL, generation: generation) {
+                isLoading = false
+            }
+        }
 
         do {
             let branches = try await branchProvider.fetchBranches(in: repositoryURL)
+            guard isCurrentRepositoryTarget(repositoryURL, generation: generation) else { return }
             self.localBranches = branches.filter { $0.isLocal }
             self.remoteBranches = branches.filter { !$0.isLocal }
         } catch {
+            guard isCurrentRepositoryTarget(repositoryURL, generation: generation) else { return }
             errorMessage = (error as? GitAppError)?.localizedDescription ?? error.localizedDescription
         }
     }
@@ -123,8 +144,10 @@ final class BranchesViewModel {
                 in: repositoryURL
             )
             await loadBranches()
+            setOutcome(.success)
         } catch {
             errorMessage = (error as? GitAppError)?.localizedDescription ?? error.localizedDescription
+            setOutcome(.failure)
         }
     }
 
@@ -134,18 +157,32 @@ final class BranchesViewModel {
     /// user's decision.
     func switchBranch(to branch: Branch) async {
         guard let repositoryURL else { return }
+        let generation = repositoryGeneration
         errorMessage = nil
+        pendingBranchName = branch.name
+        defer {
+            if isCurrentRepositoryTarget(repositoryURL, generation: generation) {
+                pendingBranchName = nil
+            }
+        }
         do {
             let status = try await statusProvider.fetchStatus(in: repositoryURL)
+            guard isCurrentRepositoryTarget(repositoryURL, generation: generation) else { return }
             if status.isEmpty {
                 try await branchOperator.switchBranch(to: branch, in: repositoryURL)
+                guard isCurrentRepositoryTarget(repositoryURL, generation: generation) else { return }
                 self.currentBranchName = branch.isLocal ? branch.name : branch.nameWithoutRemote
                 await loadBranches()
+                guard isCurrentRepositoryTarget(repositoryURL, generation: generation) else { return }
+                setOutcome(.success)
             } else {
+                guard isCurrentRepositoryTarget(repositoryURL, generation: generation) else { return }
                 self.stashGuardNeeded = StashGuard(pendingBranch: branch, dirtyFileCount: status.count)
             }
         } catch {
+            guard isCurrentRepositoryTarget(repositoryURL, generation: generation) else { return }
             errorMessage = (error as? GitAppError)?.localizedDescription ?? error.localizedDescription
+            setOutcome(.failure)
         }
     }
 
@@ -154,15 +191,39 @@ final class BranchesViewModel {
     /// performs the switch once the host has resolved the dirty state.
     func resolveStashGuard(_ action: DirtyWorkingTreeAction, performSwitch: Bool = true) async {
         guard let pending = stashGuardNeeded?.pendingBranch else { return }
-        defer { stashGuardNeeded = nil }
-        guard performSwitch, action != .cancel, let repositoryURL else { return }
+        guard let repositoryURL else {
+            stashGuardNeeded = nil
+            return
+        }
+        let generation = repositoryGeneration
+        defer {
+            if isCurrentRepositoryTarget(repositoryURL, generation: generation) {
+                stashGuardNeeded = nil
+            }
+        }
+        guard performSwitch, action != .cancel else { return }
+        pendingBranchName = pending.name
+        defer {
+            if isCurrentRepositoryTarget(repositoryURL, generation: generation) {
+                pendingBranchName = nil
+            }
+        }
         do {
             try await branchOperator.switchBranch(to: pending, in: repositoryURL)
+            guard isCurrentRepositoryTarget(repositoryURL, generation: generation) else { return }
             self.currentBranchName = pending.isLocal ? pending.name : pending.nameWithoutRemote
             await loadBranches()
+            guard isCurrentRepositoryTarget(repositoryURL, generation: generation) else { return }
+            setOutcome(.success)
         } catch {
+            guard isCurrentRepositoryTarget(repositoryURL, generation: generation) else { return }
             errorMessage = (error as? GitAppError)?.localizedDescription ?? error.localizedDescription
+            setOutcome(.failure)
         }
+    }
+
+    private func isCurrentRepositoryTarget(_ url: URL, generation: Int) -> Bool {
+        repositoryGeneration == generation && repositoryURL == url
     }
 
     func deleteLocalBranch(_ branch: Branch, force: Bool = false) async {
@@ -171,8 +232,10 @@ final class BranchesViewModel {
         do {
             try await branchOperator.deleteLocalBranch(branch, force: force, in: repositoryURL)
             await loadBranches()
+            setOutcome(.success)
         } catch {
             errorMessage = (error as? GitAppError)?.localizedDescription ?? error.localizedDescription
+            setOutcome(.failure)
         }
     }
 
@@ -182,8 +245,10 @@ final class BranchesViewModel {
         do {
             try await branchOperator.deleteRemoteBranch(branch, remote: remote, in: repositoryURL)
             await loadBranches()
+            setOutcome(.success)
         } catch {
             errorMessage = (error as? GitAppError)?.localizedDescription ?? error.localizedDescription
+            setOutcome(.failure)
         }
     }
 
@@ -196,8 +261,10 @@ final class BranchesViewModel {
                 currentBranchName = newName
             }
             await loadBranches()
+            setOutcome(.success)
         } catch {
             errorMessage = (error as? GitAppError)?.localizedDescription ?? error.localizedDescription
+            setOutcome(.failure)
         }
     }
 
@@ -207,7 +274,8 @@ final class BranchesViewModel {
         guard let repositoryURL, let provider = updateFromDefaultProvider else { return }
         isLoading = true
         errorMessage = nil
-        defer { isLoading = false }
+        pendingBranchName = branch.name
+        defer { isLoading = false; pendingBranchName = nil }
         do {
             if rebase {
                 try await provider.rebaseOntoDefaultBranch(branch, in: repositoryURL)
@@ -215,8 +283,23 @@ final class BranchesViewModel {
                 try await provider.mergeDefaultBranch(into: branch, in: repositoryURL)
             }
             await loadBranches()
+            setOutcome(.success)
         } catch {
             errorMessage = (error as? GitAppError)?.localizedDescription ?? error.localizedDescription
+            setOutcome(.failure)
+        }
+    }
+
+    // MARK: - Outcome feedback
+
+    private func setOutcome(_ outcome: OpOutcome) {
+        outcomeResetTask?.cancel()
+        lastOutcome = outcome
+        guard outcome != .none else { return }
+        outcomeResetTask = Task { [weak self] in
+            try? await Task.sleep(for: .seconds(1.2))
+            guard let self, !Task.isCancelled else { return }
+            self.lastOutcome = .none
         }
     }
 

@@ -178,10 +178,12 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         let mainMenu = MainMenuFactory.buildMainMenu(
             actionTarget: self,
             placeholderAction: #selector(placeholderMenuAction(_:)),
-            aboutAction: #selector(showAboutPanel(_:)),
-            settingsAction: #selector(showSettingsWindow(_:)),
-            openInEditorAction: #selector(openInExternalEditor(_:)),
-            repositorySettingsAction: #selector(showRepositorySettings(_:))
+            selectors: .init(
+                about: #selector(showAboutPanel(_:)),
+                settings: #selector(showSettingsWindow(_:)),
+                openInEditor: #selector(openInExternalEditor(_:)),
+                repositorySettings: #selector(showRepositorySettings(_:))
+            )
         )
 
         NSApp.mainMenu = mainMenu

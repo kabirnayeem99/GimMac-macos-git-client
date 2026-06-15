@@ -3,6 +3,7 @@ import SwiftUI
 
 struct MainContent: View {
     let viewModel: RepositoryStoreViewModel
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
     private struct RemoteSuggestion {
         let title: String
@@ -127,6 +128,7 @@ struct MainContent: View {
                             highlighted: true,
                             action: stash.action
                         )
+                        .transition(Motion.inlineStatus(reduceMotion: reduceMotion))
                     }
 
                     if let remote = remoteAction {
@@ -138,6 +140,7 @@ struct MainContent: View {
                             highlighted: true,
                             action: remote.action
                         )
+                        .transition(Motion.inlineStatus(reduceMotion: reduceMotion))
                     }
 
                     SuggestionCard(
@@ -156,6 +159,11 @@ struct MainContent: View {
                         action: { viewModel.openWithDefaultProgram(path: "") }
                     )
                 }
+                .motion(
+                    Motion.feedback,
+                    reduceMotion: reduceMotion,
+                    value: [stashHighlight?.title ?? "", remoteAction?.title ?? ""].joined(separator: "|")
+                )
                 .liquidGlassBackground(
                     fallbackMaterial: .regular,
                     in: RoundedRectangle(cornerRadius: 12, style: .continuous)

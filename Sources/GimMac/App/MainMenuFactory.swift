@@ -50,21 +50,26 @@ enum MainMenuFactory {
     static let showChangesAction = #selector(MainSplitViewController.menuShowChanges(_:))
     static let showHistoryAction = #selector(MainSplitViewController.menuShowHistory(_:))
 
+    /// App-level selectors wired to concrete targets (About, Settings, etc.).
+    struct Selectors {
+        let about: Selector
+        let settings: Selector
+        let openInEditor: Selector
+        let repositorySettings: Selector
+    }
+
     static func buildMainMenu(
         actionTarget: AnyObject,
         placeholderAction: Selector,
-        aboutAction: Selector,
-        settingsAction: Selector,
-        openInEditorAction: Selector,
-        repositorySettingsAction: Selector
+        selectors: Selectors
     ) -> NSMenu {
         let mainMenu = NSMenu()
 
         let appMenuItem = NSMenuItem(title: "GimMac", action: nil, keyEquivalent: "")
         appMenuItem.submenu = buildAppMenu(
             actionTarget: actionTarget,
-            aboutAction: aboutAction,
-            settingsAction: settingsAction
+            aboutAction: selectors.about,
+            settingsAction: selectors.settings
         )
         mainMenu.addItem(appMenuItem)
 
@@ -72,8 +77,8 @@ enum MainMenuFactory {
         fileMenuItem.submenu = buildFileMenu(
             actionTarget: actionTarget,
             placeholderAction: placeholderAction,
-            openInEditorAction: openInEditorAction,
-            repositorySettingsAction: repositorySettingsAction
+            openInEditorAction: selectors.openInEditor,
+            repositorySettingsAction: selectors.repositorySettings
         )
         mainMenu.addItem(fileMenuItem)
 
@@ -86,7 +91,7 @@ enum MainMenuFactory {
         mainMenu.addItem(viewMenuItem)
 
         let repositoryMenuItem = NSMenuItem(title: "Repository", action: nil, keyEquivalent: "")
-        repositoryMenuItem.submenu = buildRepositoryMenu(openInEditorAction: openInEditorAction)
+        repositoryMenuItem.submenu = buildRepositoryMenu(openInEditorAction: selectors.openInEditor)
         mainMenu.addItem(repositoryMenuItem)
 
         let branchMenuItem = NSMenuItem(title: "Branch", action: nil, keyEquivalent: "")

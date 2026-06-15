@@ -2,6 +2,7 @@ import SwiftUI
 
 struct ChangedFilesColumn: View {
     let viewModel: RepositoryStoreViewModel
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
     // Bridges the view model's path-based selection to the List's id-based
     // native selection (keyboard navigation + focus ring + system highlight).
@@ -32,6 +33,8 @@ struct ChangedFilesColumn: View {
                 Text("\(viewModel.changedFilesCount)")
                     .font(.caption.weight(.semibold))
                     .foregroundStyle(.secondary)
+                    .contentTransition(.numericText())
+                    .motion(Motion.feedback, reduceMotion: reduceMotion, value: viewModel.changedFilesCount)
             }
             .padding(.horizontal, 12)
             .frame(height: 32)

@@ -31,7 +31,7 @@ private final class StashAndSwitchSheetViewController: NSViewController {
     required init?(coder: NSCoder) { fatalError("init(coder:) is not supported") }
 
     override func loadView() {
-        let container = NSView(frame: NSRect(x: 0, y: 0, width: 420, height: 180))
+        let container = NSView(frame: NSRect(x: 0, y: 0, width: 440, height: 220))
         self.view = container
 
         let title = NSTextField(labelWithString: "Switch Branch")
@@ -60,7 +60,13 @@ private final class StashAndSwitchSheetViewController: NSViewController {
         cancelButton.bezelStyle = .rounded
         cancelButton.keyEquivalent = "\u{1b}"
 
-        for v in [title, body, stashButton, discardButton, cancelButton] {
+        let buttonStack = NSStackView(views: [stashButton, discardButton, cancelButton])
+        buttonStack.translatesAutoresizingMaskIntoConstraints = false
+        buttonStack.orientation = .vertical
+        buttonStack.alignment = .trailing
+        buttonStack.spacing = 8
+
+        for v in [title, body, buttonStack] {
             container.addSubview(v)
         }
 
@@ -72,14 +78,9 @@ private final class StashAndSwitchSheetViewController: NSViewController {
             body.leadingAnchor.constraint(equalTo: container.leadingAnchor, constant: 16),
             body.trailingAnchor.constraint(equalTo: container.trailingAnchor, constant: -16),
 
-            stashButton.trailingAnchor.constraint(equalTo: container.trailingAnchor, constant: -16),
-            stashButton.bottomAnchor.constraint(equalTo: container.bottomAnchor, constant: -16),
-
-            discardButton.trailingAnchor.constraint(equalTo: stashButton.leadingAnchor, constant: -8),
-            discardButton.bottomAnchor.constraint(equalTo: container.bottomAnchor, constant: -16),
-
-            cancelButton.trailingAnchor.constraint(equalTo: discardButton.leadingAnchor, constant: -8),
-            cancelButton.bottomAnchor.constraint(equalTo: container.bottomAnchor, constant: -16)
+            buttonStack.topAnchor.constraint(greaterThanOrEqualTo: body.bottomAnchor, constant: 16),
+            buttonStack.trailingAnchor.constraint(equalTo: container.trailingAnchor, constant: -16),
+            buttonStack.bottomAnchor.constraint(equalTo: container.bottomAnchor, constant: -16)
         ])
     }
 

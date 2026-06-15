@@ -104,8 +104,8 @@ private final class SettingsRootViewController: NSSplitViewController {
         }()
         guard controller !== currentPaneController else { return }
 
-        currentPaneController?.view.removeFromSuperview()
-        currentPaneController?.removeFromParent()
+        let outgoing = currentPaneController
+        currentPaneController = controller
 
         detailContainer.addChild(controller)
         controller.view.translatesAutoresizingMaskIntoConstraints = false
@@ -116,7 +116,15 @@ private final class SettingsRootViewController: NSSplitViewController {
             controller.view.trailingAnchor.constraint(equalTo: detailContainer.view.trailingAnchor),
             controller.view.bottomAnchor.constraint(equalTo: detailContainer.view.bottomAnchor)
         ])
-        currentPaneController = controller
+
+        if let outgoing {
+            NSView.crossfade(out: outgoing.view, in: controller.view) { [weak outgoing] in
+                outgoing?.view.removeFromSuperview()
+                outgoing?.removeFromParent()
+            }
+        } else {
+            controller.view.alphaValue = 1
+        }
     }
 
     private func makeController(for pane: SettingsPane) -> NSViewController {

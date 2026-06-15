@@ -4,6 +4,7 @@ import AppKit
 struct DiffViewer: View {
     let viewModel: RepositoryStoreViewModel
     var source: Source = .changes
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
     enum Source {
         case changes
@@ -45,6 +46,22 @@ struct DiffViewer: View {
         }
     }
 
+    private var contentIdentity: String {
+        if isLoading {
+            return "loading:\(document.filePath)"
+        }
+        switch document.kind {
+        case .binary:
+            return "binary:\(document.filePath)"
+        case .image:
+            return "image:\(document.filePath)"
+        case .submodule:
+            return "submodule:\(document.filePath)"
+        case .text:
+            return lines.isEmpty ? "empty:\(document.filePath)" : "text:\(document.filePath)"
+        }
+    }
+
     var body: some View {
         VStack(alignment: .leading, spacing: 0) {
             DiffHeader(
@@ -53,56 +70,64 @@ struct DiffViewer: View {
                 removedCount: document.removedCount
             )
 
-            if isLoading {
-                VStack(alignment: .leading, spacing: 0) {
-                    ProgressView("Loading diff…")
-                        .padding(.top, 12)
-                        .padding(.horizontal, 12)
-                    Spacer(minLength: 0)
-                }
-                    .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
-                    .background(Color(nsColor: .textBackgroundColor))
-            } else if case .binary = document.kind {
-                DiffMessageView(symbol: "doc.zipper", message: "Binary file — content not shown.")
-            } else if case let .image(data) = document.kind {
-                ImageDiffContentView(data: data)
-                    .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
-                    .background(Color(nsColor: .textBackgroundColor))
-            } else if case let .submodule(data) = document.kind {
-                SubmoduleDiffContentView(data: data)
-                    .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
-                    .background(Color(nsColor: .textBackgroundColor))
-            } else if lines.isEmpty {
-                VStack(alignment: .leading, spacing: 8) {
-                    HStack(spacing: 8) {
-                        Image(systemName: "doc.text.magnifyingglass")
-                            .font(.system(size: 16, weight: .light))
-                            .foregroundStyle(.tertiary)
-                        Text("No diff available")
-                            .font(.system(size: 13, weight: .medium))
-                            .foregroundStyle(.secondary)
-                    }
-                    .padding(.top, 12)
-                    .padding(.horizontal, 12)
-                    Spacer(minLength: 0)
-                }
-                .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
-                .background(Color(nsColor: .textBackgroundColor))
-            } else {
-                ScrollView([.vertical, .horizontal]) {
-                    LazyVStack(alignment: .leading, spacing: 0) {
-                        ForEach(lines) { line in
-                            DiffLineRow(line: line)
-                                .frame(maxWidth: .infinity, alignment: .leading)
-                        }
-                    }
-                    .font(.system(size: 12, design: .monospaced))
-                    .padding(.vertical, 8)
-                    .frame(maxWidth: .infinity, alignment: .topLeading)
-                }
-                .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
-                .background(Color(nsColor: .textBackgroundColor))
+            ZStack {
+                diffContent
+                    .id(contentIdentity)
+                    .transition(Motion.contentCrossfade(reduceMotion: reduceMotion))
             }
+            .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
+            .motion(Motion.spatial, reduceMotion: reduceMotion, value: contentIdentity)
+            .background(Color(nsColor: .textBackgroundColor))
+        }
+    }
+
+    @ViewBuilder
+    private var diffContent: some View {
+        if isLoading {
+            LoadingPlaceholder(title: "Loading diff…", minHeight: 160)
+                .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
+                .transition(.opacity)
+        } else if case .binary = document.kind {
+            DiffMessageView(symbol: "doc.zipper", message: "Binary file — content not shown.")
+                .transition(.opacity)
+        } else if case let .image(data) = document.kind {
+            ImageDiffContentView(data: data)
+                .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
+                .transition(.opacity)
+        } else if case let .submodule(data) = document.kind {
+            SubmoduleDiffContentView(data: data)
+                .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
+                .transition(.opacity)
+        } else if lines.isEmpty {
+            VStack(alignment: .leading, spacing: 8) {
+                HStack(spacing: 8) {
+                    Image(systemName: "doc.text.magnifyingglass")
+                        .font(.system(size: 16, weight: .light))
+                        .foregroundStyle(.tertiary)
+                    Text("No diff available")
+                        .font(.system(size: 13, weight: .medium))
+                        .foregroundStyle(.secondary)
+                }
+                .padding(.top, 12)
+                .padding(.horizontal, 12)
+                Spacer(minLength: 0)
+            }
+            .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
+            .transition(.opacity)
+        } else {
+            ScrollView([.vertical, .horizontal]) {
+                LazyVStack(alignment: .leading, spacing: 0) {
+                    ForEach(lines) { line in
+                        DiffLineRow(line: line)
+                            .frame(maxWidth: .infinity, alignment: .leading)
+                    }
+                }
+                .font(.system(size: 12, design: .monospaced))
+                .padding(.vertical, 8)
+                .frame(maxWidth: .infinity, alignment: .topLeading)
+            }
+            .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
+            .transition(.opacity)
         }
     }
 }
@@ -151,11 +176,9 @@ private struct ImageDiffContentView: View {
             Text(title)
                 .font(.system(size: 12, weight: .semibold))
                 .foregroundStyle(.secondary)
-            if let content, let image = Self.image(from: content) {
-                Image(nsImage: image)
-                    .resizable()
-                    .aspectRatio(contentMode: .fit)
-                    .frame(maxWidth: 320, maxHeight: 320)
+            if let content {
+                AsyncDecodedImageDiffPreview(content: content)
+                    .frame(width: 320, height: 320)
                     .border(Color(nsColor: .separatorColor))
             } else {
                 Text(content == nil ? "—" : "Cannot preview")
@@ -165,10 +188,44 @@ private struct ImageDiffContentView: View {
             }
         }
     }
+}
 
-    private static func image(from content: ImageDiffContent) -> NSImage? {
-        guard let bytes = Data(base64Encoded: content.base64Contents) else { return nil }
-        return NSImage(data: bytes)
+private struct AsyncDecodedImageDiffPreview: View {
+    let content: ImageDiffContent
+
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+    @State private var image: NSImage?
+    @State private var failedToDecode = false
+
+    var body: some View {
+        ZStack {
+            if let image {
+                Image(nsImage: image)
+                    .resizable()
+                    .aspectRatio(contentMode: .fit)
+                    .frame(maxWidth: 320, maxHeight: 320)
+                    .asyncDecodeFade(reduceMotion: reduceMotion, isReady: true)
+            } else if failedToDecode {
+                Text("Cannot preview")
+                    .font(.system(size: 12))
+                    .foregroundStyle(.tertiary)
+                    .frame(width: 120, height: 120)
+            } else {
+                LoadingPlaceholder(title: "Loading preview…", minHeight: 120)
+                    .frame(maxWidth: .infinity, maxHeight: .infinity)
+            }
+        }
+        .task(id: content.base64Contents) {
+            image = nil
+            failedToDecode = false
+            let decoded = await Task.detached(priority: .userInitiated) { () -> NSImage? in
+                guard let bytes = Data(base64Encoded: content.base64Contents) else { return nil }
+                return NSImage(data: bytes)
+            }.value
+            guard !Task.isCancelled else { return }
+            image = decoded
+            failedToDecode = decoded == nil
+        }
     }
 }
 

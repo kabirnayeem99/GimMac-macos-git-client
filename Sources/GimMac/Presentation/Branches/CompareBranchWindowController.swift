@@ -40,6 +40,7 @@ private final class CompareBranchSheetViewController: NSViewController {
     private let doneButton = NSButton(title: "Done", target: nil, action: nil)
 
     private var commits: [Commit] = []
+    private var comparisonTask: Task<Void, Never>?
 
     init(
         baseBranch: Branch,
@@ -138,7 +139,16 @@ private final class CompareBranchSheetViewController: NSViewController {
 
     override func viewDidAppear() {
         super.viewDidAppear()
-        Task { await runComparison() }
+        comparisonTask?.cancel()
+        comparisonTask = Task { [weak self] in
+            await self?.runComparison()
+        }
+    }
+
+    override func viewWillDisappear() {
+        comparisonTask?.cancel()
+        comparisonTask = nil
+        super.viewWillDisappear()
     }
 
     // MARK: - Comparison
@@ -146,7 +156,13 @@ private final class CompareBranchSheetViewController: NSViewController {
     private func runComparison() async {
         spinner.startAnimation(nil)
         aheadBehindLabel.stringValue = ""
-        defer { spinner.stopAnimation(nil) }
+        aheadBehindLabel.textColor = .labelColor
+        defer {
+            spinner.stopAnimation(nil)
+            if Task.isCancelled {
+                comparisonTask = nil
+            }
+        }
 
         do {
             let result = try await compareProvider.compareBranches(
@@ -154,15 +170,18 @@ private final class CompareBranchSheetViewController: NSViewController {
                 compare: compareBranch,
                 in: repositoryURL
             )
+            guard !Task.isCancelled else { return }
             let ab = result.aheadBehind
             aheadBehindLabel.stringValue =
                 "\(compareBranch.name) is \(ab.ahead) ahead, \(ab.behind) behind \(baseBranch.name)"
             commits = result.commits
             tableView.reloadData()
         } catch {
+            guard !Task.isCancelled else { return }
             aheadBehindLabel.stringValue = error.localizedDescription
             aheadBehindLabel.textColor = .systemRed
         }
+        comparisonTask = nil
     }
 
     @objc private func done(_ sender: Any?) {

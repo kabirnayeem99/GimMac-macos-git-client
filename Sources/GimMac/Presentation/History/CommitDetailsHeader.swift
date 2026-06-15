@@ -3,14 +3,20 @@ import SwiftUI
 struct CommitDetailsHeader: View {
     let viewModel: RepositoryStoreViewModel
     @State private var isShowingProfile = false
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
     var body: some View {
         let selectedCount = viewModel.selectedHistoryCommits.count
-        if selectedCount > 1 {
-            multiSelectionHeader(count: selectedCount)
-        } else {
-            singleCommitHeader
+        Group {
+            if selectedCount > 1 {
+                multiSelectionHeader(count: selectedCount)
+            } else {
+                singleCommitHeader
+            }
         }
+        .id(selectedCount > 1 ? "multi" : "single")
+        .transition(.opacity)
+        .animation(Motion.resolve(Motion.snappy, reduceMotion: reduceMotion), value: selectedCount > 1)
     }
 
     private var singleCommitHeader: some View {
@@ -89,6 +95,8 @@ struct CommitDetailsHeader: View {
             VStack(alignment: .leading, spacing: 2) {
                 Text("\(count) Commits Selected")
                     .font(.system(size: 13, weight: .semibold))
+                    .contentTransition(.numericText())
+                    .motion(Motion.feedback, reduceMotion: reduceMotion, value: count)
                 Text("Right-click to cherry-pick, squash, or reorder")
                     .font(.system(size: 11))
                     .foregroundStyle(.secondary)

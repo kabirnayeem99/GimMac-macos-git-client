@@ -26,6 +26,9 @@ struct CreateRepositorySheet: View {
     @State private var gitIgnoreNames: [String] = []
     @State private var licenses: [LicenseTemplate] = []
     @State private var isWorking = false
+    @State private var creationOutcome: OpOutcome = .none
+    @FocusState private var isNameFocused: Bool
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
     private var trimmedName: String {
         name.trimmingCharacters(in: .whitespacesAndNewlines)
@@ -38,7 +41,14 @@ struct CreateRepositorySheet: View {
     }
 
     private var canCreate: Bool {
-        destinationURL != nil && !isWorking
+        destinationURL != nil && !isWorking && creationOutcome != .success
+    }
+
+    private var validationMessage: String? {
+        if !trimmedName.isEmpty, parentDirectory == nil {
+            return "Choose a parent folder for the repository."
+        }
+        return nil
     }
 
     var body: some View {
@@ -57,6 +67,7 @@ struct CreateRepositorySheet: View {
                         .gridColumnAlignment(.trailing)
                     TextField("repository-name", text: $name)
                         .textFieldStyle(.roundedBorder)
+                        .focused($isNameFocused)
                 }
                 GridRow {
                     Text("Description")
@@ -70,10 +81,19 @@ struct CreateRepositorySheet: View {
                             .lineLimit(1)
                             .truncationMode(.middle)
                             .foregroundStyle(parentDirectory == nil ? .secondary : .primary)
+                            .contentTransition(.opacity)
+                            .animation(Motion.resolve(Motion.feedback, reduceMotion: reduceMotion), value: parentDirectory)
                             .frame(maxWidth: .infinity, alignment: .leading)
                         Button("Choose…", action: chooseParentDirectory)
                     }
                 }
+            }
+
+            if let message = validationMessage {
+                Text(message)
+                    .font(.caption)
+                    .foregroundStyle(.orange)
+                    .transition(Motion.inlineStatus(reduceMotion: reduceMotion))
             }
 
             Toggle("Initialize this repository with a README", isOn: $includeReadme)
@@ -102,13 +122,23 @@ struct CreateRepositorySheet: View {
                 if isWorking {
                     ProgressView()
                         .controlSize(.small)
+                        .transition(Motion.inlineStatus(reduceMotion: reduceMotion))
                 }
+
+                if creationOutcome == .success {
+                    Image(systemName: "checkmark.circle.fill")
+                        .foregroundStyle(.green)
+                        .symbolReplacement(reduceMotion: reduceMotion)
+                        .transition(Motion.inlineStatus(reduceMotion: reduceMotion))
+                }
+
                 Spacer()
                 Button("Cancel", action: onCancel)
                     .keyboardShortcut(.escape, modifiers: [])
                 Button("Create Repository", action: create)
                     .keyboardShortcut(.defaultAction)
                     .disabled(!canCreate)
+                    .motion(Motion.feedback, reduceMotion: reduceMotion, value: canCreate)
             }
         }
         .padding(20)
@@ -117,6 +147,9 @@ struct CreateRepositorySheet: View {
             let (names, loadedLicenses) = await loadTemplates()
             gitIgnoreNames = names
             licenses = loadedLicenses
+        }
+        .onAppear {
+            isNameFocused = true
         }
     }
 
@@ -141,7 +174,6 @@ struct CreateRepositorySheet: View {
 
     private func create() {
         guard let destinationURL else { return }
-        isWorking = true
         let trimmedDescription = description.trimmingCharacters(in: .whitespacesAndNewlines)
         let options = RepositoryCreationOptions(
             name: trimmedName,
@@ -151,6 +183,11 @@ struct CreateRepositorySheet: View {
             licenseName: licenseSelection == Self.noneTag ? nil : licenseSelection,
             makeInitialCommit: true
         )
-        onCreate(options, destinationURL)
+        isWorking = false
+        creationOutcome = .success
+        let delay = reduceMotion ? 0.05 : 0.4
+        DispatchQueue.main.asyncAfter(deadline: .now() + delay) { [options, destinationURL, onCreate] in
+            onCreate(options, destinationURL)
+        }
     }
 }

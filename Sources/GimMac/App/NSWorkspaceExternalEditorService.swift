@@ -31,7 +31,7 @@ final class NSWorkspaceExternalEditorService: ExternalEditorServiceProtocol {
         ("Rider", "com.jetbrains.rider"),
         ("RubyMine", "com.jetbrains.RubyMine"),
         ("Android Studio", "com.google.android.studio"),
-        ("Fleet", "Fleet.app"),
+        ("Fleet", "Fleet.app")
     ]
 
     func availableEditors() -> [ExternalEditor] {

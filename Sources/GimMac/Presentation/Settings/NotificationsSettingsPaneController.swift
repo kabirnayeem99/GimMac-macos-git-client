@@ -85,33 +85,42 @@ final class NotificationsSettingsPaneController: SettingsPaneViewController {
     /// Mirrors GitHub Desktop's grant / denied / configure states.
     private func refreshHint() {
         guard viewModel.notificationsEnabled else {
-            hintLabel?.isHidden = true
-            grantButton?.isHidden = true
-            openSettingsButton?.isHidden = true
+            setHintGroupVisible(false)
             return
         }
 
         switch viewModel.permissionStatus {
         case .notDetermined:
             hintLabel?.stringValue = "Grant permission to display notifications from GimMac."
-            hintLabel?.isHidden = false
-            grantButton?.isHidden = false
-            openSettingsButton?.isHidden = true
+            setHintGroupVisible(true)
+            fadeButton(grantButton, visible: true)
+            fadeButton(openSettingsButton, visible: false)
         case .denied:
             hintLabel?.stringValue = "GimMac is not allowed to display notifications. Enable them in System Settings."
-            hintLabel?.isHidden = false
-            grantButton?.isHidden = true
-            openSettingsButton?.isHidden = false
+            setHintGroupVisible(true)
+            fadeButton(grantButton, visible: false)
+            fadeButton(openSettingsButton, visible: true)
         case .authorized, .provisional:
             hintLabel?.stringValue = "Notifications are enabled for GimMac."
-            hintLabel?.isHidden = false
-            grantButton?.isHidden = true
-            openSettingsButton?.isHidden = true
+            setHintGroupVisible(true)
+            fadeButton(grantButton, visible: false)
+            fadeButton(openSettingsButton, visible: false)
         case .unknown:
-            hintLabel?.isHidden = true
-            grantButton?.isHidden = true
-            openSettingsButton?.isHidden = true
+            setHintGroupVisible(false)
         }
+    }
+
+    private func setHintGroupVisible(_ visible: Bool) {
+        hintLabel?.fadeBanner(visible: visible)
+        if !visible {
+            fadeButton(grantButton, visible: false)
+            fadeButton(openSettingsButton, visible: false)
+        }
+    }
+
+    private func fadeButton(_ button: NSButton?, visible: Bool) {
+        guard let button else { return }
+        button.fadeBanner(visible: visible)
     }
 
     private func openSystemNotificationSettings() {

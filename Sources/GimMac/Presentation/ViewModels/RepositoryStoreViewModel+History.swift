@@ -19,6 +19,8 @@ extension RepositoryStoreViewModel {
 
     private func loadHistoryFiles(forSHA sha: Commit.ID) {
         historyLoadTask?.cancel()
+        historyFileDiffTask?.cancel()
+        historyFileDiffTask = nil
         guard let repository = selectedRepository else { return }
         let inspector = commitInspector
         let provider = diffProvider

@@ -5,6 +5,7 @@ struct ReorderCommitsSheet: View {
     let onCancel: () -> Void
 
     @State private var commits: [Commit]
+    @State private var selectedCommitID: Commit.ID?
     @State private var isWorking = false
 
     /// `commits` are passed newest-first (as the history sidebar lists them);
@@ -20,12 +21,12 @@ struct ReorderCommitsSheet: View {
             VStack(alignment: .leading, spacing: 4) {
                 Text("Reorder \(commits.count) Commits")
                     .font(.headline)
-                Text("Drag to set the new order, newest at the top. History will be rewritten.")
+                Text("Drag to set the new order, newest at the top. You can also use Move Up and Move Down. History will be rewritten.")
                     .font(.caption)
                     .foregroundStyle(.secondary)
             }
 
-            List {
+            List(selection: $selectedCommitID) {
                 ForEach(commits) { commit in
                     HStack(spacing: 8) {
                         Image(systemName: "line.3.horizontal")
@@ -44,6 +45,20 @@ struct ReorderCommitsSheet: View {
                 }
             }
             .frame(minHeight: 180)
+
+            HStack(spacing: 8) {
+                Button("Move Up") {
+                    moveSelection(offset: -1)
+                }
+                .disabled(!canMoveSelection(offset: -1) || isWorking)
+
+                Button("Move Down") {
+                    moveSelection(offset: 1)
+                }
+                .disabled(!canMoveSelection(offset: 1) || isWorking)
+
+                Spacer()
+            }
 
             HStack(spacing: 8) {
                 Spacer()
@@ -67,5 +82,24 @@ struct ReorderCommitsSheet: View {
         }
         .padding(16)
         .frame(width: 480)
+    }
+
+    private func canMoveSelection(offset: Int) -> Bool {
+        guard let index = selectedIndex else { return false }
+        let destination = index + offset
+        return commits.indices.contains(index) && commits.indices.contains(destination)
+    }
+
+    private func moveSelection(offset: Int) {
+        guard canMoveSelection(offset: offset), let index = selectedIndex else { return }
+        let destination = index + offset
+        let commit = commits.remove(at: index)
+        commits.insert(commit, at: destination)
+        selectedCommitID = commit.id
+    }
+
+    private var selectedIndex: Int? {
+        guard let selectedCommitID else { return nil }
+        return commits.firstIndex { $0.id == selectedCommitID }
     }
 }

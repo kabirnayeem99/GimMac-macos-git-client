@@ -352,7 +352,11 @@ final class GitDiffIntegrationTests: XCTestCase {
         XCTAssertEqual(diff.lines.last?.kind, .added)
     }
 
-    // MARK: - Helpers
+}
+
+// MARK: - Helpers
+
+extension GitDiffIntegrationTests {
 
     private func makeTemporaryDirectory() throws -> URL {
         let tempRoot = URL(fileURLWithPath: NSTemporaryDirectory(), isDirectory: true)
@@ -363,7 +367,7 @@ final class GitDiffIntegrationTests: XCTestCase {
 
     private func makeEmptyRepository() throws -> URL {
         let root = try makeTemporaryDirectory()
-        try runGit(["init", "-b", "master"], in: root)
+        try runGit(["init", "-b", "main"], in: root)
         return root
     }
 

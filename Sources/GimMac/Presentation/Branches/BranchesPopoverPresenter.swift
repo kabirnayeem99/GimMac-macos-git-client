@@ -7,7 +7,7 @@ import SwiftUI
 /// SwiftUI.
 struct BranchesPopoverButton<Label: View>: NSViewRepresentable {
     let viewModelFactory: () -> BranchesViewModel?
-    let label: () -> Label
+    @ViewBuilder let label: () -> Label
 
     @Environment(\.isEnabled) private var isEnabled
 
@@ -103,7 +103,10 @@ private final class ClickableContainerView: NSView {
 
     var onClick: (() -> Void)?
     var isEnabled: Bool = true {
-        didSet { updateHighlight() }
+        didSet {
+            updateHighlight()
+            needsDisplay = true
+        }
     }
 
     private var isHovered = false { didSet { updateHighlight() } }
@@ -114,6 +117,9 @@ private final class ClickableContainerView: NSView {
         wantsLayer = true
         layer?.cornerRadius = Self.cornerRadius
         layer?.cornerCurve = .continuous
+        setAccessibilityElement(true)
+        setAccessibilityRole(.button)
+        updateHighlight(animated: false)
     }
 
     @available(*, unavailable)
@@ -151,7 +157,43 @@ private final class ClickableContainerView: NSView {
     override func mouseEntered(with event: NSEvent) { isHovered = true }
     override func mouseExited(with event: NSEvent) { isHovered = false }
 
-    private func updateHighlight() {
+    override var acceptsFirstResponder: Bool { isEnabled }
+
+    override func keyDown(with event: NSEvent) {
+        guard isEnabled else {
+            super.keyDown(with: event)
+            return
+        }
+
+        switch event.keyCode {
+        case 36, 49:
+            isPressed = true
+            onClick?()
+        default:
+            super.keyDown(with: event)
+        }
+    }
+
+    override func keyUp(with event: NSEvent) {
+        switch event.keyCode {
+        case 36, 49:
+            isPressed = false
+        default:
+            super.keyUp(with: event)
+        }
+    }
+
+    override func accessibilityPerformPress() -> Bool {
+        guard isEnabled else { return false }
+        onClick?()
+        return true
+    }
+
+    override func accessibilityLabel() -> String? {
+        "Branches"
+    }
+
+    private func updateHighlight(animated: Bool = true) {
         let opacity: CGFloat
         if !isEnabled {
             opacity = 0
@@ -162,7 +204,16 @@ private final class ClickableContainerView: NSView {
         } else {
             opacity = 0
         }
-        layer?.backgroundColor = NSColor.labelColor.withAlphaComponent(opacity).cgColor
+        let color = NSColor.labelColor.withAlphaComponent(opacity).cgColor
+        guard animated, !AppKitMotion.reduceMotion else {
+            layer?.backgroundColor = color
+            return
+        }
+        CATransaction.begin()
+        CATransaction.setAnimationDuration(AppKitMotion.feedback)
+        CATransaction.setAnimationTimingFunction(CAMediaTimingFunction(name: .easeInEaseOut))
+        layer?.backgroundColor = color
+        CATransaction.commit()
     }
 
     override func resetCursorRects() {
@@ -172,6 +223,12 @@ private final class ClickableContainerView: NSView {
             addCursorRect(bounds, cursor: .arrow)
         }
     }
+
+    override func drawFocusRingMask() {
+        NSBezierPath(roundedRect: bounds, xRadius: Self.cornerRadius, yRadius: Self.cornerRadius).fill()
+    }
+
+    override var focusRingMaskBounds: NSRect { bounds }
 
     override var isFlipped: Bool { false }
 }

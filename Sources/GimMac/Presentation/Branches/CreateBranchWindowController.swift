@@ -54,6 +54,8 @@ private final class CreateBranchSheetViewController: NSViewController {
         validationLabel.font = NSFont.systemFont(ofSize: 11)
         validationLabel.textColor = .systemRed
         validationLabel.translatesAutoresizingMaskIntoConstraints = false
+        validationLabel.isHidden = true
+        validationLabel.alphaValue = 0
 
         let startPointLabel = NSTextField(labelWithString: "Based on")
         startPointLabel.translatesAutoresizingMaskIntoConstraints = false

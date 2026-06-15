@@ -130,15 +130,18 @@ final class MainSplitViewController: NSViewController {
 
     // MARK: - Menu bar routing
     //
-    // These handlers are reached via the responder chain: MainMenuFactory
-    // installs menu items with `target = nil` and a typed selector; AppKit
-    // walks the chain until it finds an implementor. Dynamic labels and
-    // enable/disable live in `validateMenuItem(_:)` below.
+    // Stored state for the lazy branch dialog presenter. The actual handlers
+    // live in the extension below so this class stays under SwiftLint's
+    // type-body limit.
 
-    /// Lazy because dialog presentation needs a window that only exists after
-    /// `viewDidLoad`. Constructed on first use, then reused.
     private var _menuBranchDialogPresenter: BranchDialogPresenter?
     private var _menuBranchesViewModel: BranchesViewModel?
+}
+
+// MARK: - Menu bar routing
+
+@MainActor
+extension MainSplitViewController {
 
     /// Resolve (or build) the shared dialog presenter. Returns nil when the
     /// branches services have not been injected — menu validation will then

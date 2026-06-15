@@ -7,6 +7,7 @@ struct CreateBranchFromCommitSheet: View {
 
     @State private var name = ""
     @State private var isWorking = false
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
     private var trimmedName: String {
         name.trimmingCharacters(in: .whitespacesAndNewlines)
@@ -35,6 +36,7 @@ struct CreateBranchFromCommitSheet: View {
                 Text(reason)
                     .font(.caption)
                     .foregroundStyle(Color(.systemRed))
+                    .transition(Motion.inlineStatus(reduceMotion: reduceMotion))
             }
 
             HStack(spacing: 8) {

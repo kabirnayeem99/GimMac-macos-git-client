@@ -53,6 +53,8 @@ extension RepositoryStoreViewModel {
     /// Dismiss the sheet without aborting the operation (the repo stays
     /// mid-merge/rebase; the user can resume from the primary action button).
     func cancelConflictResolution() {
+        signalConflictContinueOutcome(.none)
+        recentlyResolvedConflict = nil
         isResolvingConflicts = false
     }
 
@@ -77,7 +79,7 @@ extension RepositoryStoreViewModel {
     // MARK: - Per-file actions
 
     func resolveConflict(_ file: ConflictedFileStatus, using resolution: ManualConflictResolution) async {
-        await runConflictAction { resolver, url in
+        await runConflictAction(resolvedFile: file) { resolver, url in
             try await resolver.stageManualConflictResolution(
                 file.path, summary: file.summary, resolution: resolution, in: url
             )
@@ -86,14 +88,14 @@ extension RepositoryStoreViewModel {
 
     /// Accept the deletion for a both-deleted conflict (`git rm`).
     func acceptConflictDeletion(_ file: ConflictedFileStatus) async {
-        await runConflictAction { resolver, url in
+        await runConflictAction(resolvedFile: file) { resolver, url in
             try await resolver.removeConflictedFile(file.path, in: url)
         }
     }
 
     /// Mark a hand-edited file as resolved (`git add`).
     func markConflictResolved(_ file: ConflictedFileStatus) async {
-        await runConflictAction { resolver, url in
+        await runConflictAction(resolvedFile: file) { resolver, url in
             try await resolver.markResolved(file.path, in: url)
         }
     }
@@ -107,6 +109,7 @@ extension RepositoryStoreViewModel {
     /// Shared scaffolding for a per-file action: gate UI, run, reload the set,
     /// surface errors. Does not reset the baseline count.
     private func runConflictAction(
+        resolvedFile: ConflictedFileStatus? = nil,
         _ action: (ConflictResolutionProviding, URL) async throws -> Void
     ) async {
         guard let resolver = conflictResolver, let repository = selectedRepository,
@@ -116,6 +119,9 @@ extension RepositoryStoreViewModel {
         defer { isConflictActionInProgress = false }
         do {
             try await action(resolver, repository.url)
+            if let resolvedFile {
+                signalRecentlyResolvedConflict(resolvedFile)
+            }
             await loadConflicts(resetBaseline: false)
         } catch {
             errorMessage = error.localizedDescription
@@ -152,6 +158,8 @@ extension RepositoryStoreViewModel {
             case .none:
                 return
             }
+            signalConflictContinueOutcome(.success)
+            try? await Task.sleep(for: .milliseconds(800))
             isResolvingConflicts = false
             await refreshRepositoryScreenData()
         } catch {
@@ -184,6 +192,7 @@ extension RepositoryStoreViewModel {
     /// After a rebase/cherry-pick step that stopped on the next commit's
     /// conflicts: refresh and reload the new conflict set, keeping the sheet open.
     private func finishOrReload(repository: Repository) async {
+        signalConflictContinueOutcome(.none)
         await refreshRepositoryScreenData()
         await loadConflicts(resetBaseline: true)
     }

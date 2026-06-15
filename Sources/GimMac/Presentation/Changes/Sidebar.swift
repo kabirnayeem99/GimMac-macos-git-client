@@ -37,6 +37,7 @@ struct Sidebar: View {
 
     @Binding var selectedTab: Int
     let viewModel: RepositoryStoreViewModel
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @State private var filterState = FilterViewState()
     @State private var pendingDiscardPath: String?
     @State private var isConfirmingStashDiscard = false
@@ -167,55 +168,45 @@ struct Sidebar: View {
             .padding(.horizontal, 12)
             .padding(.bottom, 10)
 
-            HStack(spacing: 8) {
-                let allChecked = !viewModel.changedFiles.isEmpty &&
-                    viewModel.checkedChangedFilePaths.count == viewModel.changedFilesCount
-                let someChecked = !viewModel.checkedChangedFilePaths.isEmpty && !allChecked
-
-                Button {
-                    if allChecked {
-                        viewModel.deselectAllChangedFiles()
-                    } else {
-                        viewModel.selectAllChangedFiles()
-                    }
-                } label: {
-                    Image(systemName: allChecked
-                          ? "checkmark.square.fill"
-                          : (someChecked ? "minus.square.fill" : "square"))
-                        .font(.callout.weight(.semibold))
-                        .foregroundStyle(.secondary)
+            Group {
+                if isAnyFilterOptionSelected {
+                    FilterChips(
+                        options: FileFilterOption.allCases.filter(filterState.selectedOptions.contains),
+                        title: { $0.title },
+                        onRemove: { send(.toggleOption($0)) }
+                    )
+                    .transition(.opacity)
                 }
-                .buttonStyle(.plain)
-                .disabled(viewModel.changedFiles.isEmpty)
-                .help(allChecked ? "Deselect all" : "Select all")
-                .accessibilityLabel(allChecked ? "Deselect all files" : "Select all files")
-                .accessibilityValue(allChecked ? "All selected" : (someChecked ? "Some selected" : "None selected"))
-
-                Text("^[\(viewModel.changedFilesCount) changed file](inflect: true)")
-                    .font(.callout.weight(.medium))
-
-                Spacer()
             }
-            .padding(.horizontal, 12)
-            .frame(height: 30)
-            .background(.bar)
+            .motion(
+                Motion.feedback,
+                reduceMotion: reduceMotion,
+                value: filterState.selectedOptions
+            )
+
+            ChangedFilesHeader(viewModel: viewModel, filteredCount: filteredFiles.count)
 
             Divider()
 
             ChangedFilesListView(
                 viewModel: viewModel,
                 files: filteredFiles,
+                filterValue: filterAnimationValue,
                 onRequestDiscard: { pendingDiscardPath = $0 }
             )
 
-            if let stash = viewModel.stashEntry {
-                StashPanel(
-                    entry: stash,
-                    busy: viewModel.isStashOperationInProgress,
-                    onRestore: { Task { await viewModel.applyStash() } },
-                    onDiscard: { isConfirmingStashDiscard = true }
-                )
+            Group {
+                if let stash = viewModel.stashEntry {
+                    StashPanel(
+                        entry: stash,
+                        busy: viewModel.isStashOperationInProgress,
+                        onRestore: { Task { await viewModel.applyStash() } },
+                        onDiscard: { isConfirmingStashDiscard = true }
+                    )
+                    .transition(Motion.inlineStatus(reduceMotion: reduceMotion))
+                }
             }
+            .motion(Motion.feedback, reduceMotion: reduceMotion, value: viewModel.stashEntry?.id ?? "")
 
             CommitBox(viewModel: viewModel)
         }
@@ -259,6 +250,11 @@ struct Sidebar: View {
         return "Discard changes to \"\(path)\"?"
     }
 
+    private var filterAnimationValue: String {
+        let options = filterState.selectedOptions.map(\.rawValue).sorted().joined(separator: ",")
+        return "\(filterState.text)|\(options)"
+    }
+
     private func send(_ intent: FilterIntent) {
         filterState = reduce(state: filterState, intent: intent)
     }
@@ -283,12 +279,105 @@ struct Sidebar: View {
     }
 }
 
+private struct FilterChips<Option: Hashable>: View {
+    let options: [Option]
+    let title: (Option) -> String
+    let onRemove: (Option) -> Void
+
+    var body: some View {
+        ScrollView(.horizontal) {
+            HStack(spacing: 6) {
+                ForEach(options, id: \.self) { option in
+                    Button {
+                        onRemove(option)
+                    } label: {
+                        Label(title(option), systemImage: "xmark")
+                            .font(.caption)
+                    }
+                    .buttonStyle(.bordered)
+                    .controlSize(.mini)
+                    .accessibilityLabel("Remove \(title(option)) filter")
+                }
+            }
+            .padding(.horizontal, 12)
+        }
+        .scrollIndicators(.hidden)
+        .padding(.bottom, 8)
+    }
+}
+
+private struct ChangedFilesHeader: View {
+    let viewModel: RepositoryStoreViewModel
+    let filteredCount: Int
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+
+    private var allChecked: Bool {
+        !viewModel.changedFiles.isEmpty &&
+            viewModel.checkedChangedFilePaths.count == viewModel.changedFilesCount
+    }
+
+    private var someChecked: Bool {
+        !viewModel.checkedChangedFilePaths.isEmpty && !allChecked
+    }
+
+    var body: some View {
+        HStack(spacing: 8) {
+            Button {
+                if allChecked {
+                    viewModel.deselectAllChangedFiles()
+                } else {
+                    viewModel.selectAllChangedFiles()
+                }
+            } label: {
+                Image(systemName: selectionSymbol)
+                    .font(.callout.weight(.semibold))
+                    .foregroundStyle(.secondary)
+                    .symbolReplacement(reduceMotion: reduceMotion)
+                    .motion(Motion.feedback, reduceMotion: reduceMotion, value: selectionSymbol)
+            }
+            .buttonStyle(.plain)
+            .disabled(viewModel.changedFiles.isEmpty)
+            .help(allChecked ? "Deselect all" : "Select all")
+            .accessibilityLabel(allChecked ? "Deselect all files" : "Select all files")
+            .accessibilityValue(selectionAccessibilityValue)
+
+            Text(countLabel)
+                .font(.callout.weight(.medium))
+                .contentTransition(.numericText(value: Double(filteredCount)))
+                .motion(Motion.feedback, reduceMotion: reduceMotion, value: filteredCount)
+
+            Spacer()
+        }
+        .padding(.horizontal, 12)
+        .frame(height: 30)
+        .background(.bar)
+    }
+
+    private var selectionSymbol: String {
+        allChecked ? "checkmark.square.fill" : (someChecked ? "minus.square.fill" : "square")
+    }
+
+    private var selectionAccessibilityValue: String {
+        allChecked ? "All selected" : (someChecked ? "Some selected" : "None selected")
+    }
+
+    private var countLabel: String {
+        let totalCount = viewModel.changedFilesCount
+        guard filteredCount != totalCount else {
+            return "\(filteredCount) changed \(filteredCount == 1 ? "file" : "files")"
+        }
+        return "\(filteredCount) of \(totalCount) changed \(totalCount == 1 ? "file" : "files")"
+    }
+}
+
 /// The scrollable list of changed files. Extracted from `Sidebar` so each
 /// row's callback wiring lives in its own view body.
 private struct ChangedFilesListView: View {
     let viewModel: RepositoryStoreViewModel
     let files: [ChangedFile]
+    let filterValue: String
     let onRequestDiscard: (String) -> Void
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
     // Maps the view model's path-based selection onto the List's id-based
     // selection (ChangedFile.id is a composite of status + path, stable across
@@ -306,30 +395,64 @@ private struct ChangedFilesListView: View {
     }
 
     var body: some View {
-        List(files, selection: selection) { file in
-            ChangedFileRow(
-                file: file,
-                selected: file.path == viewModel.selectedChangedFilePath,
-                checked: viewModel.isChangedFileChecked(path: file.path),
-                onToggleChecked: { viewModel.toggleChangedFileChecked(path: file.path) },
-                onDiscardChanges: { onRequestDiscard(file.path) },
-                onRevealInFinder: { viewModel.revealInFinder(path: file.path) },
-                onOpenInEditor: { viewModel.openInExternalEditor(path: file.path) },
-                onOpenWithDefault: { viewModel.openWithDefaultProgram(path: file.path) },
-                onCopyPath: { viewModel.copyFilePath(path: file.path) },
-                onCopyRelativePath: { viewModel.copyRelativeFilePath(path: file.path) },
-                onIgnoreFile: { Task { await viewModel.ignoreFile(path: file.path) } },
-                onIgnoreFolder: { folder in Task { await viewModel.ignoreFolder(folder) } },
-                onIgnoreExtension: { Task { await viewModel.ignoreExtension(forPath: file.path) } },
-                editorName: viewModel.selectedEditorName
-            )
-            .frame(maxWidth: .infinity, alignment: .leading)
-            .listRowInsets(EdgeInsets())
-            .listRowSeparator(.hidden)
-            .tag(file.id)
+        ZStack {
+            List(selection: selection) {
+                ForEach(files) { file in
+                    ChangedFileRow(
+                        file: file,
+                        selected: file.path == viewModel.selectedChangedFilePath,
+                        checked: viewModel.isChangedFileChecked(path: file.path),
+                        recentlyToggled: viewModel.wasChangedFileRecentlyToggled(path: file.path),
+                        onToggleChecked: { viewModel.toggleChangedFileChecked(path: file.path) },
+                        onDiscardChanges: { onRequestDiscard(file.path) },
+                        onRevealInFinder: { viewModel.revealInFinder(path: file.path) },
+                        onOpenInEditor: { viewModel.openInExternalEditor(path: file.path) },
+                        onOpenWithDefault: { viewModel.openWithDefaultProgram(path: file.path) },
+                        onCopyPath: { viewModel.copyFilePath(path: file.path) },
+                        onCopyRelativePath: { viewModel.copyRelativeFilePath(path: file.path) },
+                        onIgnoreFile: { Task { await viewModel.ignoreFile(path: file.path) } },
+                        onIgnoreFolder: { folder in Task { await viewModel.ignoreFolder(folder) } },
+                        onIgnoreExtension: { Task { await viewModel.ignoreExtension(forPath: file.path) } },
+                        editorName: viewModel.selectedEditorName
+                    )
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .listRowInsets(EdgeInsets())
+                    .listRowSeparator(.hidden)
+                    .tag(file.id)
+                }
+            }
+            .listStyle(.plain)
+            .scrollContentBackground(.hidden)
+            .animation(listAnimation, value: files.map(\.id))
+
+            if files.isEmpty, viewModel.hasLoadedChangedFilesOnce {
+                ContentUnavailableView(
+                    emptyStateTitle,
+                    systemImage: "line.3.horizontal.decrease.circle",
+                    description: Text(emptyStateDescription)
+                )
+                .transition(Motion.inlineStatus(reduceMotion: reduceMotion))
+                .allowsHitTesting(false)
+            }
         }
-        .listStyle(.plain)
-        .scrollContentBackground(.hidden)
+        .motion(Motion.feedback, reduceMotion: reduceMotion, value: filterValue)
+        .animation(listAnimation, value: files.isEmpty)
+    }
+
+    private var listAnimation: Animation? {
+        guard viewModel.animatesChangedFileUpdates else { return nil }
+        return Motion.resolve(Motion.feedback, reduceMotion: reduceMotion)
+    }
+
+    private var emptyStateTitle: String {
+        filterValue == "|" ? "No Changed Files" : "No Matching Files"
+    }
+
+    private var emptyStateDescription: String {
+        if filterValue == "|" {
+            return "Your working copy is clean."
+        }
+        return "Try changing or clearing the current filters."
     }
 }
 

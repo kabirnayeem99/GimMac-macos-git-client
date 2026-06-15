@@ -16,6 +16,7 @@ final class GitSettingsPaneController: SettingsPaneViewController {
     private weak var bannerLabel: NSTextField?
     private weak var saveButton: NSButton?
     private var isVisible = false
+    private var bannerDismissWorkItem: DispatchWorkItem?
 
     init(viewModel: GitSettingsViewModel) {
         self.viewModel = viewModel
@@ -122,25 +123,31 @@ final class GitSettingsPaneController: SettingsPaneViewController {
         refreshValidation()
         saveButton?.isEnabled = !viewModel.isSaving && viewModel.nameValidationMessage == nil
 
+        bannerDismissWorkItem?.cancel()
+        bannerDismissWorkItem = nil
+
         if let error = viewModel.errorMessage {
             bannerLabel?.textColor = .systemRed
             bannerLabel?.stringValue = error
-            bannerLabel?.isHidden = false
+            bannerLabel?.fadeBanner(visible: true)
         } else if let success = viewModel.successMessage {
             bannerLabel?.textColor = .systemGreen
             bannerLabel?.stringValue = success
-            bannerLabel?.isHidden = false
+            bannerLabel?.fadeBanner(visible: true)
+            if let banner = bannerLabel {
+                bannerDismissWorkItem = AppKitMotion.scheduleAutoDismiss(for: banner)
+            }
         } else {
-            bannerLabel?.isHidden = true
+            bannerLabel?.fadeBanner(visible: false)
         }
     }
 
     private func refreshValidation() {
         if let message = viewModel.nameValidationMessage {
             validationLabel?.stringValue = message
-            validationLabel?.isHidden = false
+            validationLabel?.fadeBanner(visible: true)
         } else {
-            validationLabel?.isHidden = true
+            validationLabel?.fadeBanner(visible: false)
         }
     }
 

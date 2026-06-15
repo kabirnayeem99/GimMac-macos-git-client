@@ -5,6 +5,8 @@ struct CommitHistorySidebar: View {
     @Binding var selectedTab: Int
     let viewModel: RepositoryStoreViewModel
 
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+
     @State private var activeSheet: HistorySheet?
 
     private enum HistorySheet: Int, Identifiable {
@@ -56,13 +58,22 @@ struct CommitHistorySidebar: View {
             .padding(.horizontal, 10)
             .padding(.bottom, 8)
             .accessibilityLabel(viewModel.primaryAction.label)
+            .overlay(alignment: .trailing) {
+                if viewModel.historyOutcome == .success {
+                    Image(systemName: "checkmark.circle.fill")
+                        .foregroundStyle(.green)
+                        .transition(.scale.combined(with: .opacity))
+                }
+            }
+            .animation(Motion.resolve(.snappy, reduceMotion: reduceMotion), value: viewModel.historyOutcome)
 
             List(selection: historySelection) {
               ForEach(viewModel.commits) { commit in
                 CommitRow(
                     title: commit.summary,
                     subtitle: "\(commit.authorDisplayName) • \(relativeString(for: commit.date))",
-                    isUnpushed: viewModel.unpushedSHAs.contains(commit.id)
+                    isUnpushed: viewModel.unpushedSHAs.contains(commit.id),
+                    isSelected: viewModel.selectedHistoryCommitIDs.contains(commit.id)
                 )
                 .contextMenu {
                     multiSelectContextMenu()
@@ -109,6 +120,7 @@ struct CommitHistorySidebar: View {
                         commit: commit,
                         onConfirm: { name, message in
                             await viewModel.createTagOnSelectedCommit(named: name, message: message)
+                            viewModel.signalHistoryOutcome(.success)
                             activeSheet = nil
                         },
                         onCancel: { activeSheet = nil }
@@ -120,6 +132,7 @@ struct CommitHistorySidebar: View {
                         commit: commit,
                         onConfirm: { name in
                             await viewModel.createBranchFromSelectedCommit(named: name)
+                            viewModel.signalHistoryOutcome(.success)
                             activeSheet = nil
                         },
                         onCancel: { activeSheet = nil }

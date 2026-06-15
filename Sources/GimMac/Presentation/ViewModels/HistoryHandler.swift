@@ -13,6 +13,7 @@ final class HistoryHandler {
     private(set) var commitFiles: [CommitFile] = []
     private(set) var isLoadingCommitFiles = false
     private(set) var selectedCommitFilePath: String?
+    private(set) var selectedCommitDiffSHA: Commit.ID?
 
     private(set) var diffDocument: DiffDocument = .empty
     private(set) var isLoadingDiff = false
@@ -38,6 +39,7 @@ final class HistoryHandler {
     private func resetFiles() {
         commitFiles = []
         selectedCommitFilePath = nil
+        selectedCommitDiffSHA = nil
         diffDocument = .empty
     }
 
@@ -100,6 +102,7 @@ final class HistoryHandler {
             selectedCommitFilePath = first.path
         } else {
             selectedCommitFilePath = nil
+            selectedCommitDiffSHA = nil
             diffDocument = .empty
         }
     }
@@ -111,6 +114,7 @@ final class HistoryHandler {
         in repositoryURL: URL
     ) async {
         selectedCommitFilePath = path
+        selectedCommitDiffSHA = commitSHA
         isLoadingDiff = true
         defer { isLoadingDiff = false }
         let doc = (try? await provider.fetchCommitDiff(
@@ -120,7 +124,9 @@ final class HistoryHandler {
         )) ?? DiffDocument(filePath: path, lines: [])
         // Drop a stale result: a newer selection may have superseded this load
         // while the diff was in flight (cancelled task, or selection moved on).
-        guard !Task.isCancelled, selectedCommitFilePath == path else { return }
+        guard !Task.isCancelled,
+              selectedCommitFilePath == path,
+              selectedCommitDiffSHA == commitSHA else { return }
         diffDocument = doc
     }
 }
