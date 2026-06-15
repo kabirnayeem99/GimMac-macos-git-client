@@ -1,13 +1,16 @@
 # Auto-detect text files and normalize to LF in repo
 * text=auto eol=lf
 
+# Linguist: only Swift, Objective-C, and Shell count as repo languages
+* linguist-detectable=false
+
 # macOS / Xcode / Swift
-*.swift text eol=lf
-*.m text eol=lf
-*.mm text eol=lf
-*.h text eol=lf
-*.c text eol=lf
-*.cpp text eol=lf
+*.swift text eol=lf linguist-detectable=true linguist-language=Swift
+*.m text eol=lf linguist-detectable=true linguist-language=Objective-C
+*.mm text eol=lf linguist-detectable=true linguist-language=Objective-C
+*.h text eol=lf linguist-detectable=true linguist-language=Objective-C
+*.c text eol=lf linguist-detectable=true linguist-language=C
+*.cpp text eol=lf linguist-detectable=true linguist-language=C++
 *.plist text eol=lf
 *.entitlements text eol=lf
 *.xib text eol=lf
@@ -17,9 +20,9 @@
 *.strings text eol=lf
 
 # Scripts
-*.sh text eol=lf
-*.zsh text eol=lf
-*.bash text eol=lf
+*.sh text eol=lf linguist-detectable=true linguist-language=Shell
+*.zsh text eol=lf linguist-detectable=true linguist-language=Shell
+*.bash text eol=lf linguist-detectable=true linguist-language=Shell
 
 # Docs / config
 *.md text eol=lf
