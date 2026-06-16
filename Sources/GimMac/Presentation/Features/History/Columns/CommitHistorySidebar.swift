@@ -41,7 +41,8 @@ struct CommitHistorySidebar: View {
                 .padding(.horizontal, 10)
                 .frame(height: 32)
                 .background(.quaternary)
-                .clipShape(RoundedRectangle(cornerRadius: 7, style: .continuous))
+                .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
+//                .clipShape(RoundedRectangle(cornerRadius: 7, style: .continuous))
             }
             .buttonStyle(.plain)
             .padding(.horizontal, 10)
@@ -90,7 +91,7 @@ struct CommitHistorySidebar: View {
               }
             }
             .listStyle(.sidebar)
-            .scrollContentBackground(.hidden)
+            .scrollContentBackground(.automatic)
         }
         .sheet(item: $activeSheet) { sheet in
             switch sheet {

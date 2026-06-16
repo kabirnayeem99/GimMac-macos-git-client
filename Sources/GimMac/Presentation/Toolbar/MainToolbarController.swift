@@ -69,11 +69,19 @@ final class MainToolbarController: NSObject, NSToolbarDelegate {
     // MARK: - NSToolbarDelegate
 
     func toolbarDefaultItemIdentifiers(_ toolbar: NSToolbar) -> [NSToolbarItem.Identifier] {
-        [.flexibleSpace, ItemID.navigation, ItemID.contextCluster]
+        [
+            ItemID.navigation,
+            .flexibleSpace,
+            ItemID.contextCluster
+        ]
     }
 
     func toolbarAllowedItemIdentifiers(_ toolbar: NSToolbar) -> [NSToolbarItem.Identifier] {
-        [.flexibleSpace, ItemID.navigation, ItemID.contextCluster]
+        [
+            ItemID.navigation,
+            .flexibleSpace,
+            ItemID.contextCluster
+        ]
     }
 
     func toolbar(
@@ -100,34 +108,48 @@ final class MainToolbarController: NSObject, NSToolbarDelegate {
     }
 
     private func makeNavigationItem(identifier: NSToolbarItem.Identifier) -> NSToolbarItem {
+        let changesImage = NSImage(
+            systemSymbolName: "tray.full",
+            accessibilityDescription: "Changes"
+        )!
+
+        let historyImage = NSImage(
+            systemSymbolName: "clock.arrow.circlepath",
+            accessibilityDescription: "History"
+        )!
+
         let control = NSSegmentedControl(
-            labels: ["Changes", "History"],
+            images: [changesImage, historyImage],
             trackingMode: .selectOne,
             target: self,
             action: #selector(tabControlChanged(_:))
         )
+
         control.segmentStyle = .rounded
+  
         control.controlSize = .small
-        control.setImage(
-            NSImage(systemSymbolName: "tray.full", accessibilityDescription: nil),
-            forSegment: 0
-        )
-        control.setImage(
-            NSImage(systemSymbolName: "clock.arrow.circlepath", accessibilityDescription: nil),
-            forSegment: 1
-        )
-        control.setWidth(92, forSegment: 0)
-        control.setWidth(88, forSegment: 1)
+
+        control.setWidth(120, forSegment: 0)
+        control.setWidth(120, forSegment: 1)
+
+        control.setLabel("Changes", forSegment: 0)
+        control.setLabel("History", forSegment: 1)
+        control.setToolTip("Changes", forSegment: 0)
+        control.setToolTip("History", forSegment: 1)
+
         control.toolTip = "Switch between Changes and History"
         control.setAccessibilityLabel("Repository view")
+
         tabControl = control
         renderToolbarState()
         observeToolbarState()
+        control.sizeToFit()
 
         let item = NSToolbarItem(itemIdentifier: identifier)
         item.label = "Repository View"
         item.paletteLabel = "Repository View"
         item.view = control
+
         return item
     }
 

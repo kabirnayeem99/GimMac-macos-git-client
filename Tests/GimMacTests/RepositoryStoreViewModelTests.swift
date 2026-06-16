@@ -10,6 +10,19 @@ private struct MockRepositoryInspector: RepositoryInspecting, Sendable {
     }
 }
 
+private actor SequencedRepositoryInspector: RepositoryInspecting {
+    var results: [Result<TipState, Error>]
+
+    init(results: [Result<TipState, Error>]) {
+        self.results = results
+    }
+
+    func inspectRepository(at url: URL) async throws -> TipState {
+        guard !results.isEmpty else { return .unknown }
+        return try results.removeFirst().get()
+    }
+}
+
 private struct MockRepositoryScreenDataProvider: RepositoryScreenDataProviding, Sendable {
     let snapshot: RepositoryScreenSnapshot
 
@@ -666,6 +679,73 @@ final class RepositoryStoreViewModelTests: XCTestCase {
         XCTAssertNil(sut.pendingBranchName)
     }
 
+}
+
+@MainActor
+extension RepositoryStoreViewModelTests {
+    func testSelectingCurrentRepositoryDoesNotResetState() async {
+        let repo = URL(fileURLWithPath: "/tmp/repo", isDirectory: true)
+        let inspector = MockRepositoryInspector(
+            result: .success(.valid(branch: BranchSummary(name: "main", upstream: nil, sha: "abc1234")))
+        )
+        let sut = RepositoryStoreViewModel(
+            logger: GimMacLogger(),
+            inspector: inspector,
+            screenRepository: MockRepositoryScreenDataProvider(
+                snapshot: .snapshot(changedFiles: [
+                    ChangedFile(
+                        path: "README.md",
+                        status: .modified,
+                        oldPath: nil,
+                        isStaged: false,
+                        hasConflict: false
+                    )
+                ])
+            ),
+            diffProvider: MockDiffProvider(),
+            commitInspector: MockCommitInspector(),
+            commitProvider: MockCommitProvider(),
+            repositoryPersistence: MockRepositoryPersistence()
+        )
+
+        await sut.selectRepository(at: repo)
+        sut.commitSummary = "Keep this draft"
+        let generation = sut.repositorySelectionGeneration
+
+        await sut.selectRepository(at: URL(fileURLWithPath: "/tmp/other/../repo", isDirectory: true))
+
+        XCTAssertEqual(sut.repositorySelectionGeneration, generation)
+        XCTAssertEqual(sut.commitSummary, "Keep this draft")
+        XCTAssertEqual(sut.selectedChangedFilePath, "README.md")
+        XCTAssertFalse(sut.isLoading)
+    }
+
+    func testSelectingCurrentRepositoryCanRetryAfterFailedLoad() async {
+        enum TestError: Error { case failed }
+        let repo = URL(fileURLWithPath: "/tmp/repo", isDirectory: true)
+        let inspector = SequencedRepositoryInspector(results: [
+            .failure(TestError.failed),
+            .success(.valid(branch: BranchSummary(name: "main", upstream: nil, sha: "abc1234")))
+        ])
+        let sut = RepositoryStoreViewModel(
+            logger: GimMacLogger(),
+            inspector: inspector,
+            screenRepository: MockRepositoryScreenDataProvider(snapshot: .testSnapshot),
+            diffProvider: MockDiffProvider(),
+            commitInspector: MockCommitInspector(),
+            commitProvider: MockCommitProvider(),
+            repositoryPersistence: MockRepositoryPersistence()
+        )
+
+        await sut.selectRepository(at: repo)
+        XCTAssertNotNil(sut.errorMessage)
+
+        await sut.selectRepository(at: repo)
+
+        XCTAssertEqual(RepositoryBranchDisplayFormatter.displayText(for: sut.tip), "main")
+        XCTAssertNil(sut.errorMessage)
+        XCTAssertFalse(sut.isLoading)
+    }
 }
 
 @MainActor

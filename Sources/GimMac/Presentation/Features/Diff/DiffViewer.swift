@@ -89,7 +89,11 @@ struct DiffViewer: View {
     @ViewBuilder
     private var diffContent: some View {
         if isLoading {
-            LoadingPlaceholder(title: "Loading diff…", minHeight: 160)
+            Color.clear
+                .frame(maxWidth: .infinity, minHeight: 160, maxHeight: .infinity, alignment: .topLeading)
+                .accessibilityElement()
+                .accessibilityLabel("Diff")
+                .accessibilityValue("Loading")
                 .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
                 .transition(.opacity)
         } else if case .binary = document.kind {

@@ -25,9 +25,7 @@ struct BranchToolbarButton: View {
     }
 
     private var iconName: String {
-        isSelectorAvailable
-            ? "point.3.connected.trianglepath.dotted"
-            : "exclamationmark.triangle"
+        "point.3.connected.trianglepath.dotted"
     }
 
     private var accessibilityValue: String {
@@ -48,16 +46,18 @@ struct BranchToolbarButton: View {
                         presentCreateBranch(viewModel: branchesViewModel)
                     }
                 )
+            } else {
+                Text("Branch selector unavailable")
+                    .foregroundStyle(.secondary)
             }
         } label: {
             branchLabel
         }
         .menuStyle(.button)
         .buttonStyle(.plain)
-        .menuIndicator(.hidden)
-        .frame(minWidth: 76, maxWidth: 168, minHeight: 24)
+        .menuIndicator(.visible)
+        .frame(minWidth: 96, minHeight: 24)
         .disabled(!isSelectorAvailable)
-        .motion(Motion.feedback, reduceMotion: reduceMotion, value: branchDisplay)
         .help(isSelectorAvailable ? "Branch: \(branchDisplay)" : "Branch selector unavailable")
         .accessibilityLabel("Branch")
         .accessibilityValue(accessibilityValue)
@@ -85,19 +85,20 @@ struct BranchToolbarButton: View {
     }
 
     private var branchLabel: some View {
-        Label {
-            Text(branchDisplay)
-                .lineLimit(1)
-                .truncationMode(.middle)
-        } icon: {
+        HStack(spacing: 6) {
             Image(systemName: iconName)
                 .font(.system(size: 12, weight: .medium))
+                .foregroundStyle(.secondary)
+
+            Text(branchDisplay)
+                .font(.system(size: 13))
+                .lineLimit(1)
+                .truncationMode(.middle)
+                .layoutPriority(1)
         }
-        .font(.system(size: 12, weight: .medium))
-        .padding(.horizontal, 7)
-        .frame(height: 24)
-        .frame(maxWidth: 168)
-        .contentShape(Capsule())
+        .padding(.horizontal, 8)
+        .frame(minWidth: 96, maxWidth: 220, minHeight: 24, alignment: .leading)
+        .motion(Motion.feedback, reduceMotion: reduceMotion, value: branchDisplay)
         .id(branchDisplay)
         .transition(.opacity)
     }

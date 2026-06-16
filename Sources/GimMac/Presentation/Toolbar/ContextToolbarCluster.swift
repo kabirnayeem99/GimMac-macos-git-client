@@ -22,11 +22,13 @@ struct ContextToolbarCluster: View {
 
             BranchToolbarButton(viewModel: viewModel)
 
-            SyncMenuButton(viewModel: viewModel)
-                .opacity(viewModel.showSyncBar ? 1 : 0)
-                .allowsHitTesting(viewModel.showSyncBar)
-                .accessibilityHidden(!viewModel.showSyncBar)
-                .motion(Motion.spatial, reduceMotion: reduceMotion, value: viewModel.showSyncBar)
+            if (viewModel.showSyncBar) {
+                SyncMenuButton(viewModel: viewModel)
+                    .opacity(viewModel.showSyncBar ? 1 : 0)
+                    .allowsHitTesting(viewModel.showSyncBar)
+                    .accessibilityHidden(!viewModel.showSyncBar)
+                    .motion(Motion.spatial, reduceMotion: reduceMotion, value: viewModel.showSyncBar)
+            }
         }
         .fixedSize()
     }

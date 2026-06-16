@@ -45,7 +45,8 @@ struct RepositoryMenuButton: View {
     var body: some View {
         Menu {
             if viewModel.savedRepositories.isEmpty {
-                Text("No Saved Repositories")
+                Button("No Saved Repositories") {}
+                    .disabled(true)
             } else {
                 Section("Recent") {
                     ForEach(Array(recentRepositories)) { repository in
@@ -75,10 +76,6 @@ struct RepositoryMenuButton: View {
             Button("New Repository…") {
                 newRepositoryAction()
             }
-
-            Button("Open Repository…") {
-                openRepositoryAction()
-            }
         } label: {
             // Leading title-style pulldown: the current repository name reads as
             // the window's subject (like Finder's folder title) and doubles as
@@ -93,6 +90,7 @@ struct RepositoryMenuButton: View {
                     .foregroundStyle(.primary)
                     .lineLimit(1)
                     .truncationMode(.middle)
+                    .layoutPriority(1)
                     .id(repositoryDisplayName)
                     .transition(.opacity)
 
@@ -103,12 +101,13 @@ struct RepositoryMenuButton: View {
             .frame(height: 24)
             .padding(.horizontal, 10)
             .toolbarItemStyle()
+            .contentShape(Rectangle())
             .motion(Motion.feedback, reduceMotion: reduceMotion, value: repositoryDisplayName)
             .help(viewModel.selectedRepository?.url.path ?? "No repository selected")
         }
         .buttonStyle(.plain)
         .menuIndicator(.hidden) // Manual chevron is better placed in the title-style toolbar item.
-        .frame(minWidth: 112, maxWidth: 200)
+        .frame(minWidth: 120, maxWidth: 240)
         .accessibilityLabel("Repository")
         .accessibilityValue(repositoryDisplayName)
         .sheet(isPresented: $isShowingRepositoriesDialog) {

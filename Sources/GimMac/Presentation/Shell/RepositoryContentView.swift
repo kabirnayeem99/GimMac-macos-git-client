@@ -42,6 +42,8 @@ final class RepositoryContentViewController: NSViewController {
     override func loadView() {
         let container = NSView(frame: NSRect(x: 0, y: 0, width: 800, height: 600))
         container.translatesAutoresizingMaskIntoConstraints = false
+        container.wantsLayer = true
+        container.layer?.masksToBounds = true
         view = container
 
         changesController.view.translatesAutoresizingMaskIntoConstraints = false
@@ -75,50 +77,95 @@ final class RepositoryContentViewController: NSViewController {
         guard tab != currentTab else { return }
 
         saveFirstResponder(for: currentTab)
+
         let outgoingTab = currentTab
         currentTab = tab
 
         let container = view
-        let width = container.bounds.width
+        let width = max(container.bounds.width, 1)
+
         let outgoing = outgoingTab == 0 ? changesController.view : historyController.view
         let incoming = tab == 0 ? changesController.view : historyController.view
 
         // Bring the incoming view above the outgoing one for the duration of the
-        // slide so overlapping content layers correctly.
+        // switch so overlapping content layers correctly.
         container.addSubview(incoming, positioned: .above, relativeTo: outgoing)
 
-        let (postChanges, postHistory): (CGFloat, CGFloat) = tab == 0
-            ? (0, width)
-            : (-width, 0)
+        let showingChanges = tab == 0
 
-        if !animated || AppKitMotion.reduceMotion {
+        let postChanges: CGFloat = showingChanges ? 0 : -width
+        let postHistory: CGFloat = showingChanges ? width : 0
+
+        let preChanges: CGFloat = showingChanges ? -width : 0
+        let preHistory: CGFloat = showingChanges ? 0 : width
+
+        if !animated {
             applyTabConstraints(changesOffset: postChanges, historyOffset: postHistory)
+            incoming.alphaValue = 1
+            outgoing.alphaValue = 1
             incoming.isHidden = false
             outgoing.isHidden = true
             restoreFirstResponder(for: tab)
             return
         }
 
-        // Pre-position the incoming view off-screen in the direction of travel.
-        let slideOffset = width
-        let (preChanges, preHistory): (CGFloat, CGFloat) = tab == 0
-            ? (-slideOffset, 0)
-            : (0, width + slideOffset)
+        incoming.isHidden = false
+        incoming.alphaValue = 0.96
+        outgoing.alphaValue = 1
 
         applyTabConstraints(changesOffset: preChanges, historyOffset: preHistory)
-        incoming.isHidden = false
         container.layoutSubtreeIfNeeded()
+
+        if AppKitMotion.reduceMotion {
+            NSAnimationContext.runAnimationGroup { context in
+                context.duration = AppKitMotion.snappy
+                context.timingFunction = CAMediaTimingFunction(name: .easeInEaseOut)
+
+                incoming.animator().alphaValue = 1
+                outgoing.animator().alphaValue = 0
+            } completionHandler: { [weak self] in
+                Task { @MainActor [weak self] in
+                    guard let self else { return }
+
+                    outgoing.isHidden = true
+                    outgoing.alphaValue = 1
+                    incoming.alphaValue = 1
+
+                    self.applyTabConstraints(
+                        changesOffset: postChanges,
+                        historyOffset: postHistory
+                    )
+
+                    self.restoreFirstResponder(for: tab)
+                }
+            }
+
+            return
+        }
 
         NSAnimationContext.runAnimationGroup { context in
             context.duration = AppKitMotion.spatial
             context.timingFunction = CAMediaTimingFunction(name: .easeInEaseOut)
+            context.allowsImplicitAnimation = true
+
             applyTabConstraints(changesOffset: postChanges, historyOffset: postHistory)
+
+            incoming.animator().alphaValue = 1
+            outgoing.animator().alphaValue = 0.98
             container.animator().layoutSubtreeIfNeeded()
         } completionHandler: { [weak self] in
             Task { @MainActor [weak self] in
                 guard let self else { return }
+
                 outgoing.isHidden = true
-                self.applyTabConstraints(changesOffset: postChanges, historyOffset: postHistory)
+                outgoing.alphaValue = 1
+                incoming.alphaValue = 1
+
+                self.applyTabConstraints(
+                    changesOffset: postChanges,
+                    historyOffset: postHistory
+                )
+
                 self.restoreFirstResponder(for: tab)
             }
         }

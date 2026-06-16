@@ -15,7 +15,7 @@ import AppKit
 final class ChangesSplitViewController: RepositorySplitViewController {
     override func viewDidLoad() {
         super.viewDidLoad()
-        splitView.dividerStyle = .thin
+        splitView.dividerStyle = .paneSplitter
 
         // Sidebar pane. `sidebar(with:)` opts the pane into the system
         // `.sidebar` vibrant material and full-height behavior — no manual
@@ -25,7 +25,7 @@ final class ChangesSplitViewController: RepositorySplitViewController {
             Sidebar(viewModel: viewModel)
         )
         let sidebarItem = NSSplitViewItem(sidebarWithViewController: sidebarHost)
-        sidebarItem.canCollapse = true
+        sidebarItem.canCollapse = false
         sidebarItem.minimumThickness = 260
         sidebarItem.maximumThickness = 420
         sidebarItem.holdingPriority = NSLayoutConstraint.Priority(260) // sidebar holds width; content absorbs resize

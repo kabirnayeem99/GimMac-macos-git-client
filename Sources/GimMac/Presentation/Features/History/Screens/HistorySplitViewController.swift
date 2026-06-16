@@ -11,14 +11,14 @@ import AppKit
 final class HistorySplitViewController: RepositorySplitViewController {
     override func viewDidLoad() {
         super.viewDidLoad()
-        splitView.dividerStyle = .thin
+        splitView.dividerStyle = .paneSplitter
 
         // Commit-list pane — vibrant `.sidebar` material, system-managed.
         let sidebarHost = makeHostingController(
             CommitHistorySidebar(viewModel: viewModel)
         )
         let sidebarItem = NSSplitViewItem(sidebarWithViewController: sidebarHost)
-        sidebarItem.canCollapse = true
+        sidebarItem.canCollapse = false
         sidebarItem.minimumThickness = 280
         sidebarItem.maximumThickness = 360
         sidebarItem.holdingPriority = NSLayoutConstraint.Priority(261)
@@ -26,7 +26,7 @@ final class HistorySplitViewController: RepositorySplitViewController {
 
         // Changed-files column — solid content pane, holds its width.
         let filesHost = makeHostingController(HistoryFilesColumn(viewModel: viewModel))
-        let filesItem = NSSplitViewItem(contentListWithViewController: filesHost)
+        let filesItem = NSSplitViewItem(viewController: filesHost)
         filesItem.canCollapse = false
         filesItem.minimumThickness = 260
         filesItem.maximumThickness = 420

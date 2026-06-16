@@ -5,6 +5,10 @@ import Foundation
 @MainActor
 extension RepositoryStoreViewModel {
     func selectRepository(at url: URL) async {
+        if isLoadedOrLoadingSelectedRepository(url) {
+            return
+        }
+
         let selectionGeneration = beginRepositorySelection(for: url)
         isLoading = true
         errorMessage = nil
@@ -145,6 +149,16 @@ extension RepositoryStoreViewModel {
         repositorySelectionGeneration += 1
         selectedRepository = Repository(url: url)
         return repositorySelectionGeneration
+    }
+
+    private func isLoadedOrLoadingSelectedRepository(_ url: URL) -> Bool {
+        guard let selectedRepository else { return false }
+        return Self.canonicalRepositoryPath(selectedRepository.url) == Self.canonicalRepositoryPath(url) &&
+            (isLoading || tip != .unknown)
+    }
+
+    private static func canonicalRepositoryPath(_ url: URL) -> String {
+        url.resolvingSymlinksInPath().standardizedFileURL.path
     }
 
     private func isCurrentRepositorySelection(url: URL, generation: Int) -> Bool {
