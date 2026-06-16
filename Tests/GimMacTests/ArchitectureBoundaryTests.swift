@@ -1,33 +1,34 @@
 import XCTest
 
 final class ArchitectureBoundaryTests: XCTestCase {
-    func testDomainLayerDoesNotImportAppKit() throws {
-        let domainFiles = try swiftFiles(in: "Sources/GimMac/Domain")
-        XCTAssertFalse(domainFiles.isEmpty, "Expected Domain files to exist.")
+    func testApplicationModelsAndPortsDoNotImportAppKit() throws {
+        let applicationFiles = try swiftFiles(in: "Sources/GimMac/Application")
+        XCTAssertFalse(applicationFiles.isEmpty, "Expected Application files to exist.")
 
-        for file in domainFiles {
+        for file in applicationFiles {
             let contents = try String(contentsOfFile: file)
             XCTAssertFalse(
                 contents.contains("import AppKit"),
-                "Domain must not import AppKit: \(file)"
+                "Application must not import AppKit: \(file)"
             )
         }
     }
 
-    func testDataLayerDoesNotImportAppKit() throws {
-        let dataFiles = try swiftFiles(in: "Sources/GimMac/Data")
-        XCTAssertFalse(dataFiles.isEmpty, "Expected Data files to exist.")
+    func testInfrastructureDoesNotImportAppKit() throws {
+        let infrastructureFiles = try swiftFiles(in: "Sources/GimMac/Infrastructure")
+            .filter { !$0.contains("/Infrastructure/Platform/") }
+        XCTAssertFalse(infrastructureFiles.isEmpty, "Expected Infrastructure files to exist.")
 
-        for file in dataFiles {
+        for file in infrastructureFiles {
             let contents = try String(contentsOfFile: file)
             XCTAssertFalse(
                 contents.contains("import AppKit"),
-                "Data layer must not import AppKit: \(file)"
+                "Infrastructure must not import AppKit outside Platform: \(file)"
             )
         }
     }
 
-    func testPresentationLayerDoesNotImportDataLayerTypes() throws {
+    func testPresentationLayerDoesNotImportInfrastructureConcreteTypes() throws {
         let presentationFiles = try swiftFiles(in: "Sources/GimMac/Presentation")
         XCTAssertFalse(presentationFiles.isEmpty, "Expected Presentation files to exist.")
 
@@ -41,7 +42,7 @@ final class ArchitectureBoundaryTests: XCTestCase {
         for file in presentationFiles {
             let contents = try String(contentsOfFile: file)
             for marker in forbiddenMarkers where contents.contains(marker) {
-                XCTFail("Presentation must not depend on Data concrete type '\(marker)': \(file)")
+                XCTFail("Presentation must not depend on Infrastructure concrete type '\(marker)': \(file)")
             }
         }
     }

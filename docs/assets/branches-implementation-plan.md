@@ -286,7 +286,7 @@ switchBranch(to:) called
 
 ## Phase 5 — ViewModels
 
-> `Sources/GimMac/Presentation/ViewModels/`
+> `Sources/GimMac/Presentation/Features/Branches/`
 
 ### 5.1 `BranchesViewModel`
 
@@ -339,7 +339,7 @@ final class BranchCompareViewModel {
 
 ## Phase 6 — UI (AppKit)
 
-> `Sources/GimMac/Presentation/Branches/`
+> `Sources/GimMac/Presentation/Features/Branches/`
 
 ### 6.1 `BranchesViewController`
 
@@ -441,18 +441,18 @@ Scope: V1, not MVP.
 | `deleteLocalBranch` | `BranchOperating.deleteLocalBranch(_:force:)` | — |
 | `deleteRemoteBranch` | `BranchOperating.deleteRemoteBranch(_:remote:)` | — |
 | `renameBranch` | `BranchOperating.renameBranch(_:to:force:)` | — |
-| `BranchesContainer` | `BranchesViewController` | `Presentation/Branches/` |
-| `BranchList` | `BranchTableView` | `Presentation/Branches/` |
-| `BranchListItem` | `BranchCellView` | `Presentation/Branches/` |
+| `BranchesContainer` | `BranchesViewController` | `Presentation/Features/Branches/` |
+| `BranchList` | `BranchTableView` | `Presentation/Features/Branches/` |
+| `BranchListItem` | `BranchCellView` | `Presentation/Features/Branches/` |
 | `BranchListItemContextMenu` | Context menu on `BranchCellView` | — |
-| `CreateBranchDialog` | `CreateBranchWindowController` | `Presentation/Branches/` |
-| `DeleteBranchDialog` | `DeleteBranchWindowController` | `Presentation/Branches/` |
-| `RenameBranchDialog` | `RenameBranchWindowController` | `Presentation/Branches/` |
-| `StashAndSwitchBranchDialog` | `StashAndSwitchSheetController` | `Presentation/Branches/` |
+| `CreateBranchDialog` | `CreateBranchWindowController` | `Presentation/Features/Branches/` |
+| `DeleteBranchDialog` | `DeleteBranchWindowController` | `Presentation/Features/Branches/` |
+| `RenameBranchDialog` | `RenameBranchWindowController` | `Presentation/Features/Branches/` |
+| `StashAndSwitchBranchDialog` | `StashAndSwitchSheetController` | `Presentation/Features/Branches/` |
 | `BranchDropdown` (toolbar) | Make `TopToolbar` branch card interactive | `Presentation/Toolbar/` |
-| `groupBranches` | `BranchGrouper` (sort by recency) | `Presentation/Branches/` |
-| `MergeChooseBranchDialog` | `MergeTargetWindowController` | `Presentation/Branches/` (V1) |
-| `RebaseChooseBranchDialog` | `RebaseTargetWindowController` | `Presentation/Branches/` (V1) |
+| `groupBranches` | `BranchGrouper` (sort by recency) | `Presentation/Features/Branches/` |
+| `MergeChooseBranchDialog` | `MergeTargetWindowController` | `Presentation/Features/Branches/` (V1) |
+| `RebaseChooseBranchDialog` | `RebaseTargetWindowController` | `Presentation/Features/Branches/` (V1) |
 | `CIStatus` | Omit — no CI integration in MVP | — |
 
 ---

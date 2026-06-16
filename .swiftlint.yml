@@ -7,7 +7,7 @@ excluded:
   - DerivedData
   - build
   - vendor
-  - Sources/GimMac/Data/Vendored
+  - Sources/GimMac/Infrastructure/Vendored
 
 strict: true
 
