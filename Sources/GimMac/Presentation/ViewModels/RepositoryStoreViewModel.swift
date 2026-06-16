@@ -167,6 +167,11 @@ final class RepositoryStoreViewModel {
         selectedCommit?.summary ?? "No recent commit"
     }
 
+    var canUndoLastCommit: Bool {
+        guard let commit = commits.first else { return false }
+        return Date().timeIntervalSince(commit.date) <= 15 * 60
+    }
+
     var lastFetchedDescription: String {
         guard let date = lastFetched else { return "Never fetched" }
         return "Last fetched " + AppFormatters.relativeDate.localizedString(for: date, relativeTo: Date())

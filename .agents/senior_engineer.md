@@ -12,6 +12,8 @@ maintainability. You do not approve weak code or demand subjective rewrites with
 - Find behavioral bugs, missing edge cases, stale-result races, memory cycles, and unsafe Git behavior.
 - Enforce Presentation -> Domain -> Data/Infrastructure boundaries.
 - Review Swift, Observation, SwiftUI state, AppKit lifecycle, Core Data, concurrency, and performance.
+- Review whether new SwiftUI/AppKit presentation types are split into token-efficient files by primary
+  type when that improves maintainability and agent navigation.
 - Check native macOS UX and accessibility where UI changed.
 - Run or inspect build, test, and SwiftLint results when available.
 - Treat all warnings as actionable until explained.
@@ -109,6 +111,9 @@ Suggested fix: <actionable correction>
   can change.
 - Check `@MainActor`, actor isolation, `Sendable`, closure captures, weak delegates, and retained tasks.
 - Check SwiftUI ownership and AppKit lifecycle/responder chain rather than applying generic UI advice.
+- Flag new reusable SwiftUI views, modifiers, representables, controllers, coordinators, or view models
+  that are buried in oversized files when a dedicated file would make the code easier to review,
+  navigate, and cite. Treat inline tiny private helpers as acceptable when locality is clearer.
 - Check Core Data context confinement and Domain isolation.
 - Check Git argument safety, `--force-with-lease`, untrusted config, credential redaction, and typed errors.
 - Review large-diff rendering, attributed-string allocation, process spawn frequency, and main-thread work

@@ -2,7 +2,6 @@ import AppKit
 import SwiftUI
 
 struct CommitHistorySidebar: View {
-    @Binding var selectedTab: Int
     let viewModel: RepositoryStoreViewModel
 
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
@@ -25,16 +24,6 @@ struct CommitHistorySidebar: View {
 
     var body: some View {
         VStack(spacing: 0) {
-            Picker("", selection: $selectedTab) {
-                Text("Changes").tag(0)
-                Text("History").tag(1)
-            }
-            .pickerStyle(.segmented)
-            .controlSize(.small)
-            .labelsHidden()
-            .accessibilityLabel("View mode")
-            .padding(10)
-
             Button {
                 Task { await viewModel.performPrimaryAction() }
             } label: {
@@ -56,6 +45,7 @@ struct CommitHistorySidebar: View {
             }
             .buttonStyle(.plain)
             .padding(.horizontal, 10)
+            .padding(.top, 10)
             .padding(.bottom, 8)
             .accessibilityLabel(viewModel.primaryAction.label)
             .overlay(alignment: .trailing) {
@@ -102,7 +92,6 @@ struct CommitHistorySidebar: View {
             .listStyle(.sidebar)
             .scrollContentBackground(.hidden)
         }
-        .background(.thinMaterial)
         .sheet(item: $activeSheet) { sheet in
             switch sheet {
             case .squash:

@@ -35,7 +35,6 @@ struct Sidebar: View {
         case clearAll
     }
 
-    @Binding var selectedTab: Int
     let viewModel: RepositoryStoreViewModel
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @State private var filterState = FilterViewState()
@@ -99,16 +98,6 @@ struct Sidebar: View {
 
     var body: some View {
         VStack(spacing: 0) {
-            Picker("", selection: $selectedTab) {
-                Text("Changes").tag(0)
-                Text("History").tag(1)
-            }
-            .pickerStyle(.segmented)
-            .controlSize(.small)
-            .padding(.horizontal, 12)
-            .padding(.top, 10)
-            .padding(.bottom, 8)
-
             HStack(spacing: 8) {
                 Menu {
                     if isAnyFilterOptionSelected {
@@ -166,6 +155,7 @@ struct Sidebar: View {
                     }
             }
             .padding(.horizontal, 12)
+            .padding(.top, 10)
             .padding(.bottom, 10)
 
             Group {
@@ -209,8 +199,8 @@ struct Sidebar: View {
             .motion(Motion.feedback, reduceMotion: reduceMotion, value: viewModel.stashEntry?.id ?? "")
 
             CommitBox(viewModel: viewModel)
+                .padding(.bottom, 10)
         }
-        .background(.thinMaterial)
         .confirmationDialog(
             discardConfirmationTitle,
             isPresented: Binding(
@@ -276,223 +266,5 @@ struct Sidebar: View {
         }
 
         return nextState
-    }
-}
-
-private struct FilterChips<Option: Hashable>: View {
-    let options: [Option]
-    let title: (Option) -> String
-    let onRemove: (Option) -> Void
-
-    var body: some View {
-        ScrollView(.horizontal) {
-            HStack(spacing: 6) {
-                ForEach(options, id: \.self) { option in
-                    Button {
-                        onRemove(option)
-                    } label: {
-                        Label(title(option), systemImage: "xmark")
-                            .font(.caption)
-                    }
-                    .buttonStyle(.bordered)
-                    .controlSize(.mini)
-                    .accessibilityLabel("Remove \(title(option)) filter")
-                }
-            }
-            .padding(.horizontal, 12)
-        }
-        .scrollIndicators(.hidden)
-        .padding(.bottom, 8)
-    }
-}
-
-private struct ChangedFilesHeader: View {
-    let viewModel: RepositoryStoreViewModel
-    let filteredCount: Int
-    @Environment(\.accessibilityReduceMotion) private var reduceMotion
-
-    private var allChecked: Bool {
-        !viewModel.changedFiles.isEmpty &&
-            viewModel.checkedChangedFilePaths.count == viewModel.changedFilesCount
-    }
-
-    private var someChecked: Bool {
-        !viewModel.checkedChangedFilePaths.isEmpty && !allChecked
-    }
-
-    var body: some View {
-        HStack(spacing: 8) {
-            Button {
-                if allChecked {
-                    viewModel.deselectAllChangedFiles()
-                } else {
-                    viewModel.selectAllChangedFiles()
-                }
-            } label: {
-                Image(systemName: selectionSymbol)
-                    .font(.callout.weight(.semibold))
-                    .foregroundStyle(.secondary)
-                    .symbolReplacement(reduceMotion: reduceMotion)
-                    .motion(Motion.feedback, reduceMotion: reduceMotion, value: selectionSymbol)
-            }
-            .buttonStyle(.plain)
-            .disabled(viewModel.changedFiles.isEmpty)
-            .help(allChecked ? "Deselect all" : "Select all")
-            .accessibilityLabel(allChecked ? "Deselect all files" : "Select all files")
-            .accessibilityValue(selectionAccessibilityValue)
-
-            Text(countLabel)
-                .font(.callout.weight(.medium))
-                .contentTransition(.numericText(value: Double(filteredCount)))
-                .motion(Motion.feedback, reduceMotion: reduceMotion, value: filteredCount)
-
-            Spacer()
-        }
-        .padding(.horizontal, 12)
-        .frame(height: 30)
-        .background(.bar)
-    }
-
-    private var selectionSymbol: String {
-        allChecked ? "checkmark.square.fill" : (someChecked ? "minus.square.fill" : "square")
-    }
-
-    private var selectionAccessibilityValue: String {
-        allChecked ? "All selected" : (someChecked ? "Some selected" : "None selected")
-    }
-
-    private var countLabel: String {
-        let totalCount = viewModel.changedFilesCount
-        guard filteredCount != totalCount else {
-            return "\(filteredCount) changed \(filteredCount == 1 ? "file" : "files")"
-        }
-        return "\(filteredCount) of \(totalCount) changed \(totalCount == 1 ? "file" : "files")"
-    }
-}
-
-/// The scrollable list of changed files. Extracted from `Sidebar` so each
-/// row's callback wiring lives in its own view body.
-private struct ChangedFilesListView: View {
-    let viewModel: RepositoryStoreViewModel
-    let files: [ChangedFile]
-    let filterValue: String
-    let onRequestDiscard: (String) -> Void
-    @Environment(\.accessibilityReduceMotion) private var reduceMotion
-
-    // Maps the view model's path-based selection onto the List's id-based
-    // selection (ChangedFile.id is a composite of status + path, stable across
-    // renames). Native List selection gives keyboard arrow navigation, the
-    // focus ring, and the system selection highlight for free.
-    private var selection: Binding<ChangedFile.ID?> {
-        Binding(
-            get: { files.first { $0.path == viewModel.selectedChangedFilePath }?.id },
-            set: { newValue in
-                guard let id = newValue,
-                      let file = files.first(where: { $0.id == id }) else { return }
-                viewModel.selectChangedFile(path: file.path)
-            }
-        )
-    }
-
-    var body: some View {
-        ZStack {
-            List(selection: selection) {
-                ForEach(files) { file in
-                    ChangedFileRow(
-                        file: file,
-                        selected: file.path == viewModel.selectedChangedFilePath,
-                        checked: viewModel.isChangedFileChecked(path: file.path),
-                        recentlyToggled: viewModel.wasChangedFileRecentlyToggled(path: file.path),
-                        onToggleChecked: { viewModel.toggleChangedFileChecked(path: file.path) },
-                        onDiscardChanges: { onRequestDiscard(file.path) },
-                        onRevealInFinder: { viewModel.revealInFinder(path: file.path) },
-                        onOpenInEditor: { viewModel.openInExternalEditor(path: file.path) },
-                        onOpenWithDefault: { viewModel.openWithDefaultProgram(path: file.path) },
-                        onCopyPath: { viewModel.copyFilePath(path: file.path) },
-                        onCopyRelativePath: { viewModel.copyRelativeFilePath(path: file.path) },
-                        onIgnoreFile: { Task { await viewModel.ignoreFile(path: file.path) } },
-                        onIgnoreFolder: { folder in Task { await viewModel.ignoreFolder(folder) } },
-                        onIgnoreExtension: { Task { await viewModel.ignoreExtension(forPath: file.path) } },
-                        editorName: viewModel.selectedEditorName
-                    )
-                    .frame(maxWidth: .infinity, alignment: .leading)
-                    .listRowInsets(EdgeInsets())
-                    .listRowSeparator(.hidden)
-                    .tag(file.id)
-                }
-            }
-            .listStyle(.plain)
-            .scrollContentBackground(.hidden)
-            .animation(listAnimation, value: files.map(\.id))
-
-            if files.isEmpty, viewModel.hasLoadedChangedFilesOnce {
-                ContentUnavailableView(
-                    emptyStateTitle,
-                    systemImage: "line.3.horizontal.decrease.circle",
-                    description: Text(emptyStateDescription)
-                )
-                .transition(Motion.inlineStatus(reduceMotion: reduceMotion))
-                .allowsHitTesting(false)
-            }
-        }
-        .motion(Motion.feedback, reduceMotion: reduceMotion, value: filterValue)
-        .animation(listAnimation, value: files.isEmpty)
-    }
-
-    private var listAnimation: Animation? {
-        guard viewModel.animatesChangedFileUpdates else { return nil }
-        return Motion.resolve(Motion.feedback, reduceMotion: reduceMotion)
-    }
-
-    private var emptyStateTitle: String {
-        filterValue == "|" ? "No Changed Files" : "No Matching Files"
-    }
-
-    private var emptyStateDescription: String {
-        if filterValue == "|" {
-            return "Your working copy is clean."
-        }
-        return "Try changing or clearing the current filters."
-    }
-}
-
-private struct StashPanel: View {
-    let entry: StashEntry
-    let busy: Bool
-    let onRestore: () -> Void
-    let onDiscard: () -> Void
-
-    var body: some View {
-        VStack(alignment: .leading, spacing: 6) {
-            HStack(spacing: 6) {
-                Image(systemName: "tray.full")
-                    .font(.caption.weight(.semibold))
-                    .foregroundStyle(.secondary)
-                    .accessibilityHidden(true)
-                Text("Stashed Changes")
-                    .font(.caption.weight(.semibold))
-                    .foregroundStyle(.secondary)
-                Spacer()
-            }
-
-            Text(entry.message)
-                .font(.callout)
-                .lineLimit(2)
-
-            HStack(spacing: 8) {
-                Button("Restore", action: onRestore)
-                    .buttonStyle(.borderless)
-                    .controlSize(.small)
-                    .disabled(busy)
-                Button("Discard", role: .destructive, action: onDiscard)
-                    .buttonStyle(.borderless)
-                    .controlSize(.small)
-                    .disabled(busy)
-                Spacer()
-            }
-        }
-        .padding(10)
-        .liquidGlassBackground(fallbackMaterial: .bar)
-        .overlay(alignment: .top) { Divider() }
     }
 }

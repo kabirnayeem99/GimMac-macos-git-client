@@ -33,10 +33,14 @@ struct GitStatusParser {
                 if let file = parseUnmerged(token) { files.append(file) }
                 index += 1
             case "?":
-                files.append(makeFile(path: String(token.dropFirst(2)), status: .untracked, isStaged: false))
+                if let path = pathAfterMarker(token) {
+                    files.append(makeFile(path: path, status: .untracked, isStaged: false))
+                }
                 index += 1
             case "!":
-                files.append(makeFile(path: String(token.dropFirst(2)), status: .ignored, isStaged: false))
+                if let path = pathAfterMarker(token) {
+                    files.append(makeFile(path: path, status: .ignored, isStaged: false))
+                }
                 index += 1
             default:
                 // Header lines (`#`) or anything unrecognised.
@@ -127,6 +131,16 @@ struct GitStatusParser {
             modifiedChanges: chars[2] == "M",
             untrackedChanges: chars[3] == "U"
         )
+    }
+
+    /// Extracts the path from a `? <path>` / `! <path>` record. Drops the single
+    /// marker character and exactly one separator space, so a path that itself
+    /// begins with spaces is preserved intact.
+    private static func pathAfterMarker(_ token: String) -> String? {
+        var rest = token.dropFirst()           // drop the '?' / '!' marker
+        guard rest.first == " " else { return nil }
+        rest = rest.dropFirst()                // drop the single separator space
+        return rest.isEmpty ? nil : String(rest)
     }
 
     private static func makeFile(path: String, status: GitFileStatus, isStaged: Bool) -> ChangedFile {

@@ -665,6 +665,73 @@ final class RepositoryStoreViewModelTests: XCTestCase {
         XCTAssertNil(sut.stashGuardNeeded)
         XCTAssertNil(sut.pendingBranchName)
     }
+
+}
+
+@MainActor
+extension RepositoryStoreViewModelTests {
+    func testCanCommitChangesRequiresSelectedFilesOutsideAmendMode() {
+        let sut = makeCommitEligibilityViewModel()
+        sut.selectedRepository = Repository(url: URL(fileURLWithPath: "/tmp/repo", isDirectory: true))
+        sut.commitSummary = "Update README"
+        sut.changedFiles = [
+            ChangedFile(path: "README.md", status: .modified, oldPath: nil, isStaged: false, hasConflict: false)
+        ]
+        sut.changedFilesHandler.syncWith(sut.changedFiles)
+
+        XCTAssertTrue(sut.canCommitChanges)
+
+        sut.changedFilesHandler.deselectAll()
+
+        XCTAssertFalse(sut.canCommitChanges)
+    }
+
+    func testCanCommitChangesRequiresNonBlankSummary() {
+        let sut = makeCommitEligibilityViewModel()
+        sut.selectedRepository = Repository(url: URL(fileURLWithPath: "/tmp/repo", isDirectory: true))
+        sut.commitSummary = "   "
+        sut.changedFiles = [
+            ChangedFile(path: "README.md", status: .modified, oldPath: nil, isStaged: false, hasConflict: false)
+        ]
+        sut.changedFilesHandler.syncWith(sut.changedFiles)
+
+        XCTAssertFalse(sut.canCommitChanges)
+    }
+
+    func testCanCommitChangesBlocksUnresolvedConflicts() {
+        let sut = makeCommitEligibilityViewModel()
+        sut.selectedRepository = Repository(url: URL(fileURLWithPath: "/tmp/repo", isDirectory: true))
+        sut.commitSummary = "Resolve work"
+        sut.changedFiles = [
+            ChangedFile(path: "README.md", status: .unmerged, oldPath: nil, isStaged: false, hasConflict: true)
+        ]
+        sut.changedFilesHandler.syncWith(sut.changedFiles)
+
+        XCTAssertFalse(sut.canCommitChanges)
+    }
+
+    func testCanCommitChangesAllowsAmendWithoutSelectedFilesWhenSummaryIsPresent() {
+        let sut = makeCommitEligibilityViewModel()
+        sut.selectedRepository = Repository(url: URL(fileURLWithPath: "/tmp/repo", isDirectory: true))
+        sut.commitSummary = "Amend previous commit"
+        sut.toggleAmendMode()
+
+        XCTAssertTrue(sut.canCommitChanges)
+    }
+
+    private func makeCommitEligibilityViewModel() -> RepositoryStoreViewModel {
+        RepositoryStoreViewModel(
+            logger: GimMacLogger(),
+            inspector: MockRepositoryInspector(
+                result: .success(.valid(branch: BranchSummary(name: "main", upstream: nil, sha: "abc1234")))
+            ),
+            screenRepository: MockRepositoryScreenDataProvider(snapshot: .testSnapshot),
+            diffProvider: MockDiffProvider(),
+            commitInspector: MockCommitInspector(),
+            commitProvider: MockCommitProvider(),
+            repositoryPersistence: MockRepositoryPersistence()
+        )
+    }
 }
 
 @MainActor

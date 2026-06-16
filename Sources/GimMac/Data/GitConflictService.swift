@@ -9,6 +9,13 @@ import Foundation
 final class GitConflictService: ConflictResolutionProviding, Sendable {
     private let client: GitClientProtocol
 
+    /// Backstop timeout for `git mergetool`. The tool is interactive and blocks
+    /// until the user closes it, so this is intentionally long — it is a safety
+    /// limit for a crashed/abandoned tool, not the primary stop. Cancellation
+    /// (task cancellation propagated through the runner) is how the UI aborts a
+    /// merge-tool session promptly.
+    private static let mergeToolTimeout: TimeInterval = 3600
+
     init(client: GitClientProtocol) {
         self.client = client
     }
@@ -178,7 +185,7 @@ final class GitConflictService: ConflictResolutionProviding, Sendable {
         // the file on a clean exit. `git mergetool` blocks until the tool closes.
         _ = try await client.run(
             ["-c", "merge.tool=\(tool)", "mergetool", "--no-prompt", "--", path],
-            in: repositoryURL, timeout: 3600
+            in: repositoryURL, timeout: Self.mergeToolTimeout
         )
     }
 

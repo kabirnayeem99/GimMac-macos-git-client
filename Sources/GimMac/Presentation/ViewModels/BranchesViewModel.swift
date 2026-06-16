@@ -101,6 +101,13 @@ final class BranchesViewModel {
         self.updateFromDefaultProvider = updateFromDefaultProvider
     }
 
+    /// Local branches sorted by most-recent tip first. Used by toolbar pull-down
+    /// menus that surface a short list of switch targets without opening the full
+    /// branch browser.
+    var recentBranches: [Branch] {
+        localBranches.sorted { $0.tip.date > $1.tip.date }
+    }
+
     // MARK: - Actions
 
     func setRepository(_ url: URL?, currentBranchName: String?) {

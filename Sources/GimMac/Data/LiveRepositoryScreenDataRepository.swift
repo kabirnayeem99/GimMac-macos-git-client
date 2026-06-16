@@ -43,8 +43,8 @@ final class LiveRepositoryScreenDataRepository: RepositoryScreenDataProviding, S
         let unpushedSHAs = await readUnpushedSHAs(in: repository.url, upstream: upstream, remoteName: remoteName)
 
         let forcePushNeeded: Bool
-        if aheadBehind.0 > 0 && aheadBehind.1 > 0, let remote = remoteName {
-            forcePushNeeded = await readForcePushNeeded(remoteName: remote, in: repository.url)
+        if aheadBehind.0 > 0 && aheadBehind.1 > 0, remoteName != nil, let upstream {
+            forcePushNeeded = await readForcePushNeeded(upstream: upstream, in: repository.url)
         } else {
             forcePushNeeded = false
         }
@@ -108,18 +108,24 @@ final class LiveRepositoryScreenDataRepository: RepositoryScreenDataProviding, S
     }
 
     private func readConflictState(in repositoryURL: URL) async throws -> ConflictState {
-        let merge = (try? await gitClient.run(
-            ["rev-parse", "-q", "--verify", "MERGE_HEAD"], in: repositoryURL, timeout: 5
-        )) != nil
-        let rebase = (try? await gitClient.run(
-            ["rev-parse", "-q", "--verify", "REBASE_HEAD"], in: repositoryURL, timeout: 5
-        )) != nil
-        let cherryPick = (try? await gitClient.run(
-            ["rev-parse", "-q", "--verify", "CHERRY_PICK_HEAD"], in: repositoryURL, timeout: 5
-        )) != nil
-        if merge { return .merge }
-        if rebase { return .rebase }
-        if cherryPick { return .cherryPick }
+        // Resolve the git dir once, then probe the in-progress sentinel files
+        // directly. This replaces three separate `rev-parse` subprocesses with a
+        // single one plus cheap filesystem checks.
+        guard let gitDir = try? await gitClient.run(
+            ["rev-parse", "--git-dir"], in: repositoryURL, timeout: 5
+        ).stdout.trimmingCharacters(in: .whitespacesAndNewlines), !gitDir.isEmpty else {
+            return .none
+        }
+
+        let base = URL(fileURLWithPath: gitDir, isDirectory: true, relativeTo: repositoryURL)
+        let fileManager = FileManager.default
+        func exists(_ name: String) -> Bool {
+            fileManager.fileExists(atPath: base.appendingPathComponent(name).path)
+        }
+
+        if exists("MERGE_HEAD") { return .merge }
+        if exists("REBASE_HEAD") { return .rebase }
+        if exists("CHERRY_PICK_HEAD") { return .cherryPick }
         return .none
     }
 
@@ -129,13 +135,23 @@ final class LiveRepositoryScreenDataRepository: RepositoryScreenDataProviding, S
         return line?.components(separatedBy: "\t").first
     }
 
-    private func readForcePushNeeded(remoteName: String, in url: URL) async -> Bool {
-        let result = try? await gitClient.run(
-            ["merge-base", "--is-ancestor", remoteName, "HEAD"],
-            in: url,
-            timeout: 5
-        )
-        return result?.exitCode == 1
+    /// A force push is needed when the upstream tip is **not** an ancestor of
+    /// HEAD (history was rewritten). `merge-base --is-ancestor` exits 0 when it
+    /// is an ancestor and 1 when it is not; any other exit is an error. The bare
+    /// remote name is not a commit, so the resolved upstream ref must be passed.
+    private func readForcePushNeeded(upstream: String, in url: URL) async -> Bool {
+        do {
+            _ = try await gitClient.run(
+                ["merge-base", "--is-ancestor", upstream, "HEAD"],
+                in: url,
+                timeout: 5
+            )
+            return false
+        } catch let GitAppError.commandFailed(_, exitCode, _, _) where exitCode == 1 {
+            return true
+        } catch {
+            return false
+        }
     }
 
     private func readUnpushedSHAs(in repositoryURL: URL, upstream: String?, remoteName: String?) async -> Set<String> {

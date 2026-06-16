@@ -6,8 +6,19 @@ import SwiftUI
 struct RepositoryMenuButton: View {
     let viewModel: RepositoryStoreViewModel
     let openRepositoryAction: () -> Void
+    let newRepositoryAction: () -> Void
+    let cloneRepositoryAction: () -> Void
     let selectRepositoryAction: (UUID) -> Void
+    @State private var isShowingRepositoriesDialog = false
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
+
+    private var recentRepositories: ArraySlice<StoredRepository> {
+        viewModel.savedRepositories.prefix(4)
+    }
+
+    private var hasMoreRepositories: Bool {
+        viewModel.savedRepositories.count > recentRepositories.count
+    }
 
     private var repositoryDisplayName: String {
         viewModel.selectedRepository?.displayName ?? "No Repository"
@@ -37,27 +48,33 @@ struct RepositoryMenuButton: View {
                 Text("No Saved Repositories")
             } else {
                 Section("Recent") {
-                    ForEach(viewModel.savedRepositories) { repository in
-                        let isCurrent = repository.url.standardizedFileURL.path == selectedPath
-                        Button {
-                            selectRepositoryAction(repository.id)
-                        } label: {
-                            // Native single-line row. The leading checkmark lives in
-                            // the menu's standard selection gutter; missing repos are
-                            // tagged inline and disabled.
-                            if isCurrent {
-                                Label(rowTitle(repository), systemImage: "checkmark")
-                            } else {
-                                Text(rowTitle(repository))
-                            }
-                        }
-                        .disabled(!repository.existsOnDisk)
-                        .help(abbreviatedPath(repository.path))
+                    ForEach(Array(recentRepositories)) { repository in
+                        repositoryMenuRow(repository)
                     }
                 }
             }
 
             Divider()
+
+            if hasMoreRepositories {
+                Button("More Repositories…") {
+                    isShowingRepositoriesDialog = true
+                }
+
+                Divider()
+            }
+
+            Button("Add Local Repository…") {
+                openRepositoryAction()
+            }
+
+            Button("Clone Repository…") {
+                cloneRepositoryAction()
+            }
+
+            Button("New Repository…") {
+                newRepositoryAction()
+            }
 
             Button("Open Repository…") {
                 openRepositoryAction()
@@ -68,28 +85,59 @@ struct RepositoryMenuButton: View {
             // the picker. Borderless, with a small disclosure chevron.
             HStack(spacing: 5) {
                 Image(systemName: "folder")
-                    .font(.system(size: 13, weight: .regular))
+                    .font(.system(size: 12, weight: .regular))
                     .foregroundStyle(.secondary)
 
                 Text(repositoryDisplayName)
-                    .font(.system(size: 13, weight: .semibold))
+                    .font(.system(size: 12, weight: .semibold))
                     .foregroundStyle(.primary)
                     .lineLimit(1)
+                    .truncationMode(.middle)
                     .id(repositoryDisplayName)
                     .transition(.opacity)
 
                 Image(systemName: "chevron.down")
-                    .font(.system(size: 9, weight: .semibold))
+                    .font(.system(size: 8, weight: .semibold))
                     .foregroundStyle(.secondary)
             }
-            .frame(height: 28)
-            .padding(.horizontal, 12)
+            .frame(height: 24)
+            .padding(.horizontal, 10)
             .toolbarItemStyle()
             .motion(Motion.feedback, reduceMotion: reduceMotion, value: repositoryDisplayName)
             .help(viewModel.selectedRepository?.url.path ?? "No repository selected")
         }
         .buttonStyle(.plain)
-        .menuIndicator(.hidden) // Manual chevron is better placed
-        .fixedSize()
+        .menuIndicator(.hidden) // Manual chevron is better placed in the title-style toolbar item.
+        .frame(minWidth: 112, maxWidth: 200)
+        .accessibilityLabel("Repository")
+        .accessibilityValue(repositoryDisplayName)
+        .sheet(isPresented: $isShowingRepositoriesDialog) {
+            RepositoryPickerDialog(
+                repositories: viewModel.savedRepositories,
+                selectedPath: selectedPath,
+                openRepositoryAction: openRepositoryAction,
+                selectRepositoryAction: selectRepositoryAction,
+                abbreviatedPath: abbreviatedPath,
+                rowTitle: rowTitle
+            )
+        }
+    }
+
+    @ViewBuilder
+    private func repositoryMenuRow(_ repository: StoredRepository) -> some View {
+        let isCurrent = repository.url.standardizedFileURL.path == selectedPath
+        Button {
+            selectRepositoryAction(repository.id)
+        } label: {
+            // Native single-line row. The leading checkmark lives in the menu's
+            // standard selection gutter; missing repos are tagged inline and disabled.
+            if isCurrent {
+                Label(rowTitle(repository), systemImage: "checkmark")
+            } else {
+                Text(rowTitle(repository))
+            }
+        }
+        .disabled(!repository.existsOnDisk)
+        .help(abbreviatedPath(repository.path))
     }
 }

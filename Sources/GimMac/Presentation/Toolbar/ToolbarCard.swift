@@ -30,17 +30,3 @@ struct ToolbarCard: View {
         .help("\(title): \(value)")
     }
 }
-
-/// Applies `toolbarItemStyle()` only when `enabled`; otherwise leaves the
-/// content transparent (the host container owns the highlight).
-private struct ConditionalToolbarItemStyle: ViewModifier {
-    let enabled: Bool
-
-    func body(content: Content) -> some View {
-        if enabled {
-            content.toolbarItemStyle()
-        } else {
-            content
-        }
-    }
-}

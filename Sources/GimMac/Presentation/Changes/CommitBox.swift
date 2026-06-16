@@ -18,16 +18,35 @@ struct CommitBox: View {
     private var commitButtonAccessibilityValue: String {
         if viewModel.commitOutcome == .success { return "Commit created successfully" }
         if viewModel.isCommitting { return "Committing" }
+        if !viewModel.canCommitChanges { return commitDisabledReason }
         return "Ready"
     }
 
+    private var isCommitButtonDisabled: Bool {
+        !viewModel.canCommitChanges || viewModel.commitOutcome == .success
+    }
+
+    private var commitDisabledReason: String {
+        if viewModel.commitOutcome == .success { return "Commit created successfully." }
+        if viewModel.isCommitting { return "Commit in progress." }
+        if viewModel.selectedRepository == nil { return "Select a repository before committing." }
+        if viewModel.hasUnresolvedConflicts { return "Resolve conflicts before committing." }
+        if viewModel.commitSummary.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+            return "Enter a commit summary."
+        }
+        if !viewModel.isAmendMode && viewModel.checkedChangedFilePaths.isEmpty {
+            return "Select at least one changed file to commit."
+        }
+        return "Commit is not currently available."
+    }
+
     var body: some View {
-        VStack(alignment: .leading, spacing: 10) {
+        VStack(alignment: .leading, spacing: 6) {
             Text("Commit")
                 .font(.caption.weight(.semibold))
                 .foregroundStyle(.secondary)
 
-            HStack(alignment: .center, spacing: 10) {
+            HStack(alignment: .center, spacing: 6) {
                 Button {
                     isShowingProfile.toggle()
                 } label: {
@@ -55,7 +74,6 @@ struct CommitBox: View {
 
                 TextField("Summary (required)", text: $viewModel.commitSummary)
                     .textFieldStyle(.roundedBorder)
-                    .controlSize(.small)
                     .accessibilityLabel("Commit summary")
             }
 
@@ -93,25 +111,10 @@ struct CommitBox: View {
                 .buttonStyle(.borderedProminent)
                 .controlSize(.regular)
                 .keyboardShortcut(.return, modifiers: .command)
-                .disabled(viewModel.isCommitting || viewModel.commitOutcome == .success)
+                .disabled(isCommitButtonDisabled)
+                .help(isCommitButtonDisabled ? commitDisabledReason : "Create a commit")
                 .accessibilityLabel(commitButtonLabel)
                 .accessibilityValue(commitButtonAccessibilityValue)
-
-                Button {
-                    viewModel.toggleAmendMode()
-                } label: {
-                    Image(systemName: viewModel.isAmendMode ? "arrow.uturn.backward.circle.fill" : "arrow.uturn.backward.circle")
-                        .symbolReplacement(reduceMotion: reduceMotion)
-                        .motion(Motion.feedback, reduceMotion: reduceMotion, value: viewModel.isAmendMode)
-                }
-                .buttonStyle(.bordered)
-                .controlSize(.regular)
-                .help(viewModel.isAmendMode ? "Cancel amend" : "Amend last commit")
-                .disabled(viewModel.isCommitting || viewModel.commits.isEmpty)
-                .accessibilityLabel("Amend previous commit")
-                .accessibilityValue(viewModel.isAmendMode ? "On" : "Off")
-                .accessibilityAddTraits(viewModel.isAmendMode ? .isSelected : [])
-                .hidden()
 
                 Menu {
                     Toggle("Skip pre-commit hooks", isOn: $viewModel.skipHooks)
@@ -126,26 +129,32 @@ struct CommitBox: View {
                 .accessibilityLabel("Commit options")
             }
 
-            VStack(alignment: .leading, spacing: 4) {
-                HStack {
+            if viewModel.canUndoLastCommit {
+                VStack(alignment: .leading, spacing: 4) {
                     Text(viewModel.lastCommitSectionTitle)
+                        .font(.footnote)
                         .foregroundStyle(.secondary)
+                    HStack {
+                        Text(viewModel.lastCommitSummary)
+                            .foregroundStyle(.secondary)
+                            .font(.body)
+                        
+                        Spacer()
 
-                    Spacer()
-
-                    Button {
-                        Task { await viewModel.undoCommit() }
-                    } label: {
-                        Image(systemName: "arrow.uturn.backward")
+                        Button {
+                            Task { await viewModel.undoCommit() }
+                        } label: {
+                            Image(systemName: "arrow.uturn.backward")
+                        }
+                        .buttonStyle(.bordered)
+                        .controlSize(.small)
+                        .disabled(viewModel.isSyncing || viewModel.isCommitting || viewModel.commits.isEmpty)
+                        .help("Undo last commit")
+                        .accessibilityLabel("Undo last commit")
                     }
-                    .buttonStyle(.bordered)
-                    .controlSize(.small)
-                    .disabled(viewModel.isSyncing || viewModel.isCommitting || viewModel.commits.isEmpty)
-                    .help("Undo last commit")
-                    .accessibilityLabel("Undo last commit")
                 }
+                .font(.caption)
             }
-            .font(.caption)
         }
         .padding(12)
         .liquidGlassBackground(fallbackMaterial: .bar)
@@ -255,61 +264,4 @@ struct CommitBox: View {
             coAuthorError = "Use the format: Name <email>"
         }
     }
-}
-
-private struct CommitInlineStatusSection: View {
-    let viewModel: RepositoryStoreViewModel
-    let reduceMotion: Bool
-
-    private var state: InlineStatusState {
-        InlineStatusState(
-            hasUnresolvedConflicts: viewModel.hasUnresolvedConflicts,
-            warning: viewModel.commitWarning?.message,
-            error: viewModel.errorMessage,
-            outcome: viewModel.commitOutcome
-        )
-    }
-
-    var body: some View {
-        VStack(alignment: .leading, spacing: 4) {
-            if viewModel.hasUnresolvedConflicts {
-                Label("Resolve all conflicts before committing.", systemImage: "exclamationmark.triangle.fill")
-                    .foregroundStyle(Color(.systemOrange))
-                    .transition(Motion.inlineStatus(reduceMotion: reduceMotion))
-                    .accessibilityLabel("Commit blocked: Resolve all conflicts before committing.")
-            }
-
-            if let warning = viewModel.commitWarning {
-                Label(warning.message, systemImage: "exclamationmark.triangle")
-                    .foregroundStyle(Color(.systemOrange))
-                    .transition(Motion.inlineStatus(reduceMotion: reduceMotion))
-                    .accessibilityLabel("Commit warning: \(warning.message)")
-            }
-
-            if let error = viewModel.errorMessage {
-                Label(error, systemImage: "xmark.circle.fill")
-                    .foregroundStyle(Color(.systemRed))
-                    .transition(Motion.inlineStatus(reduceMotion: reduceMotion))
-                    .accessibilityLabel("Commit error: \(error)")
-                    .accessibilityIdentifier("statusLabel")
-            }
-
-            if viewModel.commitOutcome == .success {
-                Label("Commit created successfully.", systemImage: "checkmark.circle.fill")
-                    .foregroundStyle(Color(.systemGreen))
-                    .transition(Motion.inlineStatus(reduceMotion: reduceMotion))
-                    .accessibilityLabel("Commit status: Commit created successfully.")
-                    .accessibilityIdentifier("commitSuccessStatus")
-            }
-        }
-        .font(.caption)
-        .motion(Motion.feedback, reduceMotion: reduceMotion, value: state)
-    }
-}
-
-private struct InlineStatusState: Equatable {
-    let hasUnresolvedConflicts: Bool
-    let warning: String?
-    let error: String?
-    let outcome: OpOutcome
 }

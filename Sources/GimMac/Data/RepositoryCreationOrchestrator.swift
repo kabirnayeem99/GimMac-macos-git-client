@@ -81,9 +81,12 @@ final class RepositoryCreationOrchestrator: RepositoryCreating, Sendable {
             didScaffoldAnyFile = true
         }
 
-        // 6. .gitattributes
-        try await scaffolding.writeGitAttributes(in: directoryURL)
-        didScaffoldAnyFile = true
+        // 6. .gitattributes — only alongside other working-tree files. Writing it
+        //    unconditionally would commit an otherwise-empty repo with just
+        //    `.gitattributes`, which the user did not ask for.
+        if didScaffoldAnyFile {
+            try await scaffolding.writeGitAttributes(in: directoryURL)
+        }
 
         // 7. Initial commit — stage everything (`git add -A -- .`) and commit.
         if options.makeInitialCommit && didScaffoldAnyFile {

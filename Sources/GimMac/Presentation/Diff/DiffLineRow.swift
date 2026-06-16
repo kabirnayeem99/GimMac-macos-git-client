@@ -102,12 +102,18 @@ struct DiffLineRow: View {
         }
     }
 
-    private func highlightedTextParts(_ highlight: DiffLineHighlight) -> (prefix: String, changed: String, suffix: String) {
+    private struct HighlightedTextParts {
+        let prefix: String
+        let changed: String
+        let suffix: String
+    }
+
+    private func highlightedTextParts(_ highlight: DiffLineHighlight) -> HighlightedTextParts {
         let characters = Array(line.text)
         let start = min(highlight.location, characters.count)
         let end = min(start + highlight.length, characters.count)
 
-        return (
+        return HighlightedTextParts(
             prefix: String(characters[..<start]),
             changed: String(characters[start..<end]),
             suffix: String(characters[end...])

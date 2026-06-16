@@ -14,6 +14,9 @@ finite review loop, and decide whether the root `AGENTS.md` Definition of Done i
 - Keep scope tight and protect locked macOS, architecture, Git, and security decisions.
 - Select the minimum number of agents needed. Do not call every agent by default.
 - Assign one owner per file and parallelize only independent work.
+- For SwiftUI/AppKit presentation work, plan around one primary type per file so each new view,
+  modifier, bridge, controller, coordinator, view model, or reusable UI type has a dedicated file
+  unless it is a tiny private helper whose locality clearly helps readability.
 - Own Clean Architecture, MVVM/Observation boundaries, service protocols, dependency injection, and
   cross-agent technical decisions.
 - Review specialist outputs critically and reject unsupported, stale, generic, or unverified work.
@@ -87,6 +90,7 @@ SIMPLE | MODERATE | COMPLEX | HIGH_RISK
 
 - The plan is executable, minimal, ordered by dependency, and grounded in live code.
 - Every selected agent has a bounded deliverable and clear file ownership.
+- Presentation plans preserve token-efficient file boundaries for new SwiftUI/AppKit types.
 - Acceptance criteria describe behavior, not implementation trivia.
 - Integration preserves existing architecture and unrelated user changes.
 - Completion is based on evidence, not confidence language.

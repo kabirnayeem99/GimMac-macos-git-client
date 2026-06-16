@@ -1,4 +1,5 @@
 import AppKit
+import Observation
 import SwiftUI
 
 /// Builds and owns the window's native unified `NSToolbar`, hosting the existing
@@ -18,23 +19,31 @@ import SwiftUI
 @MainActor
 final class MainToolbarController: NSObject, NSToolbarDelegate {
     private enum ItemID {
-        static let repository = NSToolbarItem.Identifier("gimmac.toolbar.repository")
-        static let controls = NSToolbarItem.Identifier("gimmac.toolbar.controls")
+        static let navigation = NSToolbarItem.Identifier("gimmac.toolbar.navigation")
+        static let contextCluster = NSToolbarItem.Identifier("gimmac.toolbar.contextCluster")
     }
 
     private static let toolbarIdentifier = NSToolbar.Identifier("gimmac.main.toolbar")
 
     private let viewModel: RepositoryStoreViewModel
     private let openRepositoryAction: () -> Void
+    private let newRepositoryAction: () -> Void
+    private let cloneRepositoryAction: () -> Void
     private let selectRepositoryAction: (UUID) -> Void
+    private weak var tabControl: NSSegmentedControl?
+    private var isObservingToolbarState = false
 
     init(
         viewModel: RepositoryStoreViewModel,
         openRepositoryAction: @escaping () -> Void,
+        newRepositoryAction: @escaping () -> Void,
+        cloneRepositoryAction: @escaping () -> Void,
         selectRepositoryAction: @escaping (UUID) -> Void
     ) {
         self.viewModel = viewModel
         self.openRepositoryAction = openRepositoryAction
+        self.newRepositoryAction = newRepositoryAction
+        self.cloneRepositoryAction = cloneRepositoryAction
         self.selectRepositoryAction = selectRepositoryAction
         super.init()
     }
@@ -60,13 +69,11 @@ final class MainToolbarController: NSObject, NSToolbarDelegate {
     // MARK: - NSToolbarDelegate
 
     func toolbarDefaultItemIdentifiers(_ toolbar: NSToolbar) -> [NSToolbarItem.Identifier] {
-        // Repository name leads (window subject, like Finder's folder title);
-        // flexible space pushes the branch/sync icon buttons to the trailing edge.
-        [ItemID.repository, .flexibleSpace, ItemID.controls]
+        [.flexibleSpace, ItemID.navigation, ItemID.contextCluster]
     }
 
     func toolbarAllowedItemIdentifiers(_ toolbar: NSToolbar) -> [NSToolbarItem.Identifier] {
-        [ItemID.repository, .flexibleSpace, ItemID.controls]
+        [.flexibleSpace, ItemID.navigation, ItemID.contextCluster]
     }
 
     func toolbar(
@@ -75,21 +82,79 @@ final class MainToolbarController: NSObject, NSToolbarDelegate {
         willBeInsertedIntoToolbar flag: Bool
     ) -> NSToolbarItem? {
         switch itemIdentifier {
-        case ItemID.repository:
+        case ItemID.navigation:
+            return makeNavigationItem(identifier: itemIdentifier)
+        case ItemID.contextCluster:
             return makeHostedItem(identifier: itemIdentifier) {
-                RepositoryMenuButton(
+                ContextToolbarCluster(
                     viewModel: self.viewModel,
                     openRepositoryAction: self.openRepositoryAction,
+                    newRepositoryAction: self.newRepositoryAction,
+                    cloneRepositoryAction: self.cloneRepositoryAction,
                     selectRepositoryAction: self.selectRepositoryAction
                 )
-            }
-        case ItemID.controls:
-            return makeHostedItem(identifier: itemIdentifier) {
-                TrailingToolbarControls(viewModel: self.viewModel)
             }
         default:
             return nil
         }
+    }
+
+    private func makeNavigationItem(identifier: NSToolbarItem.Identifier) -> NSToolbarItem {
+        let control = NSSegmentedControl(
+            labels: ["Changes", "History"],
+            trackingMode: .selectOne,
+            target: self,
+            action: #selector(tabControlChanged(_:))
+        )
+        control.segmentStyle = .rounded
+        control.controlSize = .small
+        control.setImage(
+            NSImage(systemSymbolName: "tray.full", accessibilityDescription: nil),
+            forSegment: 0
+        )
+        control.setImage(
+            NSImage(systemSymbolName: "clock.arrow.circlepath", accessibilityDescription: nil),
+            forSegment: 1
+        )
+        control.setWidth(92, forSegment: 0)
+        control.setWidth(88, forSegment: 1)
+        control.toolTip = "Switch between Changes and History"
+        control.setAccessibilityLabel("Repository view")
+        tabControl = control
+        renderToolbarState()
+        observeToolbarState()
+
+        let item = NSToolbarItem(itemIdentifier: identifier)
+        item.label = "Repository View"
+        item.paletteLabel = "Repository View"
+        item.view = control
+        return item
+    }
+
+    @objc private func tabControlChanged(_ sender: NSSegmentedControl) {
+        guard sender.selectedSegment >= 0 else { return }
+        viewModel.viewTab = sender.selectedSegment
+    }
+
+    private func observeToolbarState() {
+        guard !isObservingToolbarState else { return }
+        isObservingToolbarState = true
+        withObservationTracking { [weak self] in
+            guard let self else { return }
+            _ = self.viewModel.viewTab
+            _ = self.viewModel.selectedRepository
+        } onChange: { [weak self] in
+            Task { @MainActor in
+                self?.isObservingToolbarState = false
+                self?.renderToolbarState()
+                self?.observeToolbarState()
+            }
+        }
+    }
+
+    private func renderToolbarState() {
+        tabControl?.selectedSegment = viewModel.viewTab
+        tabControl?.isEnabled = viewModel.selectedRepository != nil
     }
 
     // MARK: - Hosting
@@ -111,26 +176,5 @@ final class MainToolbarController: NSObject, NSToolbarDelegate {
         let item = NSToolbarItem(itemIdentifier: identifier)
         item.view = hosting
         return item
-    }
-}
-
-/// Trailing icon buttons (branch picker + push/sync), laid out by SwiftUI inside
-/// the trailing hosted toolbar item. The push/sync card keeps its layout slot
-/// when hidden so changes to `showSyncBar` never move the branch control.
-private struct TrailingToolbarControls: View {
-    let viewModel: RepositoryStoreViewModel
-    @Environment(\.accessibilityReduceMotion) private var reduceMotion
-
-    var body: some View {
-        HStack(spacing: 6) {
-            BranchToolbarButton(viewModel: viewModel)
-
-            SyncMenuButton(viewModel: viewModel)
-                .opacity(viewModel.showSyncBar ? 1 : 0)
-                .allowsHitTesting(viewModel.showSyncBar)
-                .accessibilityHidden(!viewModel.showSyncBar)
-                .motion(Motion.spatial, reduceMotion: reduceMotion, value: viewModel.showSyncBar)
-        }
-        .fixedSize()
     }
 }

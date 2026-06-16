@@ -80,6 +80,10 @@ Use the minimum number of agents needed to complete the task well. Do not call e
 - Prefer small, focused, reviewable changes.
 - Do not rewrite unrelated code or replace working architecture without a demonstrated need.
 - Match existing patterns before adding abstractions or dependencies.
+- Prefer one primary Swift type per file, especially under `Sources/GimMac/Presentation`. Create a
+  dedicated file for each new SwiftUI `View`, `ViewModifier`, `PreferenceKey`, AppKit bridge,
+  controller, coordinator, view model, or other reusable UI type so agents can reference compact files
+  and symbols directly.
 - Keep one owner per file during parallel work.
 - Run independent specialist tasks in parallel only when they do not overlap.
 - Senior Engineer and Tester provide quality control; Engineering Lead owns final integration.
@@ -311,6 +315,9 @@ A task is not done until:
 - Swift concurrency isolation and `Sendable` requirements are respected; do not silence warnings.
 - SwiftUI state ownership uses the smallest correct wrapper and does not create duplicate sources of
   truth. Existing Observation patterns take precedence over introducing Combine.
+- SwiftUI and AppKit presentation code is split into token-efficient files by primary type. Tiny
+  private helper views may stay with their parent only when they are not reused, do not obscure the
+  parent's behavior, and keeping them inline improves locality.
 - AppKit delegates are normally weak; retained closures avoid reference cycles.
 - Core Data work uses the correct context/queue and does not leak persistence details into Domain.
 - Native controls, system colors, keyboard navigation, VoiceOver labels, dark mode, localization, and

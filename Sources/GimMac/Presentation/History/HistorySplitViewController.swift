@@ -1,5 +1,4 @@
 import AppKit
-import SwiftUI
 
 /// Native three-pane layout for the History tab.
 ///
@@ -16,7 +15,7 @@ final class HistorySplitViewController: RepositorySplitViewController {
 
         // Commit-list pane — vibrant `.sidebar` material, system-managed.
         let sidebarHost = makeHostingController(
-            CommitHistorySidebar(selectedTab: viewTabBinding, viewModel: viewModel)
+            CommitHistorySidebar(viewModel: viewModel)
         )
         let sidebarItem = NSSplitViewItem(sidebarWithViewController: sidebarHost)
         sidebarItem.canCollapse = true
@@ -44,29 +43,4 @@ final class HistorySplitViewController: RepositorySplitViewController {
         addSplitViewItem(diffItem)
     }
 
-}
-
-/// Diff pane of the History split. Solid window background keeps diff text
-/// legible (vibrant material is intentionally limited to the commit-list pane).
-private struct HistoryDiffContent: View {
-    let viewModel: RepositoryStoreViewModel
-
-    var body: some View {
-        DiffViewer(viewModel: viewModel, source: .history)
-            .frame(maxWidth: .infinity, maxHeight: .infinity)
-            .background(Color(NSColor.windowBackgroundColor))
-    }
-}
-
-/// Bridges the native History split into the SwiftUI `RepositoryScreen` shell.
-struct HistorySplitView: NSViewControllerRepresentable {
-    let viewModel: RepositoryStoreViewModel
-
-    func makeNSViewController(context: Context) -> HistorySplitViewController {
-        HistorySplitViewController(viewModel: viewModel)
-    }
-
-    func updateNSViewController(_ nsViewController: HistorySplitViewController, context: Context) {
-        // Panes observe the view model directly; nothing to push on update.
-    }
 }

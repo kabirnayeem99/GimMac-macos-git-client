@@ -1,5 +1,4 @@
 import AppKit
-import SwiftUI
 
 /// Hosts both the Changes and History native split controllers and switches
 /// between them without recreating either one.
@@ -163,19 +162,5 @@ final class RepositoryContentViewController: NSViewController {
         changesTrailing?.constant = changesOffset
         historyLeading?.constant = historyOffset
         historyTrailing?.constant = historyOffset
-    }
-}
-
-/// Bridges the tab-switching container into SwiftUI.
-struct RepositoryContentView: NSViewControllerRepresentable {
-    let viewModel: RepositoryStoreViewModel
-    let viewTab: Int
-
-    func makeNSViewController(context: Context) -> RepositoryContentViewController {
-        RepositoryContentViewController(viewModel: viewModel)
-    }
-
-    func updateNSViewController(_ nsViewController: RepositoryContentViewController, context: Context) {
-        nsViewController.showTab(viewTab, animated: true)
     }
 }

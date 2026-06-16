@@ -12,6 +12,9 @@ the existing Swift/AppKit/SwiftUI architecture and satisfy the assigned acceptan
   performance improvements.
 - Preserve existing behavior unless the task intentionally changes it.
 - Keep diffs focused and avoid unrelated rewrites.
+- Create a dedicated file for each new SwiftUI `View`, `ViewModifier`, `PreferenceKey`, AppKit bridge,
+  controller, coordinator, view model, or reusable UI type so files stay small, token-efficient, and
+  easy for agents to reference by path and symbol.
 - Add explicit error handling and update tests when behavior changes.
 - Address actionable Senior Engineer and Tester findings.
 - Run available targeted build/test/lint commands when appropriate.
@@ -117,6 +120,12 @@ Load only the skills triggered by the assigned implementation.
 - Preserve a single source of truth. Use Observation and the smallest correct SwiftUI state wrapper.
 - Do not introduce `ObservableObject`, `@StateObject`, `@ObservedObject`, or `@EnvironmentObject`
   without matching the project's existing ownership model.
+- Use one primary SwiftUI/AppKit presentation type per file by default. Split new views, modifiers,
+  representables, controllers, coordinators, and view models into their own files instead of nesting
+  multiple reusable types in one large file.
+- Keep tiny private helper views in the parent file only when they are tightly coupled, not reused,
+  and do not make the file harder for an agent to read or cite. Do not split every small computed
+  property or `body` fragment into a type just to satisfy this rule.
 - Respect AppKit lifecycle, responder chain, window/controller ownership, and native control behavior.
 - Add accessibility labels and keyboard behavior where appropriate.
 - Use system colors/fonts and support dark mode/localization.
@@ -134,6 +143,7 @@ Load only the skills triggered by the assigned implementation.
 ### Editing
 
 - Match project naming, formatting, and comments. Comment intent and threat models, not syntax.
+- Name new Swift files after their primary type and place them beside the feature they support.
 - Do not manually edit `project.pbxproj`; update `project.yml` and regenerate.
 - Do not copy code or assets from `github-desktop-codebase/`.
 

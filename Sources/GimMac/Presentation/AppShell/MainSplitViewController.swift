@@ -16,6 +16,12 @@ final class MainSplitViewController: NSViewController {
         openRepositoryAction: { [weak self] in
             self?.openRepositoryTapped()
         },
+        newRepositoryAction: { [weak self] in
+            self?.menuNewRepository(nil)
+        },
+        cloneRepositoryAction: { [weak self] in
+            self?.menuCloneRepository(nil)
+        },
         selectRepositoryAction: { [weak self] id in
             Task {
                 await self?.viewModel.selectPersistedRepository(id: id)

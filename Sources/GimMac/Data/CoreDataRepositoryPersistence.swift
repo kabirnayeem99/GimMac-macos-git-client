@@ -1,10 +1,13 @@
 import CoreData
 import Foundation
 
-private enum RepositoryEntity {
+internal enum RepositoryEntity {
     static let name = "RepositoryRecord"
 }
 
+/// Core Data-backed persistence for recently-opened repositories. Loads its own
+/// managed-object model programmatically so the model file does not need to be
+/// bundled as a resource.
 final class CoreDataRepositoryPersistence: RepositoryPersistenceProviding, @unchecked Sendable {
     private let container: NSPersistentContainer
     private let gitClient: GitClientProtocol
@@ -32,13 +35,37 @@ final class CoreDataRepositoryPersistence: RepositoryPersistenceProviding, @unch
         description.shouldInferMappingModelAutomatically = true
         description.shouldMigrateStoreAutomatically = true
         container.persistentStoreDescriptions = [description]
+
+        // SQLite store loads synchronously, so the completion handler runs before
+        // `loadPersistentStores` returns and we can capture any failure here.
+        var loadFailure: Error?
         container.loadPersistentStores { _, error in
-            if let error {
-                assertionFailure("Failed to load repository store: \(error)")
-            }
+            loadFailure = error
         }
+        // A corrupt or incompatible on-disk store should not crash the app
+        // (`assertionFailure` aborts debug builds). Destroy the backing files and
+        // reload once; if it still fails, persistence is degraded but reads/writes
+        // surface as thrown errors that callers already handle.
+        if loadFailure != nil, !inMemory, let storeURL = description.url {
+            Self.destroyStore(at: storeURL)
+            container.loadPersistentStores { _, _ in }
+        }
+
         container.viewContext.mergePolicy = NSMergePolicy(merge: .mergeByPropertyObjectTrumpMergePolicyType)
         container.viewContext.automaticallyMergesChangesFromParent = true
+    }
+
+    /// Removes a SQLite store and its WAL/SHM sidecar files so a fresh store can
+    /// be created in its place.
+    private static func destroyStore(at storeURL: URL) {
+        let fileManager = FileManager.default
+        for suffix in ["", "-wal", "-shm"] {
+            let url = suffix.isEmpty
+                ? storeURL
+                : storeURL.deletingLastPathComponent()
+                    .appendingPathComponent(storeURL.lastPathComponent + suffix)
+            try? fileManager.removeItem(at: url)
+        }
     }
 
     func saveOrUpdateRepository(path: String) async throws -> StoredRepository {
@@ -172,14 +199,9 @@ final class CoreDataRepositoryPersistence: RepositoryPersistenceProviding, @unch
         }
     }
 
-    private func canonicalize(_ path: String) -> String {
-        URL(fileURLWithPath: path, isDirectory: true)
-            .resolvingSymlinksInPath()
-            .standardizedFileURL
-            .path
-    }
-
-    private func performRead<T>(_ block: @Sendable @escaping (NSManagedObjectContext) throws -> T) async throws -> T {
+    private func performRead<T>(
+        _ block: @Sendable @escaping (NSManagedObjectContext) throws -> T
+    ) async throws -> T {
         try await withCheckedThrowingContinuation { continuation in
             container.performBackgroundTask { context in
                 do {
@@ -191,7 +213,9 @@ final class CoreDataRepositoryPersistence: RepositoryPersistenceProviding, @unch
         }
     }
 
-    private func performWrite<T>(_ block: @Sendable @escaping (NSManagedObjectContext) throws -> T) async throws -> T {
+    private func performWrite<T>(
+        _ block: @Sendable @escaping (NSManagedObjectContext) throws -> T
+    ) async throws -> T {
         try await withCheckedThrowingContinuation { continuation in
             container.performBackgroundTask { context in
                 do {
@@ -202,67 +226,5 @@ final class CoreDataRepositoryPersistence: RepositoryPersistenceProviding, @unch
                 }
             }
         }
-    }
-
-    private static func toStoredRepository(_ object: NSManagedObject) -> StoredRepository {
-        let path = object.value(forKey: "path") as? String ?? ""
-        return StoredRepository(
-            id: object.value(forKey: "id") as? UUID ?? UUID(),
-            name: object.value(forKey: "name") as? String ?? URL(fileURLWithPath: path).lastPathComponent,
-            path: path,
-            gitIdentifier: object.value(forKey: "gitIdentifier") as? String,
-            currentlySelected: object.value(forKey: "currentlySelected") as? Bool ?? false,
-            lastOpenedAt: object.value(forKey: "lastOpenedAt") as? Date ?? .distantPast,
-            createdAt: object.value(forKey: "createdAt") as? Date ?? .distantPast,
-            updatedAt: object.value(forKey: "updatedAt") as? Date ?? .distantPast,
-            existsOnDisk: FileManager.default.fileExists(atPath: path)
-        )
-    }
-
-    private static func makeModel() -> NSManagedObjectModel {
-        let model = NSManagedObjectModel()
-        let entity = NSEntityDescription()
-        entity.name = RepositoryEntity.name
-        entity.managedObjectClassName = NSStringFromClass(NSManagedObject.self)
-
-        func attribute(
-            _ name: String,
-            type: NSAttributeType,
-            optional: Bool
-        ) -> NSAttributeDescription {
-            let attr = NSAttributeDescription()
-            attr.name = name
-            attr.attributeType = type
-            attr.isOptional = optional
-            return attr
-        }
-
-        let id = attribute("id", type: .UUIDAttributeType, optional: false)
-        let name = attribute("name", type: .stringAttributeType, optional: false)
-        let path = attribute("path", type: .stringAttributeType, optional: false)
-        let gitIdentifier = attribute("gitIdentifier", type: .stringAttributeType, optional: true)
-        let currentlySelected = attribute("currentlySelected", type: .booleanAttributeType, optional: false)
-        let lastOpenedAt = attribute("lastOpenedAt", type: .dateAttributeType, optional: false)
-        let createdAt = attribute("createdAt", type: .dateAttributeType, optional: false)
-        let updatedAt = attribute("updatedAt", type: .dateAttributeType, optional: false)
-
-        entity.properties = [id, name, path, gitIdentifier, currentlySelected, lastOpenedAt, createdAt, updatedAt]
-        entity.uniquenessConstraints = [["path"]]
-        entity.indexes = [
-            NSFetchIndexDescription(
-                name: "idx_path",
-                elements: [NSFetchIndexElementDescription(property: path, collationType: .binary)]
-            ),
-            NSFetchIndexDescription(
-                name: "idx_last_opened_at",
-                elements: [NSFetchIndexElementDescription(property: lastOpenedAt, collationType: .binary)]
-            ),
-            NSFetchIndexDescription(
-                name: "idx_currently_selected",
-                elements: [NSFetchIndexElementDescription(property: currentlySelected, collationType: .binary)]
-            )
-        ]
-        model.entities = [entity]
-        return model
     }
 }

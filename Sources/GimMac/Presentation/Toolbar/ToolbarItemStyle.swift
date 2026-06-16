@@ -11,13 +11,13 @@ struct ToolbarItemStyle: ViewModifier {
     func body(content: Content) -> some View {
         content
             .background(
-                RoundedRectangle(cornerRadius: 6, style: .continuous)
+                RoundedRectangle(cornerRadius: 5, style: .continuous)
                     .fill(Color.primary.opacity(highlightOpacity))
             )
             // Keep the whole rounded rect clickable, including the transparent
             // rest state, so hover/press track the full button — matching the
             // borderless Finder toolbar button hit area.
-            .contentShape(RoundedRectangle(cornerRadius: 6, style: .continuous))
+            .contentShape(RoundedRectangle(cornerRadius: 5, style: .continuous))
             .opacity(isEnabled ? 1.0 : 0.45)
             .onHover { isHovered = $0 }
             .onLongPressGesture(minimumDuration: 0, pressing: { isPressed = $0 }, perform: {})

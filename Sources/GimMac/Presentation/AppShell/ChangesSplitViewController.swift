@@ -1,5 +1,4 @@
 import AppKit
-import SwiftUI
 
 /// Native two-pane layout for the Changes tab.
 ///
@@ -23,7 +22,7 @@ final class ChangesSplitViewController: RepositorySplitViewController {
         // NSVisualEffectView needed. The SwiftUI content is hosted with a
         // clear background so the material reads through.
         let sidebarHost = makeHostingController(
-            Sidebar(selectedTab: viewTabBinding, viewModel: viewModel)
+            Sidebar(viewModel: viewModel)
         )
         let sidebarItem = NSSplitViewItem(sidebarWithViewController: sidebarHost)
         sidebarItem.canCollapse = true
@@ -41,37 +40,4 @@ final class ChangesSplitViewController: RepositorySplitViewController {
         addSplitViewItem(contentItem)
     }
 
-}
-
-/// Content pane of the Changes split. Switches between the diff viewer and the
-/// summary/empty content based on `changedFilesCount`; the `@Observable`
-/// view model drives re-rendering. A solid window background keeps diff text
-/// legible (the vibrant material is intentionally limited to the sidebar).
-private struct ChangesContentView: View {
-    let viewModel: RepositoryStoreViewModel
-
-    var body: some View {
-        Group {
-            if viewModel.changedFilesCount > 0 {
-                DiffViewer(viewModel: viewModel)
-            } else {
-                MainContent(viewModel: viewModel)
-            }
-        }
-        .frame(maxWidth: .infinity, maxHeight: .infinity)
-        .background(Color(NSColor.windowBackgroundColor))
-    }
-}
-
-/// Bridges the native Changes split into the SwiftUI `RepositoryScreen` shell.
-struct ChangesSplitView: NSViewControllerRepresentable {
-    let viewModel: RepositoryStoreViewModel
-
-    func makeNSViewController(context: Context) -> ChangesSplitViewController {
-        ChangesSplitViewController(viewModel: viewModel)
-    }
-
-    func updateNSViewController(_ nsViewController: ChangesSplitViewController, context: Context) {
-        // Panes observe the view model directly; nothing to push on update.
-    }
 }
