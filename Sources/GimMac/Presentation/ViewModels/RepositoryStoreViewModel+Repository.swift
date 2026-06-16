@@ -49,6 +49,7 @@ extension RepositoryStoreViewModel {
         stashEntry = nil
         errorMessage = nil
         diffHandler.clearSelection()
+        diffHandler.clearCache()
         historyHandler.clearSelection()
         changedFilesHandler.resetForRepositoryChange()
         commitForm.reset()

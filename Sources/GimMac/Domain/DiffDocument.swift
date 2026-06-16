@@ -4,6 +4,7 @@ enum DiffDocumentLineKind: Sendable {
     case context
     case added
     case removed
+    case hunk
 }
 
 struct DiffDocumentLine: Sendable {

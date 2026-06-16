@@ -78,6 +78,7 @@ struct ChangedFileRow: View {
                 .font(.callout.weight(selected ? .semibold : .regular))
                 .foregroundStyle(selected ? .primary : .secondary)
                 .lineLimit(1)
+                .truncationMode(.middle)
                 .motion(Motion.snappy, reduceMotion: reduceMotion, value: selected)
 
             Spacer()

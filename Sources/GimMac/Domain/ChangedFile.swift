@@ -15,7 +15,7 @@ enum GitFileStatus: String, Sendable {
 /// Sub-status for a changed file that is itself a git submodule, derived from the
 /// porcelain v2 `<sub>` field (`S<c><m><u>`). Mirrors GitHub Desktop's
 /// `SubmoduleStatus` (`models/status.ts`). `nil` on a normal file.
-struct SubmoduleStatus: Equatable, Sendable {
+struct SubmoduleStatus: Equatable, Hashable, Sendable {
     /// The submodule's checked-out commit differs from the gitlink (`c == 'C'`).
     let commitChanged: Bool
     /// The submodule has tracked, modified content (`m == 'M'`).

@@ -57,20 +57,6 @@ struct CommitBox: View {
                     .textFieldStyle(.roundedBorder)
                     .controlSize(.small)
                     .accessibilityLabel("Commit summary")
-                    .safeAreaInset(edge: .trailing, spacing: 0) {
-                        Text("\(viewModel.summaryCharacterCount)")
-                            .font(.caption2)
-                            .monospacedDigit()
-                            .foregroundStyle(viewModel.summaryExceedsRecommendedLength ? Color(.systemRed) : Color.secondary)
-                            .contentTransition(.interpolate)
-                            .motion(
-                                Motion.feedback,
-                                reduceMotion: reduceMotion,
-                                value: viewModel.summaryExceedsRecommendedLength
-                            )
-                            .padding(.trailing, 6)
-                            .accessibilityHidden(true)
-                    }
             }
 
             TextField("Description", text: $viewModel.commitDescription, axis: .vertical)
@@ -125,6 +111,7 @@ struct CommitBox: View {
                 .accessibilityLabel("Amend previous commit")
                 .accessibilityValue(viewModel.isAmendMode ? "On" : "Off")
                 .accessibilityAddTraits(viewModel.isAmendMode ? .isSelected : [])
+                .hidden()
 
                 Menu {
                     Toggle("Skip pre-commit hooks", isOn: $viewModel.skipHooks)
@@ -146,17 +133,17 @@ struct CommitBox: View {
 
                     Spacer()
 
-                    Button("Undo") {
+                    Button {
                         Task { await viewModel.undoCommit() }
+                    } label: {
+                        Image(systemName: "arrow.uturn.backward")
                     }
-                    .buttonStyle(.borderless)
+                    .buttonStyle(.bordered)
                     .controlSize(.small)
                     .disabled(viewModel.isSyncing || viewModel.isCommitting || viewModel.commits.isEmpty)
+                    .help("Undo last commit")
+                    .accessibilityLabel("Undo last commit")
                 }
-
-                Text(viewModel.lastCommitSummary)
-                    .font(.callout.weight(.semibold))
-                    .lineLimit(1)
             }
             .font(.caption)
         }

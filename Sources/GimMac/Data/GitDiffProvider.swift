@@ -214,8 +214,14 @@ final class GitDiffProvider: DiffProviding, Sendable {
             return DiffDocument(filePath: path, lines: [])
         }
 
-        let lines = parsedFile.hunks.flatMap { hunk in
-            hunk.lines.map { parsed in
+        let lines = parsedFile.hunks.flatMap { hunk -> [DiffDocumentLine] in
+            let header = DiffDocumentLine(
+                kind: .hunk,
+                oldNumber: nil,
+                newNumber: nil,
+                text: hunk.header
+            )
+            let content = hunk.lines.map { parsed in
                 let kind: DiffDocumentLineKind
                 switch parsed.type {
                 case .context:
@@ -233,6 +239,7 @@ final class GitDiffProvider: DiffProviding, Sendable {
                     text: parsed.content
                 )
             }
+            return [header] + content
         }
 
         return DiffDocument(filePath: parsedFile.path, lines: lines)

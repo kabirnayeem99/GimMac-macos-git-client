@@ -26,7 +26,7 @@ struct DiffViewer: View {
     }
 
     private var lines: [DiffLine] {
-        document.lines.map { line in
+        let mappedLines = document.lines.map { line in
             let kind: DiffKind
             switch line.kind {
             case .context:
@@ -35,15 +35,20 @@ struct DiffViewer: View {
                 kind = .added
             case .removed:
                 kind = .removed
+            case .hunk:
+                kind = .hunk
             }
 
             return DiffLine(
                 kind: kind,
                 oldNumber: line.oldNumber,
                 newNumber: line.newNumber,
-                text: line.text
+                text: line.text,
+                highlight: nil
             )
         }
+
+        return DiffLineHighlighter.highlighted(mappedLines)
     }
 
     private var contentIdentity: String {
@@ -70,7 +75,7 @@ struct DiffViewer: View {
                 removedCount: document.removedCount
             )
 
-            ZStack {
+            ZStack(alignment: .topLeading) {
                 diffContent
                     .id(contentIdentity)
                     .transition(Motion.contentCrossfade(reduceMotion: reduceMotion))
@@ -79,6 +84,7 @@ struct DiffViewer: View {
             .motion(Motion.spatial, reduceMotion: reduceMotion, value: contentIdentity)
             .background(Color(nsColor: .textBackgroundColor))
         }
+        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
     }
 
     @ViewBuilder
@@ -127,6 +133,7 @@ struct DiffViewer: View {
                 .frame(maxWidth: .infinity, alignment: .topLeading)
             }
             .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
+            .defaultScrollAnchor(.topLeading)
             .transition(.opacity)
         }
     }

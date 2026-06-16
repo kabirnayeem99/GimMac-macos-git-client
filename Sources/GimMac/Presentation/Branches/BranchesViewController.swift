@@ -249,66 +249,6 @@ final class BranchesViewController: NSViewController {
         Task { await viewModel.switchBranch(to: branch) }
     }
 
-    // MARK: - Context menu
-
-    private func makeContextMenu() -> NSMenu {
-        let menu = NSMenu()
-        menu.delegate = self
-        menu.addItem(withTitle: "Switch to Branch", action: #selector(menuSwitchBranch(_:)), keyEquivalent: "")
-        menu.addItem(withTitle: "Rename…", action: #selector(menuRenameBranch(_:)), keyEquivalent: "")
-        menu.addItem(withTitle: "Delete…", action: #selector(menuDeleteBranch(_:)), keyEquivalent: "")
-        menu.addItem(.separator())
-        menu.addItem(withTitle: "Compare with Current Branch…", action: #selector(menuCompareBranch(_:)), keyEquivalent: "")
-        menu.addItem(withTitle: "Update from Default Branch…", action: #selector(menuUpdateFromDefault(_:)), keyEquivalent: "")
-        menu.addItem(.separator())
-        menu.addItem(withTitle: "Copy Name", action: #selector(menuCopyName(_:)), keyEquivalent: "")
-        for item in menu.items { item.target = self }
-        return menu
-    }
-
-    private func clickedOrSelectedBranch() -> Branch? {
-        let row = tableView.clickedRow >= 0 ? tableView.clickedRow : tableView.selectedRow
-        guard renderedBranches.indices.contains(row) else { return nil }
-        return renderedBranches[row]
-    }
-
-    @objc private func menuSwitchBranch(_ sender: Any?) {
-        guard let branch = clickedOrSelectedBranch() else { return }
-        Task { await viewModel.switchBranch(to: branch) }
-    }
-
-    @objc private func menuRenameBranch(_ sender: Any?) {
-        guard let branch = clickedOrSelectedBranch() else { return }
-        dialogPresenter.presentRenameBranch(for: branch)
-    }
-
-    @objc private func menuDeleteBranch(_ sender: Any?) {
-        guard let branch = clickedOrSelectedBranch() else { return }
-        dialogPresenter.presentDeleteBranch(for: branch)
-    }
-
-    @objc private func menuCompareBranch(_ sender: Any?) {
-        guard let compareBranch = clickedOrSelectedBranch() else { return }
-        dialogPresenter.presentCompareToBranch(for: compareBranch)
-    }
-
-    @objc private func menuUpdateFromDefault(_ sender: Any?) {
-        guard let branch = clickedOrSelectedBranch() ?? localCurrentBranch() else { return }
-        dialogPresenter.presentUpdateFromDefault(for: branch)
-    }
-
-    private func localCurrentBranch() -> Branch? {
-        guard let name = viewModel.currentBranchName else { return nil }
-        return viewModel.localBranches.first { $0.name == name }
-    }
-
-    @objc private func menuCopyName(_ sender: Any?) {
-        guard let branch = clickedOrSelectedBranch() else { return }
-        let pb = NSPasteboard.general
-        pb.clearContents()
-        pb.setString(branch.name, forType: .string)
-    }
-
     // MARK: - Stash guard
 
     private var stashGuardPresented = false
@@ -343,6 +283,68 @@ private extension BranchesViewController {
         let isPending = branch.name == viewModel.pendingBranchName
         let showSuccess = viewModel.lastOutcome == .success && isCurrent
         cell.configure(with: branch, isCurrent: isCurrent, isPending: isPending, showSuccess: showSuccess)
+    }
+}
+
+// MARK: - Context menu
+
+private extension BranchesViewController {
+    func makeContextMenu() -> NSMenu {
+        let menu = NSMenu()
+        menu.delegate = self
+        menu.addItem(withTitle: "Switch to Branch", action: #selector(menuSwitchBranch(_:)), keyEquivalent: "")
+        menu.addItem(withTitle: "Rename…", action: #selector(menuRenameBranch(_:)), keyEquivalent: "")
+        menu.addItem(withTitle: "Delete…", action: #selector(menuDeleteBranch(_:)), keyEquivalent: "")
+        menu.addItem(.separator())
+        menu.addItem(withTitle: "Compare with Current Branch…", action: #selector(menuCompareBranch(_:)), keyEquivalent: "")
+        menu.addItem(withTitle: "Update from Default Branch…", action: #selector(menuUpdateFromDefault(_:)), keyEquivalent: "")
+        menu.addItem(.separator())
+        menu.addItem(withTitle: "Copy Name", action: #selector(menuCopyName(_:)), keyEquivalent: "")
+        for item in menu.items { item.target = self }
+        return menu
+    }
+
+    func clickedOrSelectedBranch() -> Branch? {
+        let row = tableView.clickedRow >= 0 ? tableView.clickedRow : tableView.selectedRow
+        guard renderedBranches.indices.contains(row) else { return nil }
+        return renderedBranches[row]
+    }
+
+    @objc func menuSwitchBranch(_ sender: Any?) {
+        guard let branch = clickedOrSelectedBranch() else { return }
+        Task { await viewModel.switchBranch(to: branch) }
+    }
+
+    @objc func menuRenameBranch(_ sender: Any?) {
+        guard let branch = clickedOrSelectedBranch() else { return }
+        dialogPresenter.presentRenameBranch(for: branch)
+    }
+
+    @objc func menuDeleteBranch(_ sender: Any?) {
+        guard let branch = clickedOrSelectedBranch() else { return }
+        dialogPresenter.presentDeleteBranch(for: branch)
+    }
+
+    @objc func menuCompareBranch(_ sender: Any?) {
+        guard let compareBranch = clickedOrSelectedBranch() else { return }
+        dialogPresenter.presentCompareToBranch(for: compareBranch)
+    }
+
+    @objc func menuUpdateFromDefault(_ sender: Any?) {
+        guard let branch = clickedOrSelectedBranch() ?? localCurrentBranch() else { return }
+        dialogPresenter.presentUpdateFromDefault(for: branch)
+    }
+
+    func localCurrentBranch() -> Branch? {
+        guard let name = viewModel.currentBranchName else { return nil }
+        return viewModel.localBranches.first { $0.name == name }
+    }
+
+    @objc func menuCopyName(_ sender: Any?) {
+        guard let branch = clickedOrSelectedBranch() else { return }
+        let pb = NSPasteboard.general
+        pb.clearContents()
+        pb.setString(branch.name, forType: .string)
     }
 }
 

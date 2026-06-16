@@ -9,9 +9,9 @@ import XCTest
 /// SUT: `GitDiffProvider.fetchDiff(in:for:oldPath:)` (combined `git diff -M` +
 /// `git diff --cached -M -- <paths>`) and `fetchCommitDiff(in:for:commitSHA:)`.
 ///
-/// `DiffDocument` flattens hunks into a single `[DiffDocumentLine]` and does
-/// NOT carry the `@@` header as a line (GitHub Desktop keeps the header as
-/// `hunk.lines[0]`). Assertions here index content lines directly.
+/// `DiffDocument` flattens hunks into a single `[DiffDocumentLine]` and now
+/// carries the `@@` header as a `.hunk` line before each hunk's content lines.
+/// Assertions that are not about hunk display filter content rows.
 ///
 /// Behavior notes vs the reference:
 ///
@@ -53,8 +53,8 @@ final class GitDiffIntegrationTests: XCTestCase {
 
         XCTAssertEqual(diff.addedCount, 3)
         XCTAssertEqual(diff.removedCount, 0)
-        XCTAssertEqual(diff.lines.map(\.text), ["l1", "l2", "l3"])
-        XCTAssertTrue(diff.lines.allSatisfy { $0.kind == .added })
+        XCTAssertEqual(contentLines(from: diff).map(\.text), ["l1", "l2", "l3"])
+        XCTAssertTrue(contentLines(from: diff).allSatisfy { $0.kind == .added })
     }
 
     /// Reference: "counts lines for modified file" — a tracked file edited in
@@ -68,10 +68,11 @@ final class GitDiffIntegrationTests: XCTestCase {
 
         XCTAssertEqual(diff.addedCount, 1)
         XCTAssertEqual(diff.removedCount, 0)
-        XCTAssertEqual(diff.lines.first?.kind, .context)
-        XCTAssertEqual(diff.lines.first?.text, "base")
-        XCTAssertEqual(diff.lines.last?.kind, .added)
-        XCTAssertEqual(diff.lines.last?.text, "added line")
+        let content = contentLines(from: diff)
+        XCTAssertEqual(content.first?.kind, .context)
+        XCTAssertEqual(content.first?.text, "base")
+        XCTAssertEqual(content.last?.kind, .added)
+        XCTAssertEqual(content.last?.text, "added line")
     }
 
     /// Reference: "counts lines for staged file" — a change in the index (after
@@ -115,8 +116,9 @@ final class GitDiffIntegrationTests: XCTestCase {
 
         XCTAssertEqual(diff.removedCount, 1)
         XCTAssertEqual(diff.addedCount, 1)
-        XCTAssertEqual(diff.lines.map(\.text), ["foo", "bar"])
-        XCTAssertEqual(diff.lines.map(\.kind), [.removed, .added])
+        let content = contentLines(from: diff)
+        XCTAssertEqual(content.map(\.text), ["foo", "bar"])
+        XCTAssertEqual(content.map(\.kind), [.removed, .added])
     }
 
     /// Reference: "handles unborn repository with mixed state" — the working
@@ -130,8 +132,9 @@ final class GitDiffIntegrationTests: XCTestCase {
 
         let diff = try await sut.fetchDiff(in: root, for: "foo")
 
-        XCTAssertEqual(diff.lines.map(\.kind), [.added])
-        XCTAssertEqual(diff.lines.map(\.text), ["WRITING OVER THE TOP"])
+        let content = contentLines(from: diff)
+        XCTAssertEqual(content.map(\.kind), [.added])
+        XCTAssertEqual(content.map(\.text), ["WRITING OVER THE TOP"])
     }
 
     /// Reference: "displays unicode characters" — multi-byte content survives
@@ -144,7 +147,8 @@ final class GitDiffIntegrationTests: XCTestCase {
 
         let diff = try await sut.fetchDiff(in: root, for: "u.txt")
 
-        XCTAssertEqual(diff.lines.map(\.text), ["café 😀 你好"])
+        let content = contentLines(from: diff)
+        XCTAssertEqual(content.map(\.text), ["café 😀 你好"])
     }
 
     // MARK: - binary
@@ -332,7 +336,8 @@ final class GitDiffIntegrationTests: XCTestCase {
         let diff = try await sut.fetchCommitDiff(in: root, for: "a.txt", commitSHA: sha)
 
         XCTAssertEqual(diff.addedCount, 2)
-        XCTAssertEqual(diff.lines.map(\.text), ["one", "two"])
+        let content = contentLines(from: diff)
+        XCTAssertEqual(content.map(\.text), ["one", "two"])
     }
 
     /// A non-root commit diffs `parent..commit` and reports just that commit's
@@ -352,11 +357,37 @@ final class GitDiffIntegrationTests: XCTestCase {
         XCTAssertEqual(diff.lines.last?.kind, .added)
     }
 
+    /// `DiffDocument` now preserves the unified diff hunk header as a `.hunk`
+    /// row with nil line numbers before the hunk's content lines.
+    func testHunkHeaderIsPreservedAsLine() async throws {
+        let root = try makeCommittedRepository(fileName: "a.txt", contents: "one\ntwo\nthree\n")
+        defer { try? FileManager.default.removeItem(at: root) }
+        try write("a.txt", "one\ntwo\nadded\nthree\n", in: root)
+
+        let diff = try await sut.fetchDiff(in: root, for: "a.txt")
+
+        let hunk = diff.lines.first
+        XCTAssertEqual(hunk?.kind, .hunk)
+        XCTAssertNil(hunk?.oldNumber)
+        XCTAssertNil(hunk?.newNumber)
+        XCTAssertTrue(hunk?.text.hasPrefix("@@") ?? false)
+        XCTAssertTrue(hunk?.text.contains("-1,") ?? false)
+        XCTAssertTrue(hunk?.text.contains("+1,") ?? false)
+
+        let content = contentLines(from: diff)
+        XCTAssertEqual(content.first?.kind, .context)
+        XCTAssertEqual(content.first?.text, "one")
+    }
+
 }
 
 // MARK: - Helpers
 
 extension GitDiffIntegrationTests {
+
+    private func contentLines(from document: DiffDocument) -> [DiffDocumentLine] {
+        document.lines.filter { $0.kind != .hunk }
+    }
 
     private func makeTemporaryDirectory() throws -> URL {
         let tempRoot = URL(fileURLWithPath: NSTemporaryDirectory(), isDirectory: true)

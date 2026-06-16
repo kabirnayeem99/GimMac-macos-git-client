@@ -28,6 +28,7 @@ Start with a feature area below, or use the operation index to find a specific G
   - [Remotes](repository/remotes.md)
 - [Changes workflow](changes/working-tree-changes.md)
   - [Working tree changes](changes/working-tree-changes.md)
+  - [Instant status and diff loading](changes/instant-status-and-diff-loading.md)
   - [Staging and unstaging](changes/staging-and-unstaging.md)
   - [Discarding changes](changes/discarding-changes.md)
   - [Committing](changes/committing.md)
@@ -75,6 +76,7 @@ Start with a feature area below, or use the operation index to find a specific G
 
 - Repository validation and refresh (`git status`, `git remote`, `git branch`, `git config`, `git log`, `git stash list`)
 - Working tree inspection (`git status`, `git diff`)
+- Perceived-performance status and diff loading (`git status --porcelain=2 -z`, per-file `git diff`, delayed loading states, stale-result rejection)
 - Staging and unstaging (`git add`, `git reset`, `git update-index`, `git apply`)
 - Discarding changes (`git checkout`, `git checkout-index`, `git reset`, `git rm`, `git apply -R`)
 - Committing (`git commit`, `git interpret-trailers`)

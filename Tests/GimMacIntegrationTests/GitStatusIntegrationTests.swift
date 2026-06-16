@@ -393,4 +393,22 @@ extension GitStatusIntegrationTests {
         let files = try await makeProvider().fetchStatus(in: superRepo)
         return try XCTUnwrap(files.first { $0.path == "sub" })
     }
+
+    /// `fetchStatus` returns files sorted alphabetically by path,
+    /// case-insensitively, matching GitHub Desktop's changed-file order.
+    func testFilesAreSortedAlphabeticallyByPath() async throws {
+        let root = try makeInitialCommitRepo(fileName: "README.md", contents: "base\n")
+        defer { try? FileManager.default.removeItem(at: root) }
+
+        // Create files in a non-sorted order to prove sorting is applied.
+        try writeFile("zebra.txt", "z\n", in: root)
+        try runGit(["add", "--", "zebra.txt"], in: root)
+
+        try writeFile("alpha.txt", "a\n", in: root)
+        try runGit(["add", "--", "alpha.txt"], in: root)
+
+        let files = try await makeProvider().fetchStatus(in: root)
+
+        XCTAssertEqual(files.map(\.path), ["alpha.txt", "zebra.txt"])
+    }
 }

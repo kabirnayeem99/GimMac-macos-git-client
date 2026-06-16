@@ -158,7 +158,9 @@ final class RepositoryStoreViewModel {
     var commitButtonLabel: String { primaryAction.label }
 
     var lastCommitSectionTitle: String {
-        selectedCommit == nil ? "No commits yet" : "Committed just now"
+        guard let commit = selectedCommit else { return "No commits yet" }
+        let relative = AppFormatters.relativeDate.localizedString(for: commit.date, relativeTo: Date())
+        return "Committed \(relative)"
     }
 
     var lastCommitSummary: String {

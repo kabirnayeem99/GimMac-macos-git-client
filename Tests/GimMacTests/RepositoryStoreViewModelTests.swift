@@ -587,34 +587,6 @@ final class RepositoryStoreViewModelTests: XCTestCase {
         XCTAssertFalse(sut.isLoading)
     }
 
-    func testDiffHandlerDropsStaleWorkingTreeDiff() async {
-        let provider = DelayedDiffProvider(
-            workingTreeDocsByPath: [
-                "A.swift": DiffDocument(filePath: "A.swift", lines: [DiffDocumentLine(kind: .added, oldNumber: nil, newNumber: 1, text: "A")]),
-                "B.swift": DiffDocument(filePath: "B.swift", lines: [DiffDocumentLine(kind: .added, oldNumber: nil, newNumber: 1, text: "B")])
-            ],
-            workingTreeDelaysByPath: ["A.swift": .milliseconds(80), "B.swift": .milliseconds(5)],
-            commitDocsByRequest: [:],
-            commitDelaysByRequest: [:]
-        )
-        let sut = DiffHandler(diffProvider: provider)
-        let repository = Repository(url: URL(fileURLWithPath: "/tmp/repo", isDirectory: true))
-        let changedFiles = [
-            ChangedFile(path: "A.swift", status: .modified, oldPath: nil, isStaged: false, hasConflict: false),
-            ChangedFile(path: "B.swift", status: .modified, oldPath: nil, isStaged: false, hasConflict: false)
-        ]
-
-        sut.selectFile("A.swift")
-        let first = Task { await sut.loadDiff(in: repository, changedFiles: changedFiles) }
-        try? await Task.sleep(for: .milliseconds(10))
-        sut.selectFile("B.swift")
-        let second = Task { await sut.loadDiff(in: repository, changedFiles: changedFiles) }
-        _ = await (first.value, second.value)
-
-        XCTAssertEqual(sut.selectedFilePath, "B.swift")
-        XCTAssertEqual(sut.selectedDiffDocument.filePath, "B.swift")
-    }
-
     func testHistoryHandlerDropsStaleDiffForOlderCommitWithSamePath() async {
         let provider = DelayedDiffProvider(
             workingTreeDocsByPath: [:],
@@ -692,5 +664,62 @@ final class RepositoryStoreViewModelTests: XCTestCase {
         XCTAssertEqual(sut.currentBranchName, "develop")
         XCTAssertNil(sut.stashGuardNeeded)
         XCTAssertNil(sut.pendingBranchName)
+    }
+}
+
+@MainActor
+extension RepositoryStoreViewModelTests {
+    func testDiffHandlerDropsStaleWorkingTreeDiff() async {
+        let provider = DelayedDiffProvider(
+            workingTreeDocsByPath: [
+                "A.swift": DiffDocument(filePath: "A.swift", lines: [DiffDocumentLine(kind: .added, oldNumber: nil, newNumber: 1, text: "A")]),
+                "B.swift": DiffDocument(filePath: "B.swift", lines: [DiffDocumentLine(kind: .added, oldNumber: nil, newNumber: 1, text: "B")])
+            ],
+            workingTreeDelaysByPath: ["A.swift": .milliseconds(80), "B.swift": .milliseconds(5)],
+            commitDocsByRequest: [:],
+            commitDelaysByRequest: [:]
+        )
+        let sut = DiffHandler(diffProvider: provider)
+        let repository = Repository(url: URL(fileURLWithPath: "/tmp/repo", isDirectory: true))
+        let changedFiles = [
+            ChangedFile(path: "A.swift", status: .modified, oldPath: nil, isStaged: false, hasConflict: false),
+            ChangedFile(path: "B.swift", status: .modified, oldPath: nil, isStaged: false, hasConflict: false)
+        ]
+
+        sut.selectFile("A.swift")
+        let first = Task { await sut.loadDiff(in: repository, changedFiles: changedFiles) }
+        try? await Task.sleep(for: .milliseconds(10))
+        sut.selectFile("B.swift")
+        let second = Task { await sut.loadDiff(in: repository, changedFiles: changedFiles) }
+        _ = await (first.value, second.value)
+
+        XCTAssertEqual(sut.selectedFilePath, "B.swift")
+        XCTAssertEqual(sut.selectedDiffDocument.filePath, "B.swift")
+    }
+
+    func testDiffHandlerIncludesHunkHeaderForUntrackedFile() async throws {
+        let root = FileManager.default.temporaryDirectory.appendingPathComponent(
+            UUID().uuidString,
+            isDirectory: true
+        )
+        try FileManager.default.createDirectory(at: root, withIntermediateDirectories: true)
+        defer { try? FileManager.default.removeItem(at: root) }
+        try "one\ntwo\n".write(to: root.appendingPathComponent("New.swift"), atomically: true, encoding: .utf8)
+
+        let sut = DiffHandler(diffProvider: MockDiffProvider())
+        let repository = Repository(url: root)
+        let changedFiles = [
+            ChangedFile(path: "New.swift", status: .untracked, oldPath: nil, isStaged: false, hasConflict: false)
+        ]
+
+        sut.selectFile("New.swift")
+        await sut.loadDiff(in: repository, changedFiles: changedFiles)
+
+        XCTAssertEqual(sut.selectedDiffDocument.addedCount, 2)
+        XCTAssertEqual(sut.selectedDiffDocument.lines.map(\.kind), [.hunk, .added, .added])
+        XCTAssertEqual(sut.selectedDiffDocument.lines.first?.text, "@@ -0,0 +1,2 @@")
+        XCTAssertNil(sut.selectedDiffDocument.lines.first?.oldNumber)
+        XCTAssertNil(sut.selectedDiffDocument.lines.first?.newNumber)
+        XCTAssertEqual(sut.selectedDiffDocument.lines.dropFirst().map(\.text), ["one", "two"])
     }
 }

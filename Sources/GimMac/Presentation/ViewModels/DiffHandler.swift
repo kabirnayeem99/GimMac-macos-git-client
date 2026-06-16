@@ -6,6 +6,7 @@ import Observation
 final class DiffHandler {
     private let diffProvider: DiffProviding
     private var diffRequestID: Int = 0
+    private var diffCache: [DiffCacheKey: DiffDocument] = [:]
 
     private(set) var selectedDiffDocument = DiffDocument.empty
     private(set) var isLoadingDiff = false
@@ -25,6 +26,10 @@ final class DiffHandler {
         selectedDiffDocument = .empty
     }
 
+    func clearCache() {
+        diffCache.removeAll()
+    }
+
     func loadDiff(in repository: Repository, changedFiles: [ChangedFile]) async {
         guard let path = selectedFilePath else {
             selectedDiffDocument = .empty
@@ -35,10 +40,18 @@ final class DiffHandler {
         let requestID = diffRequestID
 
         let changedFile = changedFiles.first(where: { $0.path == path })
+        let cacheKey = Self.cacheKey(repositoryURL: repository.url, path: path, changedFile: changedFile)
+        if let cachedDocument = diffCache[cacheKey] {
+            selectedDiffDocument = cachedDocument
+            isLoadingDiff = false
+            return
+        }
+
         if changedFile?.status == .untracked {
             let document = await loadUntrackedFileDiff(repositoryURL: repository.url, path: path)
             guard isCurrentDiffRequest(id: requestID, path: path) else { return }
             selectedDiffDocument = document
+            diffCache[cacheKey] = document
             return
         }
 
@@ -53,7 +66,9 @@ final class DiffHandler {
             if let changedFile, changedFile.submoduleStatus != nil {
                 let data = try await diffProvider.submoduleDiff(in: repository.url, for: changedFile)
                 guard isCurrentDiffRequest(id: requestID, path: path) else { return }
-                selectedDiffDocument = DiffDocument(filePath: path, lines: [], kind: .submodule(data))
+                let document = DiffDocument(filePath: path, lines: [], kind: .submodule(data))
+                selectedDiffDocument = document
+                diffCache[cacheKey] = document
                 return
             }
             // Pass the rename's old path so the diff shows the move correctly
@@ -61,6 +76,7 @@ final class DiffHandler {
             let diff = try await diffProvider.fetchDiff(in: repository.url, for: path, oldPath: changedFile?.oldPath)
             guard isCurrentDiffRequest(id: requestID, path: path) else { return }
             selectedDiffDocument = diff
+            diffCache[cacheKey] = diff
         } catch {
             guard isCurrentDiffRequest(id: requestID, path: path) else { return }
             selectedDiffDocument = DiffDocument(filePath: path, lines: [])
@@ -69,6 +85,25 @@ final class DiffHandler {
 
     private func isCurrentDiffRequest(id: Int, path: String) -> Bool {
         diffRequestID == id && selectedFilePath == path
+    }
+
+    private static func cacheKey(repositoryURL: URL, path: String, changedFile: ChangedFile?) -> DiffCacheKey {
+        let fileURL = repositoryURL.appendingPathComponent(path)
+        let attributes = try? FileManager.default.attributesOfItem(atPath: fileURL.path)
+        let modifiedAt = (attributes?[.modificationDate] as? Date)?.timeIntervalSince1970
+        let fileSize = attributes?[.size] as? Int64
+
+        return DiffCacheKey(
+            repositoryPath: repositoryURL.path,
+            path: path,
+            status: changedFile?.status,
+            oldPath: changedFile?.oldPath,
+            isStaged: changedFile?.isStaged,
+            hasConflict: changedFile?.hasConflict,
+            submoduleStatus: changedFile?.submoduleStatus,
+            modifiedAt: modifiedAt,
+            fileSize: fileSize
+        )
     }
 
     private func loadUntrackedFileDiff(repositoryURL: URL, path: String) async -> DiffDocument {
@@ -81,11 +116,38 @@ final class DiffHandler {
             return DiffDocument(filePath: path, lines: [])
         }
 
-        let lines = content.components(separatedBy: .newlines)
+        var lines = content.components(separatedBy: .newlines)
+        if lines.last == "" {
+            lines.removeLast()
+        }
+
+        guard !lines.isEmpty else {
+            return DiffDocument(filePath: path, lines: [])
+        }
+
+        let newRange = lines.count == 1 ? "+1" : "+1,\(lines.count)"
+        let header = DiffDocumentLine(
+            kind: .hunk,
+            oldNumber: nil,
+            newNumber: nil,
+            text: "@@ -0,0 \(newRange) @@"
+        )
         let diffLines = lines.enumerated().map { index, line in
             DiffDocumentLine(kind: .added, oldNumber: nil, newNumber: index + 1, text: line)
         }
 
-        return DiffDocument(filePath: path, lines: diffLines)
+        return DiffDocument(filePath: path, lines: [header] + diffLines)
     }
+}
+
+private struct DiffCacheKey: Hashable {
+    let repositoryPath: String
+    let path: String
+    let status: GitFileStatus?
+    let oldPath: String?
+    let isStaged: Bool?
+    let hasConflict: Bool?
+    let submoduleStatus: SubmoduleStatus?
+    let modifiedAt: TimeInterval?
+    let fileSize: Int64?
 }
