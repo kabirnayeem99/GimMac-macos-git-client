@@ -22,7 +22,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     private lazy var gitConfigService = GitConfigService(client: gitClient)
 
     private static let onboardingCompletedKey = "io.github.kabirnayeem99.gimmac.onboardingCompleted"
-    private lazy var repositoryInspector = LocalGitRepositoryInspector(gitClient: gitClient)
+    private lazy var repositoryInspector = LocalGitRepositoryInspector(gitClient: gitClient, logger: logger)
     private lazy var repositoryPersistence = CoreDataRepositoryPersistence(gitClient: gitClient)
     // Shared between the create-repository orchestrator and the view model so
     // the bundled-template cache is read once.

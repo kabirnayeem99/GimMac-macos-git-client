@@ -51,19 +51,10 @@ struct ChangedFilesListView: View {
                     .tag(file.id)
                 }
             }
-            .listStyle(.plain)
+            .listStyle(.sidebar)
             .scrollContentBackground(.hidden)
             .animation(listAnimation, value: files.map(\.id))
 
-            if files.isEmpty, viewModel.hasLoadedChangedFilesOnce {
-                ContentUnavailableView(
-                    emptyStateTitle,
-                    systemImage: "line.3.horizontal.decrease.circle",
-                    description: Text(emptyStateDescription)
-                )
-                .transition(Motion.inlineStatus(reduceMotion: reduceMotion))
-                .allowsHitTesting(false)
-            }
         }
         .motion(Motion.feedback, reduceMotion: reduceMotion, value: filterValue)
         .animation(listAnimation, value: files.isEmpty)

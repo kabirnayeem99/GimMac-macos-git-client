@@ -56,6 +56,12 @@ protocol DiffProviding: Sendable {
     /// pre-rename `oldPath` so Git's rename detection can pair the two paths;
     /// without it a pure rename appears as a brand-new file.
     func fetchDiff(in repositoryURL: URL, for path: String, oldPath: String?) async throws -> DiffDocument
+    func fetchDiff(
+        in repositoryURL: URL,
+        for path: String,
+        oldPath: String?,
+        inspection: RepositoryInspectionResult?
+    ) async throws -> DiffDocument
     func fetchCommitDiff(in repositoryURL: URL, for path: String, commitSHA: String) async throws -> DiffDocument
     /// The diff for a changed submodule gitlink. Flags are taken from the
     /// already-parsed `changedFile.submoduleStatus`; gitlink SHAs are read from
@@ -71,6 +77,15 @@ extension DiffProviding {
     /// Convenience for non-renamed files.
     func fetchDiff(in repositoryURL: URL, for path: String) async throws -> DiffDocument {
         try await fetchDiff(in: repositoryURL, for: path, oldPath: nil)
+    }
+
+    func fetchDiff(
+        in repositoryURL: URL,
+        for path: String,
+        oldPath: String?,
+        inspection: RepositoryInspectionResult?
+    ) async throws -> DiffDocument {
+        try await fetchDiff(in: repositoryURL, for: path, oldPath: oldPath)
     }
 }
 
@@ -113,8 +128,34 @@ protocol RepositoryPersistenceProviding: Sendable {
 
 protocol RepositoryScreenDataProviding: Sendable {
     func loadSnapshot(for repository: Repository?) async throws -> RepositoryScreenSnapshot
+    func loadCriticalSnapshot(
+        for repository: Repository?,
+        inspection: RepositoryInspectionResult?
+    ) async throws -> CriticalRepositorySnapshot
+    func loadSecondarySnapshot(
+        for repository: Repository,
+        inspection: RepositoryInspectionResult?,
+        criticalSnapshot: CriticalRepositorySnapshot
+    ) async throws -> SecondaryRepositorySnapshot
     /// Fetch an additional page of commits below the ones already shown.
     func loadMoreCommits(for repository: Repository, skip: Int, maxCount: Int) async throws -> [Commit]
+}
+
+extension RepositoryScreenDataProviding {
+    func loadCriticalSnapshot(
+        for repository: Repository?,
+        inspection: RepositoryInspectionResult?
+    ) async throws -> CriticalRepositorySnapshot {
+        try await loadSnapshot(for: repository).criticalSnapshot
+    }
+
+    func loadSecondarySnapshot(
+        for repository: Repository,
+        inspection: RepositoryInspectionResult?,
+        criticalSnapshot: CriticalRepositorySnapshot
+    ) async throws -> SecondaryRepositorySnapshot {
+        try await loadSnapshot(for: repository).secondarySnapshot
+    }
 }
 
 protocol BranchUpstreamProviding: Sendable {

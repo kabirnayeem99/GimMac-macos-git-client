@@ -61,6 +61,7 @@ struct CommitHistorySidebar: View {
             List(selection: historySelection) {
               ForEach(viewModel.commits) { commit in
                 CommitRow(
+                    authorName: commit.authorName,
                     title: commit.summary,
                     subtitle: "\(commit.authorDisplayName) • \(relativeString(for: commit.date))",
                     isUnpushed: viewModel.unpushedSHAs.contains(commit.id),
@@ -76,18 +77,6 @@ struct CommitHistorySidebar: View {
                         Task { await viewModel.loadMoreHistory() }
                     }
                 }
-              }
-
-              if viewModel.isLoadingMoreHistory {
-                  HStack {
-                      Spacer()
-                      ProgressView()
-                          .controlSize(.small)
-                      Spacer()
-                  }
-                  .listRowSeparator(.hidden)
-                  .listRowBackground(Color.clear)
-                  .accessibilityLabel("Loading more commits")
               }
             }
             .listStyle(.sidebar)

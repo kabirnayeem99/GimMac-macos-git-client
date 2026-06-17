@@ -10,13 +10,34 @@ struct GitCommandResult: Sendable, Equatable {
 
 protocol GitClientProtocol: Sendable {
     func run(_ arguments: [String], in repositoryURL: URL, timeout: TimeInterval) async throws -> GitCommandResult
+    func run(
+        _ arguments: [String],
+        in repositoryURL: URL,
+        priority: GitCommandPriority,
+        timeout: TimeInterval
+    ) async throws -> GitCommandResult
     func run(_ arguments: [String], in repositoryURL: URL, extraEnvironment: [String: String], timeout: TimeInterval) async throws -> GitCommandResult
     /// Runs a command capturing stdout as raw bytes — required for binary output
     /// (e.g. image blobs via `git show`) where UTF-8 decoding would corrupt data.
     func runReturningData(_ arguments: [String], in repositoryURL: URL, timeout: TimeInterval) async throws -> Data
+    func runReturningData(
+        _ arguments: [String],
+        in repositoryURL: URL,
+        priority: GitCommandPriority,
+        timeout: TimeInterval
+    ) async throws -> Data
 }
 
 extension GitClientProtocol {
+    func run(
+        _ arguments: [String],
+        in repositoryURL: URL,
+        priority: GitCommandPriority,
+        timeout: TimeInterval
+    ) async throws -> GitCommandResult {
+        try await run(arguments, in: repositoryURL, timeout: timeout)
+    }
+
     func run(
         _ arguments: [String],
         in repositoryURL: URL,
@@ -34,5 +55,14 @@ extension GitClientProtocol {
         timeout: TimeInterval
     ) async throws -> Data {
         Data(try await run(arguments, in: repositoryURL, timeout: timeout).stdout.utf8)
+    }
+
+    func runReturningData(
+        _ arguments: [String],
+        in repositoryURL: URL,
+        priority: GitCommandPriority,
+        timeout: TimeInterval
+    ) async throws -> Data {
+        try await runReturningData(arguments, in: repositoryURL, timeout: timeout)
     }
 }

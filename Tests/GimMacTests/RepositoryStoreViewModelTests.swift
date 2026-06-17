@@ -3,22 +3,22 @@ import XCTest
 @testable import GimMac
 
 private struct MockRepositoryInspector: RepositoryInspecting, Sendable {
-    let result: Result<TipState, Error>
+    let result: Result<RepositoryInspectionResult, Error>
 
-    func inspectRepository(at url: URL) async throws -> TipState {
+    func inspectRepository(at url: URL) async throws -> RepositoryInspectionResult {
         try result.get()
     }
 }
 
 private actor SequencedRepositoryInspector: RepositoryInspecting {
-    var results: [Result<TipState, Error>]
+    var results: [Result<RepositoryInspectionResult, Error>]
 
-    init(results: [Result<TipState, Error>]) {
+    init(results: [Result<RepositoryInspectionResult, Error>]) {
         self.results = results
     }
 
-    func inspectRepository(at url: URL) async throws -> TipState {
-        guard !results.isEmpty else { return .unknown }
+    func inspectRepository(at url: URL) async throws -> RepositoryInspectionResult {
+        guard !results.isEmpty else { return RepositoryInspectionResult(tip: .unknown) }
         return try results.removeFirst().get()
     }
 }
@@ -36,14 +36,14 @@ private struct MockRepositoryScreenDataProvider: RepositoryScreenDataProviding, 
 }
 
 private struct DelayedRepositoryInspector: RepositoryInspecting, Sendable {
-    let tipsByPath: [String: TipState]
+    let tipsByPath: [String: RepositoryInspectionResult]
     let delaysByPath: [String: Duration]
 
-    func inspectRepository(at url: URL) async throws -> TipState {
+    func inspectRepository(at url: URL) async throws -> RepositoryInspectionResult {
         if let delay = delaysByPath[url.path] {
             try? await Task.sleep(for: delay)
         }
-        return tipsByPath[url.path] ?? .unknown
+        return tipsByPath[url.path] ?? RepositoryInspectionResult(tip: .unknown)
     }
 }
 
@@ -411,7 +411,9 @@ private extension Branch {
 final class RepositoryStoreViewModelTests: XCTestCase {
     func testSelectRepositorySuccessUpdatesBranch() async {
         let inspector = MockRepositoryInspector(
-            result: .success(.valid(branch: BranchSummary(name: "main", upstream: nil, sha: "abc1234")))
+            result: .success(RepositoryInspectionResult(tip: .valid(
+                branch: BranchSummary(name: "main", upstream: nil, sha: "abc1234")
+            )))
         )
         let sut = RepositoryStoreViewModel(
             logger: GimMacLogger(),
@@ -499,7 +501,9 @@ final class RepositoryStoreViewModelTests: XCTestCase {
             ]
         )
 
-        let inspector = MockRepositoryInspector(result: .success(.valid(branch: BranchSummary(name: "main", upstream: nil, sha: "abc1234"))))
+        let inspector = MockRepositoryInspector(result: .success(RepositoryInspectionResult(tip: .valid(
+            branch: BranchSummary(name: "main", upstream: nil, sha: "abc1234")
+        ))))
         let sut = RepositoryStoreViewModel(
             logger: GimMacLogger(),
             inspector: inspector,
@@ -567,8 +571,12 @@ final class RepositoryStoreViewModelTests: XCTestCase {
         let repo2 = URL(fileURLWithPath: "/tmp/repo-two", isDirectory: true)
         let inspector = DelayedRepositoryInspector(
             tipsByPath: [
-                repo1.path: .valid(branch: BranchSummary(name: "one", upstream: nil, sha: "1111111")),
-                repo2.path: .valid(branch: BranchSummary(name: "two", upstream: nil, sha: "2222222"))
+                repo1.path: RepositoryInspectionResult(tip: .valid(
+                    branch: BranchSummary(name: "one", upstream: nil, sha: "1111111")
+                )),
+                repo2.path: RepositoryInspectionResult(tip: .valid(
+                    branch: BranchSummary(name: "two", upstream: nil, sha: "2222222")
+                ))
             ],
             delaysByPath: [repo1.path: .milliseconds(80), repo2.path: .milliseconds(5)]
         )
@@ -686,7 +694,9 @@ extension RepositoryStoreViewModelTests {
     func testSelectingCurrentRepositoryDoesNotResetState() async {
         let repo = URL(fileURLWithPath: "/tmp/repo", isDirectory: true)
         let inspector = MockRepositoryInspector(
-            result: .success(.valid(branch: BranchSummary(name: "main", upstream: nil, sha: "abc1234")))
+            result: .success(RepositoryInspectionResult(tip: .valid(
+                branch: BranchSummary(name: "main", upstream: nil, sha: "abc1234")
+            )))
         )
         let sut = RepositoryStoreViewModel(
             logger: GimMacLogger(),
@@ -725,7 +735,9 @@ extension RepositoryStoreViewModelTests {
         let repo = URL(fileURLWithPath: "/tmp/repo", isDirectory: true)
         let inspector = SequencedRepositoryInspector(results: [
             .failure(TestError.failed),
-            .success(.valid(branch: BranchSummary(name: "main", upstream: nil, sha: "abc1234")))
+            .success(RepositoryInspectionResult(tip: .valid(
+                branch: BranchSummary(name: "main", upstream: nil, sha: "abc1234")
+            )))
         ])
         let sut = RepositoryStoreViewModel(
             logger: GimMacLogger(),
@@ -803,7 +815,9 @@ extension RepositoryStoreViewModelTests {
         RepositoryStoreViewModel(
             logger: GimMacLogger(),
             inspector: MockRepositoryInspector(
-                result: .success(.valid(branch: BranchSummary(name: "main", upstream: nil, sha: "abc1234")))
+                result: .success(RepositoryInspectionResult(tip: .valid(
+                    branch: BranchSummary(name: "main", upstream: nil, sha: "abc1234")
+                )))
             ),
             screenRepository: MockRepositoryScreenDataProvider(snapshot: .testSnapshot),
             diffProvider: MockDiffProvider(),

@@ -14,8 +14,48 @@ extension RepositoryStoreViewModel {
         diffHandler.selectFile(path)
         guard let repository = selectedRepository else { return }
         changedFileDiffTask?.cancel()
+        let tag = logger.tag("changes.file-diff-load", parent: nil, metadata: [
+            "repository": repository.url.lastPathComponent,
+            "path": path
+        ])
+        logger.info(
+            "Changed file diff load scheduled",
+            category: .diff,
+            metadata: ["repository": repository.url.lastPathComponent, "path": path],
+            tag: tag
+        )
         changedFileDiffTask = Task { [weak self] in
+            let startedAt = Self.nowMilliseconds()
+            self?.logger.info(
+                "Changed file diff load started",
+                category: .diff,
+                metadata: ["repository": repository.url.lastPathComponent, "path": path],
+                tag: tag
+            )
             await self?.diffHandler.loadDiff(in: repository, changedFiles: self?.changedFiles ?? [])
+            guard !Task.isCancelled else {
+                self?.logger.warning(
+                    "Changed file diff load cancelled",
+                    category: .diff,
+                    metadata: [
+                        "repository": repository.url.lastPathComponent,
+                        "path": path,
+                        "duration_ms": Self.formatMilliseconds(Self.elapsedMilliseconds(since: startedAt))
+                    ],
+                    tag: tag
+                )
+                return
+            }
+            self?.logger.info(
+                "Changed file diff load finished",
+                category: .diff,
+                metadata: [
+                    "repository": repository.url.lastPathComponent,
+                    "path": path,
+                    "duration_ms": Self.formatMilliseconds(Self.elapsedMilliseconds(since: startedAt))
+                ],
+                tag: tag
+            )
         }
     }
 

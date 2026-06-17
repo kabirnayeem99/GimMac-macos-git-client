@@ -10,11 +10,27 @@ final class GitDiffProvider: DiffProviding, Sendable {
     }
 
     func fetchDiff(in repositoryURL: URL, for path: String, oldPath: String?) async throws -> DiffDocument {
+        try await fetchDiff(in: repositoryURL, for: path, oldPath: oldPath, inspection: nil)
+    }
+
+    func fetchDiff(
+        in repositoryURL: URL,
+        for path: String,
+        oldPath: String?,
+        inspection: RepositoryInspectionResult?
+    ) async throws -> DiffDocument {
         // In an unborn repository (no HEAD) every file is effectively new, so a
         // staged-vs-worktree diff would surface a confusing index-vs-worktree
         // delta. Match GitHub Desktop and present the working-tree file as a
         // pure addition.
-        if await Self.isUnbornHead(client: client, repositoryURL: repositoryURL) {
+        let isUnbornHead: Bool
+        if let inspection {
+            isUnbornHead = !inspection.hasHead
+        } else {
+            isUnbornHead = await Self.isUnbornHead(client: client, repositoryURL: repositoryURL)
+        }
+
+        if isUnbornHead {
             return try await Self.unbornFileDiff(path, client: client, repositoryURL: repositoryURL)
         }
 
@@ -28,8 +44,19 @@ final class GitDiffProvider: DiffProviding, Sendable {
         } else {
             paths = [path]
         }
-        let unstaged = try await client.run(["diff", "-M", "--"] + paths, in: repositoryURL, timeout: 10).stdout
-        let staged = try await client.run(["diff", "--cached", "-M", "--"] + paths, in: repositoryURL, timeout: 10).stdout
+        async let unstagedTask = client.run(
+            ["diff", "-M", "--"] + paths,
+            in: repositoryURL,
+            priority: .visible,
+            timeout: 10
+        ).stdout
+        async let stagedTask = client.run(
+            ["diff", "--cached", "-M", "--"] + paths,
+            in: repositoryURL,
+            priority: .visible,
+            timeout: 10
+        ).stdout
+        let (unstaged, staged) = try await (unstagedTask, stagedTask)
 
         let full = [unstaged, staged]
             .filter { !$0.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty }

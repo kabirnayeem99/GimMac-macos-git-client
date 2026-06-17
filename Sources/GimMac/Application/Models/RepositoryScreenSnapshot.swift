@@ -113,3 +113,45 @@ struct RepositoryScreenSnapshot: Equatable {
     let forcePushNeeded: Bool
     let unpushedSHAs: Set<String>
 }
+
+struct CriticalRepositorySnapshot: Equatable {
+    let changedFiles: [ChangedFile]
+    let commits: [Commit]
+    let userProfile: GitUserProfile
+    let primaryAction: RepositoryPrimaryAction
+    let remoteName: String?
+    let forcePushNeeded: Bool
+    let unpushedSHAs: Set<String>
+}
+
+struct SecondaryRepositorySnapshot: Equatable {
+    let userProfile: GitUserProfile
+    let primaryAction: RepositoryPrimaryAction
+    let remoteName: String?
+    let forcePushNeeded: Bool
+    let unpushedSHAs: Set<String>
+}
+
+extension RepositoryScreenSnapshot {
+    var criticalSnapshot: CriticalRepositorySnapshot {
+        CriticalRepositorySnapshot(
+            changedFiles: changedFiles,
+            commits: commits,
+            userProfile: userProfile,
+            primaryAction: primaryAction,
+            remoteName: remoteName,
+            forcePushNeeded: forcePushNeeded,
+            unpushedSHAs: unpushedSHAs
+        )
+    }
+
+    var secondarySnapshot: SecondaryRepositorySnapshot {
+        SecondaryRepositorySnapshot(
+            userProfile: userProfile,
+            primaryAction: primaryAction,
+            remoteName: remoteName,
+            forcePushNeeded: forcePushNeeded,
+            unpushedSHAs: unpushedSHAs
+        )
+    }
+}

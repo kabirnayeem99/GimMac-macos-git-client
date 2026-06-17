@@ -4,5 +4,6 @@ enum LogCategory: String, Codable, Sendable {
     case commit
     case branch
     case diff
+    case history
     case repository
 }

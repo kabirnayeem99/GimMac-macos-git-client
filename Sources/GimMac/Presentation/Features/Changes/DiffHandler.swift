@@ -30,7 +30,11 @@ final class DiffHandler {
         diffCache.removeAll()
     }
 
-    func loadDiff(in repository: Repository, changedFiles: [ChangedFile]) async {
+    func loadDiff(
+        in repository: Repository,
+        changedFiles: [ChangedFile],
+        inspection: RepositoryInspectionResult? = nil
+    ) async {
         guard let path = selectedFilePath else {
             selectedDiffDocument = .empty
             return
@@ -73,7 +77,12 @@ final class DiffHandler {
             }
             // Pass the rename's old path so the diff shows the move correctly
             // rather than as a brand-new file.
-            let diff = try await diffProvider.fetchDiff(in: repository.url, for: path, oldPath: changedFile?.oldPath)
+            let diff = try await diffProvider.fetchDiff(
+                in: repository.url,
+                for: path,
+                oldPath: changedFile?.oldPath,
+                inspection: inspection
+            )
             guard isCurrentDiffRequest(id: requestID, path: path) else { return }
             selectedDiffDocument = diff
             diffCache[cacheKey] = diff

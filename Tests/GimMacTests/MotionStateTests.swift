@@ -101,7 +101,7 @@ final class MotionStateTests: XCTestCase {
 }
 
 private struct MotionMockRepositoryInspector: RepositoryInspecting, Sendable {
-    func inspectRepository(at url: URL) async throws -> TipState { .unknown }
+    func inspectRepository(at url: URL) async throws -> RepositoryInspectionResult { RepositoryInspectionResult(tip: .unknown) }
 }
 
 private struct MotionMockScreenRepository: RepositoryScreenDataProviding, Sendable {

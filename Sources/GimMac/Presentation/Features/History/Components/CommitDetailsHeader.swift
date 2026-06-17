@@ -3,6 +3,7 @@ import SwiftUI
 struct CommitDetailsHeader: View {
     let viewModel: RepositoryStoreViewModel
     @State private var isShowingProfile = false
+    @State private var copiedCommitHash = false
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
     var body: some View {
@@ -33,14 +34,7 @@ struct CommitDetailsHeader: View {
                 Button {
                     isShowingProfile.toggle()
                 } label: {
-                    Circle()
-                        .fill(.quaternary)
-                        .frame(width: 22, height: 22)
-                        .overlay {
-                            Text(viewModel.currentGitUser.initials)
-                                .font(.system(size: 8, weight: .bold))
-                                .foregroundStyle(.secondary)
-                        }
+                    AuthorAvatar(name: viewModel.currentGitUser.name, size: 22, fontSize: 8)
                 }
                 .buttonStyle(.plain)
                 .accessibilityLabel("Author: \(viewModel.currentGitUser.name), \(viewModel.currentGitUser.email)")
@@ -65,13 +59,20 @@ struct CommitDetailsHeader: View {
                 if let commit = viewModel.selectedCommit {
                     Button {
                         viewModel.copyCommitHash(commit.id)
+                        copiedCommitHash = true
+                        Task {
+                            try? await Task.sleep(for: .seconds(1))
+                            copiedCommitHash = false
+                        }
                     } label: {
-                        Image(systemName: "doc.on.doc")
+                        Image(systemName: copiedCommitHash ? "checkmark" : "doc.on.doc")
                             .font(.system(size: 10))
+                            .foregroundStyle(copiedCommitHash ? .green : .primary)
+                            .contentTransition(.symbolEffect(.replace))
                     }
                     .buttonStyle(.borderless)
-                    .help("Copy commit hash")
-                    .accessibilityLabel("Copy commit hash")
+                    .help(copiedCommitHash ? "Copied" : "Copy commit hash")
+                    .accessibilityLabel(copiedCommitHash ? "Copied commit hash" : "Copy commit hash")
                 }
             }
         }

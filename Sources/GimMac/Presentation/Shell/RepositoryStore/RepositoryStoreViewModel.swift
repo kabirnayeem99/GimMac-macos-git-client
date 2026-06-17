@@ -52,7 +52,9 @@ final class RepositoryStoreViewModel {
     var historyLoadTask: Task<Void, Never>?
     var historyFileDiffTask: Task<Void, Never>?
     var changedFileDiffTask: Task<Void, Never>?
+    var secondaryRefreshTask: Task<Void, Never>?
     var repositorySelectionGeneration: Int = 0
+    var currentInspection: RepositoryInspectionResult?
 
     var selectedRepository: Repository?
     var tip: TipState = .unknown

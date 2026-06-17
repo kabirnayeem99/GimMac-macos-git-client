@@ -13,6 +13,7 @@ final class GitStashProvider: StashProviding, Sendable {
         let result = try await client.run(
             ["stash", "list", "-n", "1", "--format=\(format)"],
             in: repositoryURL,
+            priority: .background,
             timeout: 10
         )
         let line = result.stdout.split(separator: "\n").first.map(String.init) ?? ""

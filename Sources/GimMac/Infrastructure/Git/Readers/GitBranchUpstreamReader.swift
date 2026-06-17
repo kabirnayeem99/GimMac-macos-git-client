@@ -11,6 +11,7 @@ final class GitBranchUpstreamReader: BranchUpstreamProviding, Sendable {
         let result = try await client.run(
             ["for-each-ref", "--format=%(upstream:short)", "refs/heads/\(branch)"],
             in: repositoryURL,
+            priority: .background,
             timeout: 5
         )
         let upstream = result.stdout.trimmingCharacters(in: .whitespacesAndNewlines)

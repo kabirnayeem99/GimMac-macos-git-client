@@ -17,29 +17,83 @@ final class LiveRepositoryScreenDataRepository: RepositoryScreenDataProviding, S
         self.upstreamProvider = upstreamProvider
         self.gitClient = gitClient
     }
+}
 
+extension LiveRepositoryScreenDataRepository {
     func loadSnapshot(for repository: Repository?) async throws -> RepositoryScreenSnapshot {
+        let critical = try await loadCriticalSnapshot(for: repository, inspection: nil)
         guard let repository else {
             return .mock
+        }
+        let secondary = try await loadSecondarySnapshot(for: repository, inspection: nil, criticalSnapshot: critical)
+        return RepositoryScreenSnapshot(
+            changedFiles: critical.changedFiles,
+            commits: critical.commits,
+            userProfile: secondary.userProfile,
+            primaryAction: secondary.primaryAction,
+            remoteName: secondary.remoteName,
+            forcePushNeeded: secondary.forcePushNeeded,
+            unpushedSHAs: secondary.unpushedSHAs
+        )
+    }
+
+    func loadCriticalSnapshot(
+        for repository: Repository?,
+        inspection: RepositoryInspectionResult?
+    ) async throws -> CriticalRepositorySnapshot {
+        guard let repository else {
+            return RepositoryScreenSnapshot.mock.criticalSnapshot
         }
 
         async let changedFilesTask = statusProvider.fetchStatus(in: repository.url)
         async let commitsTask = historyProvider.fetchHistory(in: repository.url, maxCount: HistoryPaging.pageSize, skip: 0)
-        async let userNameTask = readConfig("user.name", in: repository.url)
-        async let userEmailTask = readConfig("user.email", in: repository.url)
-        async let aheadBehindTask = readAheadBehind(in: repository.url)
-        async let conflictStateTask = readConflictState(in: repository.url)
-        async let remoteNameTask = readRemoteName(in: repository.url)
+        async let conflictStateTask = readConflictState(in: repository.url, inspection: inspection)
 
         let changedFiles = try await changedFilesTask
         let commits = try await commitsTask
-        let userName = (try? await userNameTask)?.trimmingCharacters(in: .whitespacesAndNewlines)
-        let userEmail = (try? await userEmailTask)?.trimmingCharacters(in: .whitespacesAndNewlines)
-        let aheadBehind = (try? await aheadBehindTask) ?? (0, 0)
         let conflictState = (try? await conflictStateTask) ?? .none
-        let remoteName = try? await remoteNameTask
 
-        let upstream = await resolveUpstream(for: repository.url, remoteName: remoteName)
+        let user = GitUserProfile(
+            name: commits.first?.authorName ?? "Unknown User",
+            email: commits.first?.authorEmail ?? "unknown@example.com"
+        )
+
+        let primaryAction: RepositoryPrimaryAction
+        switch conflictState {
+        case .merge:
+            primaryAction = .merge
+        case .rebase:
+            primaryAction = .rebase
+        case .cherryPick:
+            primaryAction = .cherryPick
+        case .none:
+            primaryAction = changedFiles.isEmpty ? .publishRepository : .commit
+        }
+
+        return CriticalRepositorySnapshot(
+            changedFiles: changedFiles,
+            commits: commits,
+            userProfile: user,
+            primaryAction: primaryAction,
+            remoteName: nil,
+            forcePushNeeded: false,
+            unpushedSHAs: []
+        )
+    }
+
+    func loadSecondarySnapshot(
+        for repository: Repository,
+        inspection: RepositoryInspectionResult?,
+        criticalSnapshot: CriticalRepositorySnapshot
+    ) async throws -> SecondaryRepositorySnapshot {
+        async let identityTask = readUserIdentity(in: repository.url)
+        async let aheadBehindTask = readAheadBehind(in: repository.url)
+        async let remoteNameTask = readRemoteName(in: repository.url)
+
+        let identity = try? await identityTask
+        let aheadBehind = (try? await aheadBehindTask) ?? (0, 0)
+        let remoteName = try? await remoteNameTask
+        let upstream = await resolveUpstream(for: repository.url, remoteName: remoteName, inspection: inspection)
         let unpushedSHAs = await readUnpushedSHAs(in: repository.url, upstream: upstream, remoteName: remoteName)
 
         let forcePushNeeded: Bool
@@ -48,27 +102,24 @@ final class LiveRepositoryScreenDataRepository: RepositoryScreenDataProviding, S
         } else {
             forcePushNeeded = false
         }
-
         let user = GitUserProfile(
-            name: userName?.isEmpty == false ? userName! : (commits.first?.authorName ?? "Unknown User"),
-            email: userEmail?.isEmpty == false ? userEmail! : (commits.first?.authorEmail ?? "unknown@example.com")
+            name: identity?.name ?? criticalSnapshot.userProfile.name,
+            email: identity?.email ?? criticalSnapshot.userProfile.email
         )
 
         let primaryAction = derivePrimaryAction(
             inputs: .init(
-                changedFilesCount: changedFiles.count,
+                changedFilesCount: criticalSnapshot.changedFiles.count,
                 ahead: aheadBehind.0,
                 behind: aheadBehind.1,
-                conflictState: conflictState,
+                conflictState: conflictState(from: criticalSnapshot.primaryAction),
                 remoteName: remoteName,
                 upstream: upstream,
                 forcePushNeeded: forcePushNeeded
             )
         )
 
-        return RepositoryScreenSnapshot(
-            changedFiles: changedFiles,
-            commits: commits,
+        return SecondaryRepositorySnapshot(
             userProfile: user,
             primaryAction: primaryAction,
             remoteName: remoteName,
@@ -80,24 +131,81 @@ final class LiveRepositoryScreenDataRepository: RepositoryScreenDataProviding, S
     func loadMoreCommits(for repository: Repository, skip: Int, maxCount: Int) async throws -> [Commit] {
         try await historyProvider.fetchHistory(in: repository.url, maxCount: maxCount, skip: skip)
     }
+}
 
-    private func resolveUpstream(for repositoryURL: URL, remoteName: String?) async -> String? {
+private extension LiveRepositoryScreenDataRepository {
+    private func resolveUpstream(
+        for repositoryURL: URL,
+        remoteName: String?,
+        inspection: RepositoryInspectionResult?
+    ) async -> String? {
         guard remoteName != nil else { return nil }
-        let inspector = LocalGitRepositoryInspector(gitClient: gitClient)
-        guard let tipState = try? await inspector.inspectRepository(at: repositoryURL),
-              case .valid(let branch) = tipState else { return nil }
-        return try? await upstreamProvider.fetchUpstream(for: branch.name, in: repositoryURL)
+        let branchName: String?
+        if let inspectedBranchName = inspection?.branchName {
+            branchName = inspectedBranchName
+        } else {
+            branchName = await readCurrentBranchName(in: repositoryURL)
+        }
+
+        guard let branchName, !branchName.isEmpty else { return nil }
+        return try? await upstreamProvider.fetchUpstream(for: branchName, in: repositoryURL)
     }
 
-    private func readConfig(_ key: String, in repositoryURL: URL) async throws -> String {
-        let result = try await gitClient.run(["config", key], in: repositoryURL, timeout: 5)
-        return result.stdout
+    private func readCurrentBranchName(in repositoryURL: URL) async -> String? {
+        guard let result = try? await gitClient.run(
+            ["status", "--porcelain=v2", "--branch", "--untracked-files=no"],
+            in: repositoryURL,
+            priority: .background,
+            timeout: 5
+        ) else {
+            return nil
+        }
+
+        for line in result.stdout.split(whereSeparator: \.isNewline) {
+            guard line.hasPrefix("# branch.head ") else { continue }
+            let branchName = String(line.dropFirst("# branch.head ".count))
+            return branchName == "(detached)" ? nil : branchName
+        }
+        return nil
+    }
+
+    private struct GitUserIdentity {
+        let name: String?
+        let email: String?
+    }
+
+    private func readUserIdentity(in repositoryURL: URL) async throws -> GitUserIdentity {
+        let result = try await gitClient.run(
+            ["config", "--null", "--get-regexp", "^user\\.(name|email)$"],
+            in: repositoryURL,
+            priority: .background,
+            timeout: 5
+        )
+        var name: String?
+        var email: String?
+        for record in result.stdout.split(separator: "\u{0}") {
+            let pieces = record.split(maxSplits: 1, whereSeparator: \.isWhitespace)
+            guard pieces.count == 2 else { continue }
+            switch pieces[0] {
+            case "user.name":
+                name = String(pieces[1])
+            case "user.email":
+                email = String(pieces[1])
+            default:
+                break
+            }
+        }
+        return GitUserIdentity(
+            name: name?.isEmpty == false ? name : nil,
+            email: email?.isEmpty == false ? email : nil
+        )
     }
 
     private func readAheadBehind(in repositoryURL: URL) async throws -> (Int, Int) {
         let result = try await gitClient.run(
             ["rev-list", "--left-right", "--count", "@{upstream}...HEAD"],
             in: repositoryURL,
+            priority: .background,
             timeout: 5
         )
         let pieces = result.stdout.trimmingCharacters(in: .whitespacesAndNewlines).split(separator: "\t")
@@ -107,13 +215,25 @@ final class LiveRepositoryScreenDataRepository: RepositoryScreenDataProviding, S
         return (ahead, behind)
     }
 
-    private func readConflictState(in repositoryURL: URL) async throws -> ConflictState {
+    private func readConflictState(
+        in repositoryURL: URL,
+        inspection: RepositoryInspectionResult?
+    ) async throws -> ConflictState {
         // Resolve the git dir once, then probe the in-progress sentinel files
         // directly. This replaces three separate `rev-parse` subprocesses with a
         // single one plus cheap filesystem checks.
-        guard let gitDir = try? await gitClient.run(
-            ["rev-parse", "--git-dir"], in: repositoryURL, timeout: 5
-        ).stdout.trimmingCharacters(in: .whitespacesAndNewlines), !gitDir.isEmpty else {
+        let resolvedGitDir: String?
+        if let gitDir = inspection?.gitDir, !gitDir.isEmpty {
+            resolvedGitDir = gitDir
+        } else {
+            resolvedGitDir = try? await gitClient.run(
+                ["rev-parse", "--git-dir"],
+                in: repositoryURL,
+                priority: .userInteractive,
+                timeout: 5
+            ).stdout.trimmingCharacters(in: .whitespacesAndNewlines)
+        }
+        guard let gitDir = resolvedGitDir, !gitDir.isEmpty else {
             return .none
         }
 
@@ -129,8 +249,21 @@ final class LiveRepositoryScreenDataRepository: RepositoryScreenDataProviding, S
         return .none
     }
 
+    private func conflictState(from primaryAction: RepositoryPrimaryAction) -> ConflictState {
+        switch primaryAction {
+        case .merge:
+            return .merge
+        case .rebase:
+            return .rebase
+        case .cherryPick:
+            return .cherryPick
+        default:
+            return .none
+        }
+    }
+
     private func readRemoteName(in repositoryURL: URL) async throws -> String? {
-        let result = try await gitClient.run(["remote", "-v"], in: repositoryURL, timeout: 5)
+        let result = try await gitClient.run(["remote", "-v"], in: repositoryURL, priority: .background, timeout: 5)
         let line = result.stdout.components(separatedBy: "\n").first(where: { !$0.isEmpty })
         return line?.components(separatedBy: "\t").first
     }
@@ -144,6 +277,7 @@ final class LiveRepositoryScreenDataRepository: RepositoryScreenDataProviding, S
             _ = try await gitClient.run(
                 ["merge-base", "--is-ancestor", upstream, "HEAD"],
                 in: url,
+                priority: .background,
                 timeout: 5
             )
             return false
@@ -162,7 +296,7 @@ final class LiveRepositoryScreenDataRepository: RepositoryScreenDataProviding, S
         } else {
             args = ["log", "HEAD", "--not", "--remotes", "--format=%H"]
         }
-        guard let result = try? await gitClient.run(args, in: repositoryURL, timeout: 5) else { return [] }
+        guard let result = try? await gitClient.run(args, in: repositoryURL, priority: .background, timeout: 5) else { return [] }
         return Set(result.stdout.split(whereSeparator: \.isNewline).map(String.init).filter { !$0.isEmpty })
     }
 

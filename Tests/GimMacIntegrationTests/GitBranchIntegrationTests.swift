@@ -41,7 +41,7 @@ final class GitBranchIntegrationTests: XCTestCase {
         defer { try? FileManager.default.removeItem(at: root) }
 
         let sut = LocalGitRepositoryInspector(gitClient: client)
-        let tip = try await sut.inspectRepository(at: root)
+        let tip = try await sut.inspectRepository(at: root).tip
 
         XCTAssertEqual(tip, .unborn(ref: "master"))
     }
@@ -54,7 +54,7 @@ final class GitBranchIntegrationTests: XCTestCase {
         try runGit(["checkout", "-b", "not-master"], in: root)
 
         let sut = LocalGitRepositoryInspector(gitClient: client)
-        let tip = try await sut.inspectRepository(at: root)
+        let tip = try await sut.inspectRepository(at: root).tip
 
         XCTAssertEqual(tip, .unborn(ref: "not-master"))
     }
@@ -71,7 +71,7 @@ final class GitBranchIntegrationTests: XCTestCase {
         try runGit(["checkout", "--detach", headSHA], in: root)
 
         let sut = LocalGitRepositoryInspector(gitClient: client)
-        let tip = try await sut.inspectRepository(at: root)
+        let tip = try await sut.inspectRepository(at: root).tip
 
         XCTAssertEqual(tip, .detached(sha: headSHA))
     }
@@ -84,7 +84,7 @@ final class GitBranchIntegrationTests: XCTestCase {
         let headSHA = try revParse("HEAD", in: root)
 
         let sut = LocalGitRepositoryInspector(gitClient: client)
-        let tip = try await sut.inspectRepository(at: root)
+        let tip = try await sut.inspectRepository(at: root).tip
 
         XCTAssertEqual(tip, .valid(branch: BranchSummary(name: "master", upstream: nil, sha: headSHA)))
     }

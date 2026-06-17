@@ -24,69 +24,39 @@ struct ChangedFileRow: View {
         (file.path.split(separator: "/").last.map(String.init) ?? file.path) == ".gitignore"
     }
 
-    private var statusIcon: String {
-        switch file.status {
-        case .modified:
-            return "pencil"
-        case .added, .untracked:
-            return "plus.circle"
-        case .deleted:
-            return "trash"
-        case .renamed:
-            return "arrow.left.arrow.right"
-        case .copied:
-            return "doc.on.doc"
-        case .unmerged:
-            return "exclamationmark.triangle"
-        case .ignored:
-            return "eye.slash"
-        case .unknown:
-            return "questionmark.circle"
-        }
-    }
-
-    private var statusColor: Color {
-        switch file.status {
-        case .modified:
-            return Color(.systemOrange)
-        case .added, .untracked:
-            return Color(.systemGreen)
-        case .deleted:
-            return Color(.systemRed)
-        case .renamed, .copied:
-            return Color(.systemBlue)
-        case .unmerged:
-            return Color(.systemYellow)
-        case .ignored, .unknown:
-            return .secondary
-        }
+    private var canIgnoreFile: Bool {
+        file.status == .untracked && !isGitignoreFile
     }
 
     var body: some View {
         HStack(spacing: 8) {
             Button(action: onToggleChecked) {
                 Image(systemName: checked ? "checkmark.square.fill" : "square")
-                    .font(.callout.weight(.semibold))
+                    .font(.callout.weight(.bold))
                     .foregroundStyle(.secondary)
                     .symbolReplacement(reduceMotion: reduceMotion)
                     .motion(Motion.feedback, reduceMotion: reduceMotion, value: checked)
             }
             .buttonStyle(.plain)
-            .accessibilityLabel(checked ? "Included in commit" : "Excluded from commit")
+            .accessibilityLabel(checked ? "Exclude from commit" : "Include in commit")
+            .accessibilityValue(checked ? "Included" : "Excluded")
+            .accessibilityHint("Toggles whether this file is included in the commit")
 
             Text(file.path)
                 .font(.callout.weight(selected ? .semibold : .regular))
                 .foregroundStyle(selected ? .primary : .secondary)
                 .lineLimit(1)
                 .truncationMode(.middle)
+                .help(file.path)
                 .motion(Motion.snappy, reduceMotion: reduceMotion, value: selected)
 
             Spacer()
 
-            Image(systemName: statusIcon)
-                .font(.caption.weight(.semibold))
-                .foregroundStyle(statusColor)
-                .frame(width: 14, height: 14)
+            Image(systemName: file.status.iconName)
+                .font(.caption.weight(.bold))
+                .foregroundStyle(file.status.rowColor)
+                .frame(width: 18, height: 18)
+                .help(file.status.displayName)
                 .accessibilityHidden(true)
         }
         .padding(.horizontal, 10)
@@ -96,38 +66,54 @@ struct ChangedFileRow: View {
         .motion(Motion.feedback, reduceMotion: reduceMotion, value: recentlyToggled)
         .contentShape(Rectangle())
         .contextMenu {
-            Button("Reveal in Finder", action: onRevealInFinder)
-            if let name = editorName {
-                Button("Open in \(name)", action: onOpenInEditor)
-            } else {
-                Button("Open in External Editor", action: onOpenInEditor)
-            }
-            Button("Open with Default Program", action: onOpenWithDefault)
+            contextMenuContent
+        }
+    }
+
+    @ViewBuilder
+    private var contextMenuContent: some View {
+        Button("Reveal in Finder", action: onRevealInFinder)
+        if let name = editorName {
+            Button("Open in \(name)", action: onOpenInEditor)
+        } else {
+            Button("Open in External Editor", action: onOpenInEditor)
+        }
+        Button("Open with Default Program", action: onOpenWithDefault)
+        Divider()
+        Button("Copy File Path", action: onCopyPath)
+        Button("Copy Relative File Path", action: onCopyRelativePath)
+        if canIgnoreFile {
             Divider()
-            Button("Copy File Path", action: onCopyPath)
-            Button("Copy Relative File Path", action: onCopyRelativePath)
-            if !isGitignoreFile {
-                Divider()
-                Menu("Ignore") {
-                    Button("Ignore File (Add to .gitignore)", action: onIgnoreFile)
-                    if !ignoreFolders.isEmpty {
-                        Menu("Ignore Folder (Add to .gitignore)") {
-                            ForEach(ignoreFolders, id: \.self) { folder in
-                                Button(folder) { onIgnoreFolder(folder) }
-                            }
-                        }
-                    }
-                    if let ext = ignorableExtension {
-                        Button("Ignore All *.\(ext) Files (Add to .gitignore)", action: onIgnoreExtension)
+            ignoreMenu
+        }
+        Divider()
+        Button("Discard Changes…", role: .destructive, action: onDiscardChanges)
+    }
+
+    @ViewBuilder
+    private var ignoreMenu: some View {
+        Menu("Ignore") {
+            Button("Ignore File (Add to .gitignore)", action: onIgnoreFile)
+            if !ignoreFolders.isEmpty {
+                Menu("Ignore Folder (Add to .gitignore)") {
+                    ForEach(ignoreFolders, id: \.self) { folder in
+                        Button(folder) { onIgnoreFolder(folder) }
                     }
                 }
             }
-            Divider()
-            Button("Discard Changes…", role: .destructive, action: onDiscardChanges)
+            if let ext = ignorableExtension {
+                Button("Ignore All *.\(ext) Files (Add to .gitignore)", action: onIgnoreExtension)
+            }
         }
     }
 
     private var rowTint: Color {
-        recentlyToggled ? statusColor.opacity(0.16) : .clear
+        if recentlyToggled {
+            return file.status.rowColor.opacity(0.16)
+        }
+        if selected {
+            return Color.accentColor.opacity(0.12)
+        }
+        return .clear
     }
 }

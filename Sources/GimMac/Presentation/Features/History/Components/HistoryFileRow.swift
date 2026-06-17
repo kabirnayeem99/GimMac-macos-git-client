@@ -9,55 +9,8 @@ struct HistoryFileRow: View {
     var onCopyRelativePath: () -> Void = {}
     var editorName: String?
 
-    private var statusIcon: String {
-        switch file.status {
-        case .modified:
-            return "pencil"
-        case .added, .untracked:
-            return "plus.circle"
-        case .deleted:
-            return "trash"
-        case .renamed:
-            return "arrow.left.arrow.right"
-        case .copied:
-            return "doc.on.doc"
-        case .unmerged:
-            return "exclamationmark.triangle"
-        case .ignored:
-            return "eye.slash"
-        case .unknown:
-            return "questionmark.circle"
-        }
-    }
-
-    private var statusName: String {
-        switch file.status {
-        case .modified: return "Modified"
-        case .added, .untracked: return "Added"
-        case .deleted: return "Deleted"
-        case .renamed: return "Renamed"
-        case .copied: return "Copied"
-        case .unmerged: return "Conflicted"
-        case .ignored: return "Ignored"
-        case .unknown: return "Unknown"
-        }
-    }
-
-    private var statusColor: Color {
-        switch file.status {
-        case .modified:
-            return Color(.systemOrange)
-        case .added, .untracked:
-            return Color(.systemGreen)
-        case .deleted:
-            return Color(.systemRed)
-        case .renamed, .copied:
-            return Color(.systemBlue)
-        case .unmerged:
-            return Color(.systemRed)
-        case .ignored, .unknown:
-            return .secondary
-        }
+    private var canOpenWorkingTreeFile: Bool {
+        file.status != .deleted
     }
 
     var body: some View {
@@ -65,14 +18,16 @@ struct HistoryFileRow: View {
             Text(file.path)
                 .font(.system(size: 12))
                 .lineLimit(1)
-                .truncationMode(.head)
+                .truncationMode(.middle)
+                .help(file.path)
 
-            Spacer()
+            Spacer(minLength: 8)
 
-            Image(systemName: statusIcon)
+            Image(systemName: file.status.iconName)
                 .font(.system(size: 11, weight: .semibold))
-                .foregroundStyle(statusColor)
-                .frame(width: 14, height: 14)
+                .foregroundStyle(file.status.rowColor)
+                .frame(width: 16, height: 16)
+                .help(file.status.displayName)
                 .accessibilityHidden(true)
         }
         .padding(.horizontal, 10)
@@ -80,18 +35,21 @@ struct HistoryFileRow: View {
         .frame(maxWidth: .infinity, alignment: .leading)
         .contentShape(Rectangle())
         .accessibilityElement(children: .ignore)
-        .accessibilityLabel("\(statusName) — \(file.path)")
+        .accessibilityLabel("\(file.status.displayName), \(file.path)")
         .contextMenu {
+            contextMenuContent
+        }
+    }
+
+    @ViewBuilder
+    private var contextMenuContent: some View {
+        if canOpenWorkingTreeFile {
             Button("Reveal in Finder", action: onRevealInFinder)
-            if let name = editorName {
-                Button("Open in \(name)", action: onOpenInEditor)
-            } else {
-                Button("Open in External Editor", action: onOpenInEditor)
-            }
+            Button("Open in \(editorName ?? "External Editor")", action: onOpenInEditor)
             Button("Open with Default Program", action: onOpenWithDefault)
             Divider()
-            Button("Copy File Path", action: onCopyPath)
-            Button("Copy Relative File Path", action: onCopyRelativePath)
         }
+        Button("Copy File Path", action: onCopyPath)
+        Button("Copy Relative File Path", action: onCopyRelativePath)
     }
 }

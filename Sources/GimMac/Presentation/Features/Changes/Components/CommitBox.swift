@@ -50,14 +50,7 @@ struct CommitBox: View {
                 Button {
                     isShowingProfile.toggle()
                 } label: {
-                    Circle()
-                        .fill(.quaternary)
-                        .frame(width: 28, height: 28)
-                        .overlay {
-                            Text(viewModel.currentGitUser.initials)
-                                .font(.caption2.weight(.bold))
-                                .foregroundStyle(.secondary)
-                        }
+                    AuthorAvatar(name: viewModel.currentGitUser.name)
                 }
                 .buttonStyle(.plain)
                 .accessibilityLabel("Author: \(viewModel.currentGitUser.name), \(viewModel.currentGitUser.email)")
@@ -198,9 +191,7 @@ struct CommitBox: View {
 
             ForEach(viewModel.commitCoAuthors) { author in
                 HStack(spacing: 4) {
-                    Image(systemName: "person.crop.circle")
-                        .font(.caption2)
-                        .foregroundStyle(.secondary)
+                    AuthorAvatar(name: author.name, size: 18, fontSize: 7)
                     Text(author.display)
                         .font(.caption)
                         .lineLimit(1)

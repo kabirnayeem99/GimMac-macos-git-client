@@ -10,7 +10,7 @@ final class GitSmokeIntegrationTests: XCTestCase {
         try runGit(["checkout", "-b", "phase1-test"], in: root)
 
         let sut = LocalGitRepositoryInspector(gitClient: ProcessGitClient())
-        let tip = try await sut.inspectRepository(at: root)
+        let tip = try await sut.inspectRepository(at: root).tip
 
         if case .unborn(let ref) = tip {
             XCTAssertEqual(ref, "phase1-test")
