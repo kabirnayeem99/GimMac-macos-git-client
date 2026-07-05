@@ -10,7 +10,7 @@ final class GitRemoteService: RepositoryRemoteProviding, Sendable {
     func fetchRemoteURL(named remote: String, in repositoryURL: URL) async throws -> String? {
         do {
             let result = try await client.run(
-                ["remote", "get-url", remote],
+                ["remote", "get-url", "--", remote],
                 in: repositoryURL,
                 timeout: 5
             )
@@ -27,7 +27,7 @@ final class GitRemoteService: RepositoryRemoteProviding, Sendable {
 
     func setRemoteURL(_ url: String, named remote: String, in repositoryURL: URL) async throws {
         _ = try await client.run(
-            ["remote", "set-url", remote, url],
+            ["remote", "set-url", "--", remote, url],
             in: repositoryURL,
             timeout: 10
         )

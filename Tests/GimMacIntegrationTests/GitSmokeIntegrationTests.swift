@@ -39,7 +39,7 @@ final class GitSmokeIntegrationTests: XCTestCase {
         let revParse = try await sut.run(GitCommandBuilder.revParseHeadShort(), in: root, timeout: 10)
         XCTAssertFalse(revParse.stdout.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
 
-        let status = try await sut.run(GitCommandBuilder.statusPorcelainV1(), in: root, timeout: 10)
+        let status = try await sut.run(["status", "--porcelain=v2", "-z"], in: root, timeout: 10)
         XCTAssertEqual(status.stdout, "")
         XCTAssertEqual(status.exitCode, 0)
     }

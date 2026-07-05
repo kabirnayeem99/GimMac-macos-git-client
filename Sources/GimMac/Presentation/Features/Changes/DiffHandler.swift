@@ -94,7 +94,7 @@ final class DiffHandler {
     }
 
     private func isCurrentDiffRequest(id: Int, path: String) -> Bool {
-        diffRequestID == id && selectedFilePath == path
+        !Task.isCancelled && diffRequestID == id && selectedFilePath == path
     }
 
     private static func cacheKey(repositoryURL: URL, path: String, changedFile: ChangedFile?) -> DiffCacheKey {

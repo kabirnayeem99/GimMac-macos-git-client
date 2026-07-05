@@ -11,14 +11,17 @@ internal enum RepositoryEntity {
 final class CoreDataRepositoryPersistence: RepositoryPersistenceProviding, @unchecked Sendable {
     private let container: NSPersistentContainer
     private let gitClient: GitClientProtocol
+    private let logger: AppLogging
     private let writeCoordinator = CoreDataWriteCoordinator()
 
     init(
         gitClient: GitClientProtocol,
+        logger: AppLogging,
         storeURL: URL? = nil,
         inMemory: Bool = false
     ) {
         self.gitClient = gitClient
+        self.logger = logger
         let model = Self.makeModel()
         container = NSPersistentContainer(name: "RepositoryStore", managedObjectModel: model)
 
@@ -49,11 +52,17 @@ final class CoreDataRepositoryPersistence: RepositoryPersistenceProviding, @unch
         // surface as thrown errors that callers already handle.
         if loadFailure != nil, !inMemory, let storeURL = description.url {
             Self.destroyStore(at: storeURL)
-            container.loadPersistentStores { _, _ in }
+            var reloadFailure: Error?
+            container.loadPersistentStores { _, error in
+                reloadFailure = error
+            }
+            if let reloadFailure {
+                logger.error(
+                    "Core Data store reload after corruption recovery still failed: \(reloadFailure.localizedDescription)",
+                    category: .repository
+                )
+            }
         }
-
-        container.viewContext.mergePolicy = NSMergePolicy(merge: .mergeByPropertyObjectTrumpMergePolicyType)
-        container.viewContext.automaticallyMergesChangesFromParent = true
     }
 
     /// Removes a SQLite store and its WAL/SHM sidecar files so a fresh store can
@@ -180,7 +189,7 @@ final class CoreDataRepositoryPersistence: RepositoryPersistenceProviding, @unch
         }
 
         guard let entity = NSEntityDescription.entity(forEntityName: RepositoryEntity.name, in: context) else {
-            throw NSError(domain: "CoreDataRepositoryPersistence", code: 1)
+            throw RepositoryPersistenceError.modelEntityMissing(RepositoryEntity.name)
         }
 
         let record = NSManagedObject(entity: entity, insertInto: context)
@@ -257,11 +266,14 @@ private actor CoreDataWriteCoordinator {
 
 private enum RepositoryPersistenceError: LocalizedError {
     case duplicateRepository(path: String)
+    case modelEntityMissing(String)
 
     var errorDescription: String? {
         switch self {
         case .duplicateRepository(let path):
             return "The repository at \(path) was opened in another in-flight save. Try again."
+        case .modelEntityMissing(let name):
+            return "The persistence model is missing the \"\(name)\" entity. Reinstall the app."
         }
     }
 }

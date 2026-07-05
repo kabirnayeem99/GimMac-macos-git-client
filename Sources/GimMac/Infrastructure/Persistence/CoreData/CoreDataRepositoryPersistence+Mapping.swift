@@ -15,7 +15,7 @@ extension CoreDataRepositoryPersistence {
             lastOpenedAt: object.value(forKey: "lastOpenedAt") as? Date ?? .distantPast,
             createdAt: object.value(forKey: "createdAt") as? Date ?? .distantPast,
             updatedAt: object.value(forKey: "updatedAt") as? Date ?? .distantPast,
-            existsOnDisk: FileManager.default.fileExists(atPath: path)
+            existsOnDisk: FileExistenceCache.shared.exists(atPath: path)
         )
     }
 
@@ -27,5 +27,33 @@ extension CoreDataRepositoryPersistence {
             .resolvingSymlinksInPath()
             .standardizedFileURL
             .path
+    }
+}
+
+/// Short-TTL cache for `FileManager.fileExists` lookups. Repository lists are
+/// re-fetched frequently (e.g. on every refresh) and re-stat the same paths
+/// each time; a small TTL avoids redundant syscalls while staying fresh
+/// enough to notice a repository being deleted or restored.
+private final class FileExistenceCache: @unchecked Sendable {
+    static let shared = FileExistenceCache()
+
+    private let ttl: TimeInterval = 2
+    private let lock = NSLock()
+    private var entries: [String: (exists: Bool, expiresAt: Date)] = [:]
+
+    func exists(atPath path: String) -> Bool {
+        let now = Date()
+        lock.lock()
+        if let cached = entries[path], cached.expiresAt > now {
+            lock.unlock()
+            return cached.exists
+        }
+        lock.unlock()
+
+        let exists = FileManager.default.fileExists(atPath: path)
+        lock.lock()
+        entries[path] = (exists, now.addingTimeInterval(ttl))
+        lock.unlock()
+        return exists
     }
 }

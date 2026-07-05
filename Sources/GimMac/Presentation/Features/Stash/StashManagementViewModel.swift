@@ -19,10 +19,16 @@ final class StashManagementViewModel {
     private(set) var completedAction: Action?
     var errorMessage: String?
 
-    var repositoryURL: URL?
+    var repositoryURL: URL? {
+        didSet {
+            guard oldValue != repositoryURL else { return }
+            repositoryGeneration += 1
+        }
+    }
 
     private let stashProvider: StashProviding
     private var completedActionResetTask: Task<Void, Never>?
+    private var repositoryGeneration: Int = 0
 
     init(stashProvider: StashProviding) {
         self.stashProvider = stashProvider
@@ -30,14 +36,26 @@ final class StashManagementViewModel {
 
     func load() async {
         guard let repositoryURL, !isLoading else { return }
+        let generation = repositoryGeneration
         isLoading = true
         errorMessage = nil
-        defer { isLoading = false }
+        defer {
+            if isCurrentRepositoryTarget(repositoryURL, generation: generation) {
+                isLoading = false
+            }
+        }
         do {
-            stashes = try await stashProvider.fetchAllStashes(in: repositoryURL)
+            let fetched = try await stashProvider.fetchAllStashes(in: repositoryURL)
+            guard isCurrentRepositoryTarget(repositoryURL, generation: generation) else { return }
+            stashes = fetched
         } catch {
+            guard isCurrentRepositoryTarget(repositoryURL, generation: generation) else { return }
             errorMessage = error.localizedDescription
         }
+    }
+
+    private func isCurrentRepositoryTarget(_ url: URL, generation: Int) -> Bool {
+        repositoryGeneration == generation && repositoryURL == url
     }
 
     /// Restore the stash, keeping it in the stack.
@@ -61,13 +79,19 @@ final class StashManagementViewModel {
         _ operation: (StashProviding, URL, String) async throws -> Void
     ) async {
         guard let repositoryURL, activeAction == nil else { return }
+        let generation = repositoryGeneration
         activeAction = action
         completedActionResetTask?.cancel()
         completedAction = nil
         errorMessage = nil
-        defer { activeAction = nil }
+        defer {
+            if isCurrentRepositoryTarget(repositoryURL, generation: generation) {
+                activeAction = nil
+            }
+        }
         do {
             try await operation(stashProvider, repositoryURL, entry.id)
+            guard isCurrentRepositoryTarget(repositoryURL, generation: generation) else { return }
             completedAction = action
             completedActionResetTask = Task { @MainActor [weak self] in
                 try? await Task.sleep(for: .seconds(1.0))
@@ -75,6 +99,7 @@ final class StashManagementViewModel {
             }
             await load()
         } catch {
+            guard isCurrentRepositoryTarget(repositoryURL, generation: generation) else { return }
             errorMessage = error.localizedDescription
         }
     }

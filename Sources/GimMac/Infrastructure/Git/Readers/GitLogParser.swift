@@ -5,7 +5,7 @@ struct GitLogParser {
     // vastly less likely than `|` to appear in normal commit subjects.
     static let recordSeparator = "\u{1E}"
     static let fieldSeparator = "\u{1F}"
-    static let logFormat = "%x1E%H%x1F%h%x1F%an%x1F%ae%x1F%at%x1F%s"
+    static let logFormat = "%x1E%H%x1F%h%x1F%an%x1F%ae%x1F%at%x1F%s%x1F%b"
 
     static func parse(_ output: String) -> [Commit] {
         output
@@ -13,10 +13,10 @@ struct GitLogParser {
             .compactMap { record in
                 let parts = String(record).split(
                     separator: Character(fieldSeparator),
-                    maxSplits: 5,
+                    maxSplits: 6,
                     omittingEmptySubsequences: false
                 )
-                guard parts.count == 6 else { return nil }
+                guard parts.count == 7 else { return nil }
 
                 let hash = String(parts[0])
                 let shortHash = String(parts[1])
@@ -24,6 +24,7 @@ struct GitLogParser {
                 let authorEmail = String(parts[3])
                 let timestamp = Double(parts[4]) ?? 0
                 let summary = String(parts[5])
+                let body = String(parts[6]).trimmingCharacters(in: .whitespacesAndNewlines)
 
                 return Commit(
                     id: hash,
@@ -32,7 +33,7 @@ struct GitLogParser {
                     authorEmail: authorEmail,
                     date: Date(timeIntervalSince1970: timestamp),
                     summary: summary,
-                    body: nil // Body handling could be added later with %b
+                    body: body.isEmpty ? nil : body
                 )
             }
     }

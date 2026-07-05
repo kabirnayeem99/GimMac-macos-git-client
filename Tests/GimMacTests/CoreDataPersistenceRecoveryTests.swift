@@ -32,6 +32,7 @@ final class CoreDataPersistenceRecoveryTests: XCTestCase {
         // Initialization must not assertionFailure; it destroys and reloads the store.
         let sut = CoreDataRepositoryPersistence(
             gitClient: FixedHeadClient(),
+            logger: GimMacLogger(),
             storeURL: storeURL,
             inMemory: false
         )
@@ -52,6 +53,7 @@ final class CoreDataPersistenceRecoveryTests: XCTestCase {
 
         let sut = CoreDataRepositoryPersistence(
             gitClient: FixedHeadClient(),
+            logger: GimMacLogger(),
             storeURL: storeURL,
             inMemory: false
         )

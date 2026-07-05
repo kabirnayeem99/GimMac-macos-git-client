@@ -175,6 +175,7 @@ extension RepositoryStoreViewModel {
         inspection: RepositoryInspectionResult? = nil,
         parentTag: LogFlowTag? = nil
     ) async {
+        let refreshGeneration = beginScreenDataRefresh()
         let refreshStartedAt = Self.nowMilliseconds()
         let isInitialChangedFilesLoad = !changedFilesHandler.hasLoadedOnce
         let refreshTag = logger.tag("repository.screen-data-refresh", parent: parentTag, metadata: [
@@ -197,7 +198,7 @@ extension RepositoryStoreViewModel {
         do {
             let snapshotStartedAt = Self.nowMilliseconds()
             let snapshot = try await screenRepository.loadCriticalSnapshot(for: repository, inspection: inspection)
-            guard isCurrentRepositoryRefreshTarget(repository, selectionGeneration: selectionGeneration) else { return }
+            guard isCurrentRepositoryRefreshTarget(repository, refreshGeneration: refreshGeneration) else { return }
             logger.info(
                 "Repository critical snapshot loaded",
                 category: .repository,
@@ -295,7 +296,7 @@ extension RepositoryStoreViewModel {
                     ),
                     waitForCompletion: true
                 )
-                guard isCurrentRepositoryRefreshTarget(repository, selectionGeneration: selectionGeneration) else { return }
+                guard isCurrentRepositoryRefreshTarget(repository, refreshGeneration: refreshGeneration) else { return }
             }
             logger.info(
                 "Repository critical refresh finished",
@@ -308,13 +309,13 @@ extension RepositoryStoreViewModel {
             )
             startSecondaryRepositoryRefresh(
                 repository: repository,
-                selectionGeneration: selectionGeneration,
+                generations: RefreshGenerations(selectionGeneration: selectionGeneration, refreshGeneration: refreshGeneration),
                 inspection: inspection,
                 criticalSnapshot: snapshot,
                 parentTag: refreshTag
             )
         } catch {
-            guard isCurrentRepositoryRefreshTarget(repository, selectionGeneration: selectionGeneration) else { return }
+            guard isCurrentRepositoryRefreshTarget(repository, refreshGeneration: refreshGeneration) else { return }
             errorMessage = error.localizedDescription
             logger.error(
                 "Repository screen data refresh failed",
@@ -331,7 +332,7 @@ extension RepositoryStoreViewModel {
 
     private func startSecondaryRepositoryRefresh(
         repository: Repository,
-        selectionGeneration: Int?,
+        generations: RefreshGenerations,
         inspection: RepositoryInspectionResult?,
         criticalSnapshot: CriticalRepositorySnapshot,
         parentTag: LogFlowTag?
@@ -341,7 +342,7 @@ extension RepositoryStoreViewModel {
             guard let self else { return }
             await self.loadSecondaryRepositoryData(
                 repository: repository,
-                selectionGeneration: selectionGeneration,
+                generations: generations,
                 inspection: inspection,
                 criticalSnapshot: criticalSnapshot,
                 parentTag: parentTag
@@ -351,11 +352,13 @@ extension RepositoryStoreViewModel {
 
     private func loadSecondaryRepositoryData(
         repository: Repository,
-        selectionGeneration: Int?,
+        generations: RefreshGenerations,
         inspection: RepositoryInspectionResult?,
         criticalSnapshot: CriticalRepositorySnapshot,
         parentTag: LogFlowTag?
     ) async {
+        let selectionGeneration = generations.selectionGeneration
+        let refreshGeneration = generations.refreshGeneration
         let startedAt = Self.nowMilliseconds()
         let tag = logger.tag("repository.secondary-refresh", parent: parentTag, metadata: [
             "repository": repository.url.lastPathComponent,
@@ -374,15 +377,28 @@ extension RepositoryStoreViewModel {
                 inspection: inspection,
                 criticalSnapshot: criticalSnapshot
             )
-            guard isCurrentRepositoryRefreshTarget(repository, selectionGeneration: selectionGeneration) else { return }
+            guard isCurrentRepositoryRefreshTarget(repository, refreshGeneration: refreshGeneration) else { return }
             primaryAction = secondary.primaryAction
             remoteName = secondary.remoteName
             forcePushNeeded = secondary.forcePushNeeded
             unpushedSHAs = secondary.unpushedSHAs
             currentGitUser = secondary.userProfile
             if let stashProvider {
-                stashEntry = try? await stashProvider.fetchStash(in: repository.url)
-                guard isCurrentRepositoryRefreshTarget(repository, selectionGeneration: selectionGeneration) else { return }
+                do {
+                    stashEntry = try await stashProvider.fetchStash(in: repository.url)
+                } catch {
+                    logger.error(
+                        "Repository secondary refresh failed to fetch stash",
+                        category: .repository,
+                        metadata: [
+                            "repository": repository.url.lastPathComponent,
+                            "reason": error.localizedDescription
+                        ],
+                        tag: tag
+                    )
+                    stashEntry = nil
+                }
+                guard isCurrentRepositoryRefreshTarget(repository, refreshGeneration: refreshGeneration) else { return }
             } else {
                 stashEntry = nil
             }
@@ -398,7 +414,7 @@ extension RepositoryStoreViewModel {
                 tag: tag
             )
         } catch {
-            guard isCurrentRepositoryRefreshTarget(repository, selectionGeneration: selectionGeneration) else { return }
+            guard isCurrentRepositoryRefreshTarget(repository, refreshGeneration: refreshGeneration) else { return }
             logger.error(
                 "Repository secondary refresh failed",
                 category: .repository,
@@ -432,12 +448,16 @@ extension RepositoryStoreViewModel {
         repositorySelectionGeneration == generation && selectedRepository?.url == url
     }
 
+    private func beginScreenDataRefresh() -> Int {
+        screenDataRefreshGeneration += 1
+        return screenDataRefreshGeneration
+    }
+
     private func isCurrentRepositoryRefreshTarget(
         _ repository: Repository,
-        selectionGeneration: Int?
+        refreshGeneration: Int
     ) -> Bool {
-        selectedRepository?.url == repository.url &&
-            (selectionGeneration == nil || repositorySelectionGeneration == selectionGeneration)
+        selectedRepository?.url == repository.url && screenDataRefreshGeneration == refreshGeneration
     }
 
     static func nowMilliseconds() -> Double {
@@ -451,4 +471,13 @@ extension RepositoryStoreViewModel {
     static func formatMilliseconds(_ milliseconds: Double) -> String {
         String(format: "%.3f", milliseconds)
     }
+}
+
+/// Bundles the two independent staleness counters threaded through the
+/// secondary-refresh pipeline: `selectionGeneration` (nil for manual
+/// refreshes, used only for log metadata) and `refreshGeneration` (always
+/// set, used to detect a newer overlapping refresh).
+private struct RefreshGenerations {
+    let selectionGeneration: Int?
+    let refreshGeneration: Int
 }

@@ -686,6 +686,7 @@ final class RepositoryStoreViewModelTests: XCTestCase {
         let storeURL = tmp.appendingPathComponent("RepositoryStore.sqlite")
         let persistence = CoreDataRepositoryPersistence(
             gitClient: MockGitClient(headByPath: [repoPath.path: "abc123"]),
+            logger: GimMacLogger(),
             storeURL: storeURL
         )
 
@@ -711,6 +712,7 @@ final class RepositoryStoreViewModelTests: XCTestCase {
         let storeURL = tmp.appendingPathComponent("RepositoryStore.sqlite")
         let persistence = CoreDataRepositoryPersistence(
             gitClient: MockGitClient(headByPath: [:]),
+            logger: GimMacLogger(),
             storeURL: storeURL
         )
 

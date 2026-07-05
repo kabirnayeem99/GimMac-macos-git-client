@@ -54,6 +54,7 @@ final class RepositoryStoreViewModel {
     var changedFileDiffTask: Task<Void, Never>?
     var secondaryRefreshTask: Task<Void, Never>?
     var repositorySelectionGeneration: Int = 0
+    var screenDataRefreshGeneration: Int = 0
     var currentInspection: RepositoryInspectionResult?
 
     var selectedRepository: Repository?
