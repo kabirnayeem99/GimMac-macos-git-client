@@ -77,7 +77,8 @@ final class BranchDialogPresenter {
             branch: branch,
             existingNames: existing
         ) { [weak viewModel] newName, force in
-            Task { await viewModel?.renameBranch(branch, to: newName, force: force) }
+            guard let viewModel else { return }
+            Task { await viewModel.renameBranch(branch, to: newName, force: force) }
         }
         present(controller.viewController)
     }
@@ -141,7 +142,8 @@ final class BranchDialogPresenter {
 
     func presentUpdateFromDefault(for branch: Branch) {
         let controller = UpdateFromDefaultSheetController(branch: branch) { [weak viewModel] rebase in
-            Task { await viewModel?.updateBranchFromDefault(branch, rebase: rebase) }
+            guard let viewModel else { return }
+            Task { await viewModel.updateBranchFromDefault(branch, rebase: rebase) }
         }
         present(controller.viewController)
     }

@@ -48,4 +48,7 @@ protocol AppSettingsStoring: AnyObject, Sendable {
     // Accessibility
     var underlineLinks: Bool { get set }                                  // default true
     var showDiffCheckMarks: Bool { get set }                             // default true
+
+    // Onboarding
+    var onboardingCompleted: Bool { get set }                             // default false
 }

@@ -130,4 +130,11 @@ extension UserDefaultsAppSettingsStore {
         get { defaults.bool(forKey: Key.showDiffCheckMarks) }
         set { defaults.set(newValue, forKey: Key.showDiffCheckMarks) }
     }
+
+    // MARK: - Onboarding
+
+    var onboardingCompleted: Bool {
+        get { defaults.bool(forKey: Key.onboardingCompleted) }
+        set { defaults.set(newValue, forKey: Key.onboardingCompleted) }
+    }
 }

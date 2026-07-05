@@ -26,6 +26,12 @@ final class GitSettingsPaneController: SettingsPaneViewController {
     @available(*, unavailable)
     required init?(coder: NSCoder) { fatalError("init(coder:) has not been implemented") }
 
+    deinit {
+        MainActor.assumeIsolated {
+            bannerDismissWorkItem?.cancel()
+        }
+    }
+
     override func buildContent() {
         addHeader("Git")
 

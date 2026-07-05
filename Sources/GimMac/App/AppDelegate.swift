@@ -21,7 +21,6 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     private let notificationAuthorizer = UserNotificationAuthorizer()
     private lazy var gitConfigService = GitConfigService(client: gitClient)
 
-    private static let onboardingCompletedKey = "io.github.kabirnayeem99.gimmac.onboardingCompleted"
     private lazy var repositoryInspector = LocalGitRepositoryInspector(gitClient: gitClient, logger: logger)
     private lazy var repositoryPersistence = CoreDataRepositoryPersistence(gitClient: gitClient, logger: logger)
     // Shared between the create-repository orchestrator and the view model so
@@ -83,7 +82,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         themeApplier.apply(settingsStore.selectedTheme)
         installMainMenu()
 
-        if UserDefaults.standard.bool(forKey: Self.onboardingCompletedKey) {
+        if settingsStore.onboardingCompleted {
             ensureMainWindowVisible(forceNew: true)
         } else {
             presentOnboarding()
@@ -96,7 +95,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         let configService = GitConfigService(client: gitClient)
         let viewModel = OnboardingViewModel(configReader: configService, configWriter: configService)
         viewModel.onComplete = { [weak self] in
-            UserDefaults.standard.set(true, forKey: Self.onboardingCompletedKey)
+            self?.settingsStore.onboardingCompleted = true
             self?.onboardingWindowController?.close()
             self?.onboardingWindowController = nil
             self?.ensureMainWindowVisible(forceNew: true)

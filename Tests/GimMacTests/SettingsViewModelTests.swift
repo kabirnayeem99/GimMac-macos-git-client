@@ -33,6 +33,7 @@ private final class FakeAppSettingsStore: AppSettingsStoring, @unchecked Sendabl
     var notificationsEnabled = true
     var underlineLinks = true
     var showDiffCheckMarks = true
+    var onboardingCompleted = false
 }
 
 private actor FakeGitConfig: GitConfigReading, GitConfigWriting {

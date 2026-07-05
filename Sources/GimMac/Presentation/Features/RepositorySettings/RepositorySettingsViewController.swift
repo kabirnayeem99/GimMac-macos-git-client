@@ -44,6 +44,12 @@ final class RepositorySettingsViewController: NSViewController {
         super.init(nibName: nil, bundle: nil)
     }
 
+    deinit {
+        MainActor.assumeIsolated {
+            bannerDismissWorkItem?.cancel()
+        }
+    }
+
     @available(*, unavailable)
     required init?(coder: NSCoder) {
         fatalError("init(coder:) has not been implemented")

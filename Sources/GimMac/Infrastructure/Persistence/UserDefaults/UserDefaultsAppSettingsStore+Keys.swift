@@ -37,5 +37,7 @@ extension UserDefaultsAppSettingsStore {
 
         static let underlineLinks = prefix + "underlineLinks"
         static let showDiffCheckMarks = prefix + "showDiffCheckMarks"
+
+        static let onboardingCompleted = prefix + "onboardingCompleted"
     }
 }
