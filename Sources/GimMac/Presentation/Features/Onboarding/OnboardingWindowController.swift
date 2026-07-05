@@ -6,7 +6,7 @@ final class OnboardingWindowController: NSWindowController {
     init(viewModel: OnboardingViewModel) {
         let window = NSWindow(
             contentRect: NSRect(x: 0, y: 0, width: 480, height: 380),
-            styleMask: [.titled, .closable],
+            styleMask: [.titled],
             backing: .buffered,
             defer: false
         )

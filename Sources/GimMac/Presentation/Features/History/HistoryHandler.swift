@@ -14,6 +14,7 @@ final class HistoryHandler {
     private(set) var isLoadingCommitFiles = false
     private(set) var selectedCommitFilePath: String?
     private(set) var selectedCommitDiffSHA: Commit.ID?
+    private var loadingCommitFilesSHA: Commit.ID?
 
     private(set) var diffDocument: DiffDocument = .empty
     private(set) var isLoadingDiff = false
@@ -38,6 +39,8 @@ final class HistoryHandler {
 
     private func resetFiles() {
         commitFiles = []
+        isLoadingCommitFiles = false
+        loadingCommitFilesSHA = nil
         selectedCommitFilePath = nil
         selectedCommitDiffSHA = nil
         diffDocument = .empty
@@ -93,10 +96,16 @@ final class HistoryHandler {
         using inspector: CommitInspecting,
         in repositoryURL: URL
     ) async {
+        loadingCommitFilesSHA = commitSHA
         isLoadingCommitFiles = true
-        defer { isLoadingCommitFiles = false }
+        defer {
+            if loadingCommitFilesSHA == commitSHA {
+                isLoadingCommitFiles = false
+                loadingCommitFilesSHA = nil
+            }
+        }
         let files = (try? await inspector.fetchFiles(for: commitSHA, in: repositoryURL)) ?? []
-        guard !Task.isCancelled else { return }
+        guard !Task.isCancelled, loadingCommitFilesSHA == commitSHA else { return }
         commitFiles = files
         if let first = files.first {
             selectedCommitFilePath = first.path

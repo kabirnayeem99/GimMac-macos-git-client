@@ -154,6 +154,18 @@ private struct MockCommitInspector: CommitInspecting, Sendable {
     }
 }
 
+private struct DelayedCommitInspector: CommitInspecting, Sendable {
+    let filesBySHA: [String: [CommitFile]]
+    let delaysBySHA: [String: Duration]
+
+    func fetchFiles(for commitSHA: String, in repositoryURL: URL) async throws -> [CommitFile] {
+        if let delay = delaysBySHA[commitSHA] {
+            try? await Task.sleep(for: delay)
+        }
+        return filesBySHA[commitSHA] ?? []
+    }
+}
+
 private struct DelayedBranchProvider: BranchProviding, Sendable {
     let branchesByRepositoryPath: [String: [Branch]]
     let delaysByRepositoryPath: [String: Duration]
@@ -762,6 +774,65 @@ extension RepositoryStoreViewModelTests {
 
 @MainActor
 extension RepositoryStoreViewModelTests {
+    func testHistoryHandlerDropsStaleFilesForOlderCommitSelection() async {
+        let inspector = DelayedCommitInspector(
+            filesBySHA: [
+                "commit-a": [CommitFile(path: "Old.swift", status: .modified)],
+                "commit-b": [CommitFile(path: "New.swift", status: .modified)]
+            ],
+            delaysBySHA: [
+                "commit-a": .milliseconds(80),
+                "commit-b": .milliseconds(5)
+            ]
+        )
+        let sut = HistoryHandler()
+        let repositoryURL = URL(fileURLWithPath: "/tmp/repo", isDirectory: true)
+        sut.selectSingle("commit-a")
+        let first = Task {
+            await sut.loadFiles(for: "commit-a", using: inspector, in: repositoryURL)
+        }
+        try? await Task.sleep(for: .milliseconds(10))
+        sut.selectSingle("commit-b")
+        let second = Task {
+            await sut.loadFiles(for: "commit-b", using: inspector, in: repositoryURL)
+        }
+        _ = await (first.value, second.value)
+
+        XCTAssertEqual(sut.anchorSHA, "commit-b")
+        XCTAssertEqual(sut.commitFiles.map(\.path), ["New.swift"])
+        XCTAssertEqual(sut.selectedCommitFilePath, "New.swift")
+        XCTAssertFalse(sut.isLoadingCommitFiles)
+    }
+
+    func testResetPerRepositoryStateClearsConflictResolutionState() {
+        let sut = RepositoryStoreViewModel(
+            logger: GimMacLogger(),
+            inspector: MockRepositoryInspector(
+                result: .success(RepositoryInspectionResult(tip: .valid(
+                    branch: BranchSummary(name: "main", upstream: nil, sha: "abc1234")
+                )))
+            ),
+            screenRepository: MockRepositoryScreenDataProvider(snapshot: .testSnapshot),
+            diffProvider: MockDiffProvider(),
+            commitInspector: MockCommitInspector(),
+            commitProvider: MockCommitProvider(),
+            repositoryPersistence: MockRepositoryPersistence()
+        )
+        sut.isResolvingConflicts = true
+        sut.conflictedFiles = [.withMarkers(path: "README.md", summary: .bothModified, conflictMarkerCount: 2)]
+        sut.initialConflictCount = 1
+        sut.conflictMergeToolName = "opendiff"
+        sut.isConflictActionInProgress = true
+
+        sut.resetPerRepositoryState()
+
+        XCTAssertFalse(sut.isResolvingConflicts)
+        XCTAssertTrue(sut.conflictedFiles.isEmpty)
+        XCTAssertEqual(sut.initialConflictCount, 0)
+        XCTAssertNil(sut.conflictMergeToolName)
+        XCTAssertFalse(sut.isConflictActionInProgress)
+    }
+
     func testCanCommitChangesRequiresSelectedFilesOutsideAmendMode() {
         let sut = makeCommitEligibilityViewModel()
         sut.selectedRepository = Repository(url: URL(fileURLWithPath: "/tmp/repo", isDirectory: true))

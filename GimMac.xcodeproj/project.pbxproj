@@ -192,6 +192,7 @@
 		B52A6A08387CEA663BF7FDE4 /* RepositoryPickerDialog.swift in Sources */ = {isa = PBXBuildFile; fileRef = 60A2D09F1DE1124A4B00EFD0 /* RepositoryPickerDialog.swift */; };
 		B6A775D1979F4BB562B06A79 /* GitCommitInspector.swift in Sources */ = {isa = PBXBuildFile; fileRef = 77B71E11602921EFDB2A4C68 /* GitCommitInspector.swift */; };
 		BA016E08C76594F4A891682E /* EmptyStateButtonStyle.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7E6C0D51F183A25AC6C5CFF7 /* EmptyStateButtonStyle.swift */; };
+		BA12887B8DC1A667B764316C /* GitLogParserTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 952D7A172CEBBC850ED8D292 /* GitLogParserTests.swift */; };
 		BD599F6D883C1C479E0090D7 /* GitStatusParser.swift in Sources */ = {isa = PBXBuildFile; fileRef = B84EB4528A94318B09D7ABC0 /* GitStatusParser.swift */; };
 		BE0369C6FA6F50DB29D617EA /* RepositoryCreationIntegrationTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 102E2C526924299D5DB2AACF /* RepositoryCreationIntegrationTests.swift */; };
 		BF5F71EF2E43A8654E2F659F /* RepositoryStoreViewModelTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 40544E3542DD0D5C3B33439B /* RepositoryStoreViewModelTests.swift */; };
@@ -268,6 +269,7 @@
 		F71FC306071EBD1FA0A64369 /* GitSquashProvider.swift in Sources */ = {isa = PBXBuildFile; fileRef = DCB02385694BD441363F0594 /* GitSquashProvider.swift */; };
 		F78C5DB971B5FBBF387AE043 /* CreateBranchWindowController.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6266A3C7F480063F74B00C3C /* CreateBranchWindowController.swift */; };
 		F7A5956B05233A1F9FACCC5B /* SettingsViewModelTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 93845DF48EB53C8B8954CA4B /* SettingsViewModelTests.swift */; };
+		F9AC8F4F453D99FAFE592E90 /* SwiftyDiffUnifiedParserTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 45A5802314C3B7782006118F /* SwiftyDiffUnifiedParserTests.swift */; };
 		FA2BAF3EAD698B170166D8F7 /* GitClient.swift in Sources */ = {isa = PBXBuildFile; fileRef = 11C7500F92A87EF04FD2EEAB /* GitClient.swift */; };
 		FAC34F74FB8ABE1E7F811D9B /* ConflictsDialogView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8F9CABD3EE2ED958DA29788A /* ConflictsDialogView.swift */; };
 		FB1A316D5DD86721E13B285A /* RepositoryStoreViewModel+Commit.swift in Sources */ = {isa = PBXBuildFile; fileRef = D2F4354FE2CF6E8CEA4C3FEF /* RepositoryStoreViewModel+Commit.swift */; };
@@ -386,6 +388,7 @@
 		44CBBB2573CFA7B771BF46B6 /* LoadingPlaceholder.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LoadingPlaceholder.swift; sourceTree = "<group>"; };
 		450CAFFDF6ACF9D317D56DEE /* CommitFile.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CommitFile.swift; sourceTree = "<group>"; };
 		454690FE212433B9F2263AA2 /* GitHistoryProvider.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GitHistoryProvider.swift; sourceTree = "<group>"; };
+		45A5802314C3B7782006118F /* SwiftyDiffUnifiedParserTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SwiftyDiffUnifiedParserTests.swift; sourceTree = "<group>"; };
 		461CA3F40CAF9B3F68EAC6C2 /* HistoryFilesColumn.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HistoryFilesColumn.swift; sourceTree = "<group>"; };
 		463D323C53579A99749EFFAD /* StashEntry.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = StashEntry.swift; sourceTree = "<group>"; };
 		46DEB0F4AF835D374C3C1564 /* RepositoryStoreViewModel+Stash.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "RepositoryStoreViewModel+Stash.swift"; sourceTree = "<group>"; };
@@ -475,6 +478,7 @@
 		9220C28FDA62E72DEBEB23A4 /* DiffViewer.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DiffViewer.swift; sourceTree = "<group>"; };
 		9221E00C8FC84E6A45B08FAD /* GitDiscardProvider.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GitDiscardProvider.swift; sourceTree = "<group>"; };
 		93845DF48EB53C8B8954CA4B /* SettingsViewModelTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SettingsViewModelTests.swift; sourceTree = "<group>"; };
+		952D7A172CEBBC850ED8D292 /* GitLogParserTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GitLogParserTests.swift; sourceTree = "<group>"; };
 		95A739882390628F1AF04C87 /* GitStatusProvider.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GitStatusProvider.swift; sourceTree = "<group>"; };
 		9657651BB36EFFA1DF0DF241 /* GitCherryPickProvider.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GitCherryPickProvider.swift; sourceTree = "<group>"; };
 		96C018057F0648AC50281DE1 /* GitServices.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GitServices.swift; sourceTree = "<group>"; };
@@ -852,12 +856,14 @@
 				0787EB408F6A9016AEFFDC39 /* GitDiffProviderUnbornHeadTests.swift */,
 				7622D80A569F509D6D07568D /* GitIgnoreProviderTests.swift */,
 				219AA33A0DEF90EABD2578B2 /* GitIgnoreRuleTests.swift */,
+				952D7A172CEBBC850ED8D292 /* GitLogParserTests.swift */,
 				D0E555D58510CD7AC5CA74F8 /* GitStatusParserTests.swift */,
 				3E2D4292BF9E83B312F2C1D8 /* MotionStateTests.swift */,
 				EAFCF6AA8F98D0461CA70DD6 /* ProcessGitClientTests.swift */,
 				1133B7C911DB56B6558014F8 /* RepositoryBranchDisplayFormatterTests.swift */,
 				40544E3542DD0D5C3B33439B /* RepositoryStoreViewModelTests.swift */,
 				93845DF48EB53C8B8954CA4B /* SettingsViewModelTests.swift */,
+				45A5802314C3B7782006118F /* SwiftyDiffUnifiedParserTests.swift */,
 				5778DB7C0635D207671F03CA /* UserDefaultsAppSettingsStoreTests.swift */,
 			);
 			name = GimMacTests;
@@ -1817,12 +1823,14 @@
 				47E8C9D5C715C1C6369D89D3 /* GitDiffProviderUnbornHeadTests.swift in Sources */,
 				F002BA984783039A004823B1 /* GitIgnoreProviderTests.swift in Sources */,
 				4E2D1311208F99F80D2CD137 /* GitIgnoreRuleTests.swift in Sources */,
+				BA12887B8DC1A667B764316C /* GitLogParserTests.swift in Sources */,
 				81E273200061A7CE85BFA914 /* GitStatusParserTests.swift in Sources */,
 				A4C2BDD88A5F5FE91476B9E0 /* MotionStateTests.swift in Sources */,
 				A1364B4855C87BEEECF656DE /* ProcessGitClientTests.swift in Sources */,
 				1C0D103458BBD9FF26FB08DD /* RepositoryBranchDisplayFormatterTests.swift in Sources */,
 				BF5F71EF2E43A8654E2F659F /* RepositoryStoreViewModelTests.swift in Sources */,
 				F7A5956B05233A1F9FACCC5B /* SettingsViewModelTests.swift in Sources */,
+				F9AC8F4F453D99FAFE592E90 /* SwiftyDiffUnifiedParserTests.swift in Sources */,
 				7240D238F88851C1B24E9C0E /* UserDefaultsAppSettingsStoreTests.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;

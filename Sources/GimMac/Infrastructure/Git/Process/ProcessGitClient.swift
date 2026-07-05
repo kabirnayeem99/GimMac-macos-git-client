@@ -19,6 +19,10 @@ final class ProcessGitClient: GitClientProtocol, Sendable {
 }
 
 extension ProcessGitClient {
+    func cancelAllRunningCommands() async {
+        await runner.cancelAll()
+    }
+
     func run(_ arguments: [String], in repositoryURL: URL, timeout: TimeInterval = 10) async throws -> GitCommandResult {
         try await run(arguments, in: repositoryURL, priority: .visible, timeout: timeout)
     }

@@ -54,12 +54,23 @@ final class ProcessGitClientTests: XCTestCase {
             XCTFail("Unexpected error: \(error)")
         }
     }
+
+    func testCancelAllRunningCommandsForwardsToRunner() async {
+        let runner = MockRunner(result: .success(GitCommandResult(stdout: "", stderr: "", exitCode: 0)))
+        let sut = ProcessGitClient(runner: runner)
+
+        await sut.cancelAllRunningCommands()
+
+        let cancelAllCount = await runner.cancelAllCallCount
+        XCTAssertEqual(cancelAllCount, 1)
+    }
 }
 
 actor MockRunner: GitCommandRunning {
     private let result: Result<GitCommandResult, Error>
     private let delayNanoseconds: UInt64
     private(set) var cancelCallCount = 0
+    private(set) var cancelAllCallCount = 0
 
     init(result: Result<GitCommandResult, Error>, delayNanoseconds: UInt64 = 0) {
         self.result = result
@@ -80,5 +91,9 @@ actor MockRunner: GitCommandRunning {
 
     func cancel(id: UUID) {
         cancelCallCount += 1
+    }
+
+    func cancelAll() {
+        cancelAllCallCount += 1
     }
 }

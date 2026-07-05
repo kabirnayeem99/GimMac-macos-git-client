@@ -94,6 +94,13 @@ actor ProcessGitCommandRunner: GitCommandRunning {
         process.terminate()
     }
 
+    func cancelAll() {
+        for process in inFlight.values where process.isRunning {
+            process.terminate()
+        }
+        inFlight.removeAll()
+    }
+
     private static func makeProcess(arguments: [String], repositoryURL: URL, extraEnvironment: [String: String]) -> Process {
         let process = Process()
         process.executableURL = URL(fileURLWithPath: "/usr/bin/env")

@@ -57,8 +57,10 @@ actor GimMacLogger: AppLogging {
         metadata: [String: String],
         tag: LogFlowTag?
     ) {
+        let sanitizedMessage = category == .git ? SensitiveGitDataRedactor.redact(message) : message
+        let sanitizedMetadata = category == .git ? SensitiveGitDataRedactor.redact(metadata) : metadata
         writer.enqueue(
-            .event(level: level, category: category, message: message, metadata: metadata, tag: tag),
+            .event(level: level, category: category, message: sanitizedMessage, metadata: sanitizedMetadata, tag: tag),
             appStartUptime: appStartUptime
         )
     }
@@ -85,19 +87,19 @@ actor GimMacLogger: AppLogging {
     func logGitCommandStarted(_ context: GitCommandStartContext, tag: LogFlowTag?) {
         writer.enqueue(
             .git(
-                arguments: context.arguments,
+                arguments: SensitiveGitDataRedactor.redact(context.arguments),
                 repositoryPath: context.repositoryURL.path,
                 level: .debug,
                 exitCode: nil,
                 stdout: "",
                 stderr: "",
                 error: nil,
-                metadata: [
+                metadata: SensitiveGitDataRedactor.redact([
                     "git.command_id": context.commandID.uuidString,
                     "git.phase": "started",
                     "git.timeout_seconds": String(context.timeout),
                     "git.extra_environment_keys": context.extraEnvironment.keys.sorted().joined(separator: ",")
-                ],
+                ]),
                 tag: tag
             ),
             appStartUptime: appStartUptime
@@ -122,14 +124,14 @@ actor GimMacLogger: AppLogging {
 
         writer.enqueue(
             .git(
-                arguments: arguments,
+                arguments: SensitiveGitDataRedactor.redact(arguments),
                 repositoryPath: repositoryURL.path,
                 level: .info,
                 exitCode: result.exitCode,
-                stdout: result.stdout,
-                stderr: result.stderr,
+                stdout: SensitiveGitDataRedactor.redact(result.stdout),
+                stderr: SensitiveGitDataRedactor.redact(result.stderr),
                 error: nil,
-                metadata: metadata,
+                metadata: SensitiveGitDataRedactor.redact(metadata),
                 tag: tag
             ),
             appStartUptime: appStartUptime
@@ -156,14 +158,14 @@ actor GimMacLogger: AppLogging {
 
         writer.enqueue(
             .git(
-                arguments: arguments,
+                arguments: SensitiveGitDataRedactor.redact(arguments),
                 repositoryPath: repositoryURL.path,
                 level: level,
                 exitCode: details.exitCode,
-                stdout: details.stdout,
-                stderr: details.stderr,
-                error: error.localizedDescription,
-                metadata: metadata,
+                stdout: SensitiveGitDataRedactor.redact(details.stdout),
+                stderr: SensitiveGitDataRedactor.redact(details.stderr),
+                error: SensitiveGitDataRedactor.redact(error.localizedDescription),
+                metadata: SensitiveGitDataRedactor.redact(metadata),
                 tag: tag
             ),
             appStartUptime: appStartUptime
@@ -311,10 +313,12 @@ private final class BackgroundLogWriter: @unchecked Sendable {
             )
 
         case let .git(arguments, repositoryPath, level, exitCode, stdout, stderr, error, metadata, tag):
-            let message = "git " + arguments.joined(separator: " ")
+            let sanitizedArguments = SensitiveGitDataRedactor.redact(arguments)
+            let sanitizedMetadata = SensitiveGitDataRedactor.redact(metadata)
+            let message = "git " + sanitizedArguments.joined(separator: " ")
             let attributes = makeAttributes(
                 for: AttributeContext(kind: .git, category: .git),
-                metadata: metadata,
+                metadata: sanitizedMetadata,
                 repositoryPath: repositoryPath,
                 exitCode: exitCode,
                 tag: tag
@@ -326,12 +330,12 @@ private final class BackgroundLogWriter: @unchecked Sendable {
                 level: level,
                 category: .git,
                 message: message,
-                metadata: metadata,
+                metadata: sanitizedMetadata,
                 repositoryPath: repositoryPath,
                 exitCode: exitCode,
-                stdout: stdout,
-                stderr: stderr,
-                error: error,
+                stdout: SensitiveGitDataRedactor.redact(stdout),
+                stderr: SensitiveGitDataRedactor.redact(stderr),
+                error: error.map(SensitiveGitDataRedactor.redact),
                 timeUnixNano: timeUnixNano,
                 observedTimeUnixNano: timeUnixNano,
                 severityText: level.rawValue,
@@ -422,5 +426,68 @@ private extension LogLevel {
         case .error:
             return 17
         }
+    }
+}
+
+private enum SensitiveGitDataRedactor {
+    private static let replacement = "<redacted>"
+
+    static func redact(_ text: String) -> String {
+        let basicAuth = replaceMatches(
+            in: text,
+            pattern: #"([A-Za-z][A-Za-z0-9+\.-]*://[^/\s:@]+:)([^@\s/]+)(@)"#
+        ) { match, source in
+            source.substring(with: match.range(at: 1)) + replacement + source.substring(with: match.range(at: 3))
+        }
+        let tokenParameters = replaceMatches(
+            in: basicAuth,
+            pattern: #"(?i)\b(authorization|access_token|id_token|refresh_token|oauth_token|token|auth)=([^&\s]+)"#
+        ) { match, source in
+            source.substring(with: match.range(at: 1)) + "=" + replacement
+        }
+        let githubTokens = replaceMatches(in: tokenParameters, pattern: #"\bgh[pousr]_[A-Za-z0-9_]+\b"#) { _, _ in
+            replacement
+        }
+        return replaceMatches(in: githubTokens, pattern: #"\bglpat-[A-Za-z0-9\-_]+\b"#) { _, _ in
+            replacement
+        }
+    }
+
+    static func redact(_ values: [String]) -> [String] {
+        values.map(redact)
+    }
+
+    static func redact(_ metadata: [String: String]) -> [String: String] {
+        metadata.mapValues(redact)
+    }
+
+    private static func replaceMatches(
+        in text: String,
+        pattern: String,
+        replacementBuilder: (NSTextCheckingResult, NSString) -> String
+    ) -> String {
+        let regex = regex(pattern)
+        let source = text as NSString
+        let matches = regex.matches(in: text, range: NSRange(location: 0, length: source.length))
+        guard !matches.isEmpty else { return text }
+
+        var rewritten = ""
+        var cursor = 0
+        for match in matches {
+            let range = match.range
+            guard range.location != NSNotFound else { continue }
+            rewritten += source.substring(with: NSRange(location: cursor, length: range.location - cursor))
+            rewritten += replacementBuilder(match, source)
+            cursor = range.location + range.length
+        }
+        rewritten += source.substring(from: cursor)
+        return rewritten
+    }
+
+    private static func regex(_ pattern: String) -> NSRegularExpression {
+        guard let regex = try? NSRegularExpression(pattern: pattern) else {
+            preconditionFailure("Invalid sensitive-data redaction regex: \(pattern)")
+        }
+        return regex
     }
 }

@@ -58,10 +58,9 @@ enum SwiftyDiffUnifiedParser {
         var hunks: [ParsedHunk] = []
 
         if i < lines.count && lines[i].hasPrefix("diff --git") {
-            let components = lines[i].components(separatedBy: " ")
-            if components.count >= 4 {
-                oldPath = String(components[2].dropFirst(2))
-                path = String(components[3].dropFirst(2))
+            if let headerPaths = parseDiffHeaderPaths(lines[i]) {
+                oldPath = headerPaths.oldPath
+                path = headerPaths.newPath
             }
             i += 1
         }
@@ -93,6 +92,18 @@ enum SwiftyDiffUnifiedParser {
         }
 
         return (ParsedFile(path: path, oldPath: oldPath, hunks: hunks), i)
+    }
+
+    private static func parseDiffHeaderPaths(_ line: String) -> (oldPath: String, newPath: String)? {
+        let prefix = "diff --git a/"
+        guard line.hasPrefix(prefix) else { return nil }
+        let remainder = String(line.dropFirst(prefix.count))
+        guard let separatorRange = remainder.range(of: " b/", options: .backwards) else { return nil }
+
+        let oldPath = String(remainder[..<separatorRange.lowerBound])
+        let newPath = String(remainder[separatorRange.upperBound...])
+        guard !oldPath.isEmpty, !newPath.isEmpty else { return nil }
+        return (oldPath, newPath)
     }
 
     private static func parseHunk(lines: [String], startIndex: Int) -> (ParsedHunk?, Int) {

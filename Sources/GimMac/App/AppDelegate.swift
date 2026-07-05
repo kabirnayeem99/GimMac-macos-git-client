@@ -70,6 +70,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         ),
         templateCatalog: repositoryTemplateCatalog
     )
+    private var isTerminationInProgress = false
 
     // MARK: - Lifecycle
 
@@ -289,5 +290,20 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         aboutWindowController = controller
         controller.showWindow(nil)
         NSApp.activate(ignoringOtherApps: true)
+    }
+}
+
+@MainActor
+extension AppDelegate {
+    func applicationShouldTerminate(_ sender: NSApplication) -> NSApplication.TerminateReply {
+        guard !isTerminationInProgress else { return .terminateNow }
+        isTerminationInProgress = true
+        Task { [weak self] in
+            await self?.gitClient.cancelAllRunningCommands()
+            await MainActor.run {
+                sender.reply(toApplicationShouldTerminate: true)
+            }
+        }
+        return .terminateLater
     }
 }

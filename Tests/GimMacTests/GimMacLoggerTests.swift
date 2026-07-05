@@ -80,6 +80,57 @@ final class GimMacLoggerTests: XCTestCase {
         XCTAssertEqual(entry.attributes?["git.exit_code"], "0")
     }
 
+    func testGitCommandLoggingRedactsCredentialsInArgumentsAndOutput() async throws {
+        let fileURL = makeLogFileURL()
+        let logger = GimMacLogger(
+            fileURL: fileURL,
+            configuration: .init(isEnabled: true, writesToConsole: false, maxEntries: 2_000, rotationInterval: 250)
+        )
+        let repositoryURL = URL(fileURLWithPath: "/tmp/GimMacRepo", isDirectory: true)
+        let remote = "https://user:secret-token@example.com/repo.git"
+
+        await logger.logGitCommand(
+            ["clone", remote],
+            in: repositoryURL,
+            result: GitCommandResult(
+                stdout: "origin\t\(remote) (fetch)",
+                stderr: "fatal: could not read access_token=abcdef",
+                exitCode: 1
+            )
+        )
+        await logger.flush()
+
+        let entry = try XCTUnwrap(readEntries(from: fileURL).first)
+        XCTAssertFalse(entry.message.contains("secret-token"))
+        XCTAssertFalse(entry.stdout?.contains("secret-token") ?? false)
+        XCTAssertFalse(entry.stderr?.contains("abcdef") ?? false)
+        XCTAssertTrue(entry.message.contains("<redacted>"))
+        XCTAssertTrue(entry.stdout?.contains("<redacted>") ?? false)
+        XCTAssertTrue(entry.stderr?.contains("<redacted>") ?? false)
+    }
+
+    func testGitEventLoggingRedactsSensitiveMetadata() async throws {
+        let fileURL = makeLogFileURL()
+        let logger = GimMacLogger(
+            fileURL: fileURL,
+            configuration: .init(isEnabled: true, writesToConsole: false, maxEntries: 2_000, rotationInterval: 250)
+        )
+
+        await logger.log(
+            level: .debug,
+            category: .git,
+            message: "Phase update https://user:secret-token@example.com/repo.git",
+            metadata: ["git.command": "git clone https://user:secret-token@example.com/repo.git"]
+        )
+        await logger.flush()
+
+        let entry = try XCTUnwrap(readEntries(from: fileURL).first)
+        XCTAssertFalse(entry.message.contains("secret-token"))
+        XCTAssertFalse(entry.metadata["git.command"]?.contains("secret-token") ?? false)
+        XCTAssertTrue(entry.message.contains("<redacted>"))
+        XCTAssertTrue(entry.metadata["git.command"]?.contains("<redacted>") ?? false)
+    }
+
     func testDecodesOlderLogEntryWithoutNewTelemetryFields() throws {
         let json = """
         {"kind":"event","timestamp":"2026-06-17T12:00:00.000Z","level":"INFO","category":"repository","message":"old","metadata":{}}

@@ -100,6 +100,11 @@ extension RepositoryStoreViewModel {
         lastFetched = nil
         stashEntry = nil
         errorMessage = nil
+        isResolvingConflicts = false
+        conflictedFiles = []
+        initialConflictCount = 0
+        conflictMergeToolName = nil
+        isConflictActionInProgress = false
         diffHandler.clearSelection()
         diffHandler.clearCache()
         historyHandler.clearSelection()
