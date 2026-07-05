@@ -44,4 +44,29 @@ final class CoreDataPersistenceRecoveryTests: XCTestCase {
         let all = try await sut.getAllRepositoriesSortedByLastOpened()
         XCTAssertEqual(all.count, 1)
     }
+
+    func testConcurrentUpsertsForSamePathDoNotRaceOrDuplicate() async throws {
+        let storeURL = tempDir.appendingPathComponent("RepositoryStore.sqlite")
+        let repoURL = tempDir.appendingPathComponent("repo", isDirectory: true)
+        try FileManager.default.createDirectory(at: repoURL, withIntermediateDirectories: true)
+
+        let sut = CoreDataRepositoryPersistence(
+            gitClient: FixedHeadClient(),
+            storeURL: storeURL,
+            inMemory: false
+        )
+
+        try await withThrowingTaskGroup(of: StoredRepository.self) { group in
+            for _ in 0..<12 {
+                group.addTask {
+                    try await sut.saveOrUpdateRepository(path: repoURL.path)
+                }
+            }
+            while try await group.next() != nil {}
+        }
+
+        let all = try await sut.getAllRepositoriesSortedByLastOpened()
+        XCTAssertEqual(all.count, 1)
+        XCTAssertEqual(all.first?.path, repoURL.path)
+    }
 }

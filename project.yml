@@ -28,7 +28,7 @@ settings:
     CLANG_WARN_SUSPICIOUS_MOVE: YES
     CLANG_ANALYZER_LOCALIZABILITY_NONLOCALIZED: YES
     SWIFT_STRICT_CONCURRENCY: complete
-    OTHER_SWIFT_FLAGS: "$(inherited) -warnings-as-errors"
+    OTHER_SWIFT_FLAGS: "$(inherited) -warnings-as-errors -Xfrontend -disable-sandbox"
 targets:
   GimMac:
     type: application

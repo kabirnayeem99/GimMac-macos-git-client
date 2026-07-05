@@ -1,7 +1,7 @@
 import SwiftUI
 
 struct ReorderCommitsSheet: View {
-    let onConfirm: ([Commit]) async -> Void
+    let onConfirm: ([Commit]) async -> Bool
     let onCancel: () -> Void
 
     @State private var commits: [Commit]
@@ -10,7 +10,7 @@ struct ReorderCommitsSheet: View {
 
     /// `commits` are passed newest-first (as the history sidebar lists them);
     /// the list shows and returns them in that same orientation.
-    init(commits: [Commit], onConfirm: @escaping ([Commit]) async -> Void, onCancel: @escaping () -> Void) {
+    init(commits: [Commit], onConfirm: @escaping ([Commit]) async -> Bool, onCancel: @escaping () -> Void) {
         self.onConfirm = onConfirm
         self.onCancel = onCancel
         _commits = State(initialValue: commits)
@@ -25,6 +25,14 @@ struct ReorderCommitsSheet: View {
                     .font(.caption)
                     .foregroundStyle(.secondary)
             }
+
+            Label(
+                "Reordering rewrites commit SHAs. Only continue if these commits have not been shared.",
+                systemImage: "exclamationmark.triangle.fill"
+            )
+            .font(.caption)
+            .foregroundStyle(.orange)
+            .fixedSize(horizontal: false, vertical: true)
 
             List(selection: $selectedCommitID) {
                 ForEach(commits) { commit in
@@ -71,8 +79,11 @@ struct ReorderCommitsSheet: View {
                     isWorking = true
                     let result = commits
                     Task {
-                        await onConfirm(result)
+                        let didSucceed = await onConfirm(result)
                         isWorking = false
+                        if didSucceed {
+                            onCancel()
+                        }
                     }
                 }
                 .keyboardShortcut(.return, modifiers: .command)

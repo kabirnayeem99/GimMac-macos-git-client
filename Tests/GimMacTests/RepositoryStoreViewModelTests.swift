@@ -186,6 +186,44 @@ private struct DelayedBranchProvider: BranchProviding, Sendable {
     }
 }
 
+private actor CancellableTrackingBranchProvider: BranchProviding {
+    let branchesByRepositoryPath: [String: [Branch]]
+    let delaysByRepositoryPath: [String: Duration]
+    private(set) var cancellationCount = 0
+
+    init(
+        branchesByRepositoryPath: [String: [Branch]],
+        delaysByRepositoryPath: [String: Duration]
+    ) {
+        self.branchesByRepositoryPath = branchesByRepositoryPath
+        self.delaysByRepositoryPath = delaysByRepositoryPath
+    }
+
+    func fetchBranches(in repositoryURL: URL) async throws -> [Branch] {
+        do {
+            if let delay = delaysByRepositoryPath[repositoryURL.path] {
+                try await Task.sleep(for: delay)
+            }
+            return branchesByRepositoryPath[repositoryURL.path] ?? []
+        } catch is CancellationError {
+            cancellationCount += 1
+            throw CancellationError()
+        }
+    }
+
+    func fetchBranchesPointing(at commitish: String, in repositoryURL: URL) async throws -> [Branch] {
+        []
+    }
+
+    func fetchMergedBranches(into branch: Branch, in repositoryURL: URL) async throws -> [Branch] {
+        []
+    }
+
+    func recordedCancellationCount() -> Int {
+        cancellationCount
+    }
+}
+
 private struct DelayedBranchOperator: BranchOperating, Sendable {
     let delaysByRepositoryPath: [String: Duration]
 
@@ -215,6 +253,43 @@ private struct DelayedBranchOperator: BranchOperating, Sendable {
         in repositoryURL: URL
     ) async throws -> String {
         newName
+    }
+}
+
+private actor FailingDeleteBranchOperator: BranchOperating {
+    private(set) var remoteDeleteCount = 0
+
+    func createBranch(
+        named name: String,
+        from startPoint: BranchStartPoint,
+        noTrack: Bool,
+        in repositoryURL: URL
+    ) async throws -> String {
+        name
+    }
+
+    func switchBranch(to branch: Branch, in repositoryURL: URL) async throws {}
+
+    func deleteLocalBranch(_ branch: Branch, force: Bool, in repositoryURL: URL) async throws {
+        struct LocalDeleteError: Error {}
+        throw LocalDeleteError()
+    }
+
+    func deleteRemoteBranch(_ branch: Branch, remote: String, in repositoryURL: URL) async throws {
+        remoteDeleteCount += 1
+    }
+
+    func renameBranch(
+        _ branch: Branch,
+        to newName: String,
+        force: Bool,
+        in repositoryURL: URL
+    ) async throws -> String {
+        newName
+    }
+
+    func recordedRemoteDeleteCount() -> Int {
+        remoteDeleteCount
     }
 }
 
@@ -356,6 +431,75 @@ private actor MockRepositoryPersistence: RepositoryPersistenceProviding {
 private struct MockCommitProvider: CommitProviding, Sendable {
     func commit(in repositoryURL: URL, paths: [String], summary: String, description: String?, options: CommitOptions) async throws {}
     func undoLastCommit(in repositoryURL: URL) async throws {}
+}
+
+private actor CountingDiscardProvider: DiscardProviding {
+    private(set) var discardSingleCount = 0
+    private(set) var discardAllCount = 0
+    let delay: Duration
+
+    init(delay: Duration) {
+        self.delay = delay
+    }
+
+    func discardChanges(in repositoryURL: URL, for path: String, status: GitFileStatus) async throws {
+        discardSingleCount += 1
+        try? await Task.sleep(for: delay)
+    }
+
+    func discardAllChanges(in repositoryURL: URL) async throws {
+        discardAllCount += 1
+        try? await Task.sleep(for: delay)
+    }
+
+    func recordedDiscardAllCount() -> Int {
+        discardAllCount
+    }
+}
+
+private actor CountingGitIgnoreProvider: GitIgnoreProviding {
+    private(set) var appendCount = 0
+    let delay: Duration
+
+    init(delay: Duration) {
+        self.delay = delay
+    }
+
+    func appendIgnoreEntries(_ entries: [String], in repositoryURL: URL) async throws {
+        appendCount += 1
+        try? await Task.sleep(for: delay)
+    }
+
+    func recordedAppendCount() -> Int {
+        appendCount
+    }
+}
+
+private actor CountingStashProvider: StashProviding {
+    private(set) var pushCount = 0
+    let delay: Duration
+
+    init(delay: Duration) {
+        self.delay = delay
+    }
+
+    func fetchStash(in repositoryURL: URL) async throws -> StashEntry? { nil }
+    func fetchAllStashes(in repositoryURL: URL) async throws -> [StashEntry] { [] }
+    func applyStash(in repositoryURL: URL) async throws {}
+    func dropStash(in repositoryURL: URL) async throws {}
+
+    func pushStash(in repositoryURL: URL, message: String?) async throws {
+        pushCount += 1
+        try? await Task.sleep(for: delay)
+    }
+
+    func recordedPushCount() -> Int {
+        pushCount
+    }
+
+    func applyStash(in repositoryURL: URL, ref: String) async throws {}
+    func popStash(in repositoryURL: URL, ref: String) async throws {}
+    func dropStash(in repositoryURL: URL, ref: String) async throws {}
 }
 
 private struct MockGitClient: GitClientProtocol, Sendable {
@@ -650,6 +794,10 @@ final class RepositoryStoreViewModelTests: XCTestCase {
         XCTAssertEqual(sut.diffDocument.lines.first?.text, "new")
     }
 
+}
+
+@MainActor
+extension RepositoryStoreViewModelTests {
     func testBranchesViewModelDropsStaleBranchListAfterRepositoryRetarget() async {
         let repo1 = URL(fileURLWithPath: "/tmp/repo-one", isDirectory: true)
         let repo2 = URL(fileURLWithPath: "/tmp/repo-two", isDirectory: true)
@@ -699,6 +847,56 @@ final class RepositoryStoreViewModelTests: XCTestCase {
         XCTAssertNil(sut.pendingBranchName)
     }
 
+    func testBranchesViewModelCancelsInFlightLoadWhenRepositoryChanges() async {
+        let repo1 = URL(fileURLWithPath: "/tmp/repo-one", isDirectory: true)
+        let repo2 = URL(fileURLWithPath: "/tmp/repo-two", isDirectory: true)
+        let provider = CancellableTrackingBranchProvider(
+            branchesByRepositoryPath: [
+                repo1.path: [.test(name: "old-branch")],
+                repo2.path: [.test(name: "new-branch")]
+            ],
+            delaysByRepositoryPath: [
+                repo1.path: .milliseconds(200),
+                repo2.path: .milliseconds(5)
+            ]
+        )
+        let sut = BranchesViewModel(
+            branchProvider: provider,
+            branchOperator: DelayedBranchOperator(delaysByRepositoryPath: [:]),
+            statusProvider: StaticStatusProvider(files: [])
+        )
+
+        sut.setRepository(repo1, currentBranchName: "old-branch")
+        let first = Task { await sut.loadBranches() }
+        try? await Task.sleep(for: .milliseconds(20))
+        sut.setRepository(repo2, currentBranchName: "new-branch")
+        let second = Task { await sut.loadBranches() }
+        _ = await (first.value, second.value)
+
+        let cancellationCount = await provider.recordedCancellationCount()
+        XCTAssertEqual(cancellationCount, 1)
+        XCTAssertEqual(sut.localBranches.map(\.name), ["new-branch"])
+        XCTAssertEqual(sut.repositoryURL, repo2)
+    }
+
+    func testDeleteBranchStopsBeforeRemoteDeleteWhenLocalDeleteFails() async {
+        let repo = URL(fileURLWithPath: "/tmp/repo", isDirectory: true)
+        let branchOperator = FailingDeleteBranchOperator()
+        let sut = BranchesViewModel(
+            branchProvider: DelayedBranchProvider(branchesByRepositoryPath: [:], delaysByRepositoryPath: [:]),
+            branchOperator: branchOperator,
+            statusProvider: StaticStatusProvider(files: [])
+        )
+        let branch = Branch.test(name: "feature")
+        sut.setRepository(repo, currentBranchName: "main")
+
+        await sut.deleteBranch(branch, deleteRemote: true)
+
+        let remoteDeleteCount = await branchOperator.recordedRemoteDeleteCount()
+        XCTAssertEqual(remoteDeleteCount, 0)
+        XCTAssertEqual(sut.lastOutcome, .failure)
+        XCTAssertNotNil(sut.errorMessage)
+    }
 }
 
 @MainActor
@@ -953,5 +1151,86 @@ extension RepositoryStoreViewModelTests {
         XCTAssertNil(sut.selectedDiffDocument.lines.first?.oldNumber)
         XCTAssertNil(sut.selectedDiffDocument.lines.first?.newNumber)
         XCTAssertEqual(sut.selectedDiffDocument.lines.dropFirst().map(\.text), ["one", "two"])
+    }
+
+    func testDiscardAllChangesIgnoresReentrantRequests() async {
+        let provider = CountingDiscardProvider(delay: .milliseconds(80))
+        let sut = RepositoryStoreViewModel(
+            logger: GimMacLogger(),
+            inspector: MockRepositoryInspector(
+                result: .success(RepositoryInspectionResult(tip: .valid(
+                    branch: BranchSummary(name: "main", upstream: nil, sha: "abc1234")
+                )))
+            ),
+            screenRepository: MockRepositoryScreenDataProvider(snapshot: .testSnapshot),
+            diffProvider: MockDiffProvider(),
+            commitInspector: MockCommitInspector(),
+            commitProvider: MockCommitProvider(),
+            repositoryPersistence: MockRepositoryPersistence(),
+            discardProvider: provider
+        )
+        sut.selectedRepository = Repository(url: URL(fileURLWithPath: "/tmp/repo", isDirectory: true))
+
+        let first = Task { await sut.discardAllChanges() }
+        let second = Task { await sut.discardAllChanges() }
+        _ = await (first.value, second.value)
+
+        let discardAllCount = await provider.recordedDiscardAllCount()
+        XCTAssertEqual(discardAllCount, 1)
+        XCTAssertFalse(sut.isWorkingTreeMutationInProgress)
+    }
+
+    func testIgnoreFileIgnoresReentrantRequests() async {
+        let provider = CountingGitIgnoreProvider(delay: .milliseconds(80))
+        let sut = RepositoryStoreViewModel(
+            logger: GimMacLogger(),
+            inspector: MockRepositoryInspector(
+                result: .success(RepositoryInspectionResult(tip: .valid(
+                    branch: BranchSummary(name: "main", upstream: nil, sha: "abc1234")
+                )))
+            ),
+            screenRepository: MockRepositoryScreenDataProvider(snapshot: .testSnapshot),
+            diffProvider: MockDiffProvider(),
+            commitInspector: MockCommitInspector(),
+            commitProvider: MockCommitProvider(),
+            repositoryPersistence: MockRepositoryPersistence(),
+            gitIgnoreProvider: provider
+        )
+        sut.selectedRepository = Repository(url: URL(fileURLWithPath: "/tmp/repo", isDirectory: true))
+
+        let first = Task { await sut.ignoreFile(path: "DerivedData/output.log") }
+        let second = Task { await sut.ignoreFile(path: "DerivedData/output.log") }
+        _ = await (first.value, second.value)
+
+        let appendCount = await provider.recordedAppendCount()
+        XCTAssertEqual(appendCount, 1)
+        XCTAssertFalse(sut.isWorkingTreeMutationInProgress)
+    }
+
+    func testStashAllChangesIgnoresReentrantRequests() async {
+        let provider = CountingStashProvider(delay: .milliseconds(80))
+        let sut = RepositoryStoreViewModel(
+            logger: GimMacLogger(),
+            inspector: MockRepositoryInspector(
+                result: .success(RepositoryInspectionResult(tip: .valid(
+                    branch: BranchSummary(name: "main", upstream: nil, sha: "abc1234")
+                )))
+            ),
+            screenRepository: MockRepositoryScreenDataProvider(snapshot: .testSnapshot),
+            diffProvider: MockDiffProvider(),
+            commitInspector: MockCommitInspector(),
+            commitProvider: MockCommitProvider(),
+            repositoryPersistence: MockRepositoryPersistence(),
+            stashProvider: provider
+        )
+        sut.selectedRepository = Repository(url: URL(fileURLWithPath: "/tmp/repo", isDirectory: true))
+
+        let first = Task { await sut.stashAllChanges() }
+        let second = Task { await sut.stashAllChanges() }
+        _ = await (first.value, second.value)
+
+        let pushCount = await provider.recordedPushCount()
+        XCTAssertEqual(pushCount, 1)
+        XCTAssertFalse(sut.isWorkingTreeMutationInProgress)
     }
 }

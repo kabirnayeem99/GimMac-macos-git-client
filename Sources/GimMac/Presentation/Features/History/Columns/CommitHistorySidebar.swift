@@ -89,7 +89,6 @@ struct CommitHistorySidebar: View {
                     commits: viewModel.selectedHistoryCommits,
                     onConfirm: { message in
                         await viewModel.squashSelectedCommits(message: message)
-                        activeSheet = nil
                     },
                     onCancel: { activeSheet = nil }
                 )
@@ -98,9 +97,11 @@ struct CommitHistorySidebar: View {
                     CreateTagSheet(
                         commit: commit,
                         onConfirm: { name, message in
-                            await viewModel.createTagOnSelectedCommit(named: name, message: message)
-                            viewModel.signalHistoryOutcome(.success)
-                            activeSheet = nil
+                            let didSucceed = await viewModel.createTagOnSelectedCommit(named: name, message: message)
+                            if didSucceed {
+                                viewModel.signalHistoryOutcome(.success)
+                            }
+                            return didSucceed
                         },
                         onCancel: { activeSheet = nil }
                     )
@@ -110,9 +111,11 @@ struct CommitHistorySidebar: View {
                     CreateBranchFromCommitSheet(
                         commit: commit,
                         onConfirm: { name in
-                            await viewModel.createBranchFromSelectedCommit(named: name)
-                            viewModel.signalHistoryOutcome(.success)
-                            activeSheet = nil
+                            let didSucceed = await viewModel.createBranchFromSelectedCommit(named: name)
+                            if didSucceed {
+                                viewModel.signalHistoryOutcome(.success)
+                            }
+                            return didSucceed
                         },
                         onCancel: { activeSheet = nil }
                     )
@@ -123,7 +126,6 @@ struct CommitHistorySidebar: View {
                         commit: commit,
                         onConfirm: { mode in
                             await viewModel.resetToSelectedCommit(mode: mode)
-                            activeSheet = nil
                         },
                         onCancel: { activeSheet = nil }
                     )
@@ -133,7 +135,6 @@ struct CommitHistorySidebar: View {
                     commits: viewModel.selectedHistoryCommits,
                     onConfirm: { ordered in
                         await viewModel.reorderCommits(ordered)
-                        activeSheet = nil
                     },
                     onCancel: { activeSheet = nil }
                 )

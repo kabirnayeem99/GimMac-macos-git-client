@@ -225,9 +225,7 @@ extension MainSplitViewController {
                 await self?.viewModel.loadRepositoryCreationTemplates() ?? ([], [])
             },
             onCreate: { [weak self] options, destination in
-                Task { [weak self] in
-                    await self?.viewModel.createRepository(with: options, at: destination)
-                }
+                await self?.viewModel.createRepository(with: options, at: destination) ?? false
             }
         )
         presentAsSheet(controller.viewController)

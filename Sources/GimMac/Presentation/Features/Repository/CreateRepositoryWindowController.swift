@@ -8,7 +8,7 @@ import SwiftUI
 @MainActor
 final class CreateRepositoryWindowController {
     typealias LoadTemplates = () async -> ([String], [LicenseTemplate])
-    typealias Completion = (_ options: RepositoryCreationOptions, _ destination: URL) -> Void
+    typealias Completion = (_ options: RepositoryCreationOptions, _ destination: URL) async -> Bool
 
     let viewController: NSViewController
 
@@ -22,8 +22,7 @@ final class CreateRepositoryWindowController {
         let sheet = CreateRepositorySheet(
             loadTemplates: loadTemplates,
             onCreate: { options, destination in
-                onCreate(options, destination)
-                holder.dismiss?()
+                await onCreate(options, destination)
             },
             onCancel: { holder.dismiss?() }
         )

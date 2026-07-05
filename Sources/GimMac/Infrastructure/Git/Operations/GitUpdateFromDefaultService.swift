@@ -13,12 +13,12 @@ final class GitUpdateFromDefaultService: UpdateFromDefaultProviding, Sendable {
 
     func mergeDefaultBranch(into branch: Branch, in repositoryURL: URL) async throws {
         let defaultBranch = try await resolveDefaultBranch(in: repositoryURL)
-        _ = try await client.run(["merge", defaultBranch], in: repositoryURL, timeout: 60)
+        _ = try await client.run(["merge", "--", defaultBranch], in: repositoryURL, timeout: 60)
     }
 
     func rebaseOntoDefaultBranch(_ branch: Branch, in repositoryURL: URL) async throws {
         let defaultBranch = try await resolveDefaultBranch(in: repositoryURL)
-        _ = try await client.run(["rebase", defaultBranch], in: repositoryURL, timeout: 120)
+        _ = try await client.run(["rebase", "--", defaultBranch], in: repositoryURL, timeout: 120)
     }
 
     // MARK: - Default branch resolution

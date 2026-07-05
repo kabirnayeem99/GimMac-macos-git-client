@@ -23,6 +23,7 @@ final class BranchesViewController: NSViewController {
     private let emptyStateLabel = NSTextField(labelWithString: "")
 
     private var renderedBranches: [Branch] = []
+    private var hasStartedObservation = false
 
     // MARK: - Init
 
@@ -46,7 +47,10 @@ final class BranchesViewController: NSViewController {
 
     override func viewDidAppear() {
         super.viewDidAppear()
-        observe()
+        if !hasStartedObservation {
+            hasStartedObservation = true
+            observe()
+        }
         Task { await viewModel.loadBranches() }
     }
 

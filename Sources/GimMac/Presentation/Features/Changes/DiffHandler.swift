@@ -46,6 +46,7 @@ final class DiffHandler {
         let changedFile = changedFiles.first(where: { $0.path == path })
         let cacheKey = Self.cacheKey(repositoryURL: repository.url, path: path, changedFile: changedFile)
         if let cachedDocument = diffCache[cacheKey] {
+            guard isCurrentDiffRequest(id: requestID, path: path) else { return }
             selectedDiffDocument = cachedDocument
             isLoadingDiff = false
             return

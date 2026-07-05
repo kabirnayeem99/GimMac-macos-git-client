@@ -127,11 +127,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     }
 
     func applicationShouldHandleReopen(_ sender: NSApplication, hasVisibleWindows flag: Bool) -> Bool {
-        if !flag || NSApp.windows.allSatisfy({ !$0.isVisible }) {
-            ensureMainWindowVisible(forceNew: true)
-        } else {
-            ensureMainWindowVisible(forceNew: false)
-        }
+        ensureMainWindowVisible(forceNew: false)
         return true
     }
 
@@ -234,12 +230,15 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             branchRenamer: branchRenameService,
             editorService: editorService
         )
-        viewModel.onDismiss = { [weak self] in
-            self?.repositorySettingsWindowController?.close()
-            self?.repositorySettingsWindowController = nil
-        }
 
         let controller = RepositorySettingsWindowController(viewModel: viewModel)
+        controller.onClose = { [weak self] in
+            self?.repositorySettingsWindowController = nil
+        }
+        viewModel.onDismiss = { [weak self, weak controller] in
+            controller?.close()
+            self?.repositorySettingsWindowController = nil
+        }
         repositorySettingsWindowController = controller
         controller.showWindow(nil)
         controller.window?.center()

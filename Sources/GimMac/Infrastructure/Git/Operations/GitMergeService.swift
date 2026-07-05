@@ -13,6 +13,7 @@ final class GitMergeService: MergeBranchProviding, Sendable {
     func merge(branch: String, noVerify: Bool, in repositoryURL: URL) async throws -> MergeOutcome {
         var args = ["merge"]
         if noVerify { args.append("--no-verify") }
+        args.append("--")
         args.append(branch)
         return try await runMerge(args, in: repositoryURL)
     }
@@ -20,6 +21,7 @@ final class GitMergeService: MergeBranchProviding, Sendable {
     func squashMerge(branch: String, noVerify: Bool, in repositoryURL: URL) async throws -> MergeOutcome {
         var args = ["merge", "--squash"]
         if noVerify { args.append("--no-verify") }
+        args.append("--")
         args.append(branch)
 
         let outcome = try await runMerge(args, in: repositoryURL)

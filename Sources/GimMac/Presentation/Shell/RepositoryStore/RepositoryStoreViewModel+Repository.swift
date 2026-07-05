@@ -105,6 +105,7 @@ extension RepositoryStoreViewModel {
         initialConflictCount = 0
         conflictMergeToolName = nil
         isConflictActionInProgress = false
+        isWorkingTreeMutationInProgress = false
         diffHandler.clearSelection()
         diffHandler.clearCache()
         historyHandler.clearSelection()
@@ -243,7 +244,11 @@ extension RepositoryStoreViewModel {
                 tag: refreshTag
             )
 
-            if diffHandler.selectedFilePath == nil, let first = changedFiles.first?.path {
+            let selectedPath: String?
+            if let currentPath = diffHandler.selectedFilePath,
+               changedFiles.contains(where: { $0.path == currentPath }) {
+                selectedPath = currentPath
+            } else if let first = changedFiles.first?.path {
                 diffHandler.selectFile(first)
                 logger.info(
                     "Initial changed file selected",
@@ -251,6 +256,10 @@ extension RepositoryStoreViewModel {
                     metadata: ["repository": repository.url.lastPathComponent, "path": first],
                     tag: refreshTag
                 )
+                selectedPath = first
+            } else {
+                diffHandler.clearSelection()
+                selectedPath = nil
             }
 
             if historyHandler.commitFiles.isEmpty, !commits.isEmpty {
@@ -271,29 +280,23 @@ extension RepositoryStoreViewModel {
                 selectHistoryCommit(sha: sha)
             }
 
-            let diffStartedAt = Self.nowMilliseconds()
-            logger.info(
-                isInitialChangedFilesLoad ? "Initial changed file diff load started" : "Changed file diff load started",
-                category: .diff,
-                metadata: [
-                    "repository": repository.url.lastPathComponent,
-                    "selected_path": diffHandler.selectedFilePath ?? "",
-                    "changed_files": String(changedFiles.count)
-                ],
-                tag: refreshTag
-            )
-            await diffHandler.loadDiff(in: repository, changedFiles: changedFiles, inspection: inspection)
-            guard isCurrentRepositoryRefreshTarget(repository, selectionGeneration: selectionGeneration) else { return }
-            logger.info(
-                isInitialChangedFilesLoad ? "Initial changed file diff load finished" : "Changed file diff load finished",
-                category: .diff,
-                metadata: [
-                    "repository": repository.url.lastPathComponent,
-                    "selected_path": diffHandler.selectedFilePath ?? "",
-                    "duration_ms": Self.formatMilliseconds(Self.elapsedMilliseconds(since: diffStartedAt))
-                ],
-                tag: refreshTag
-            )
+            if let selectedPath {
+                await scheduleChangedFileDiffLoad(
+                    for: repository,
+                    path: selectedPath,
+                    changedFiles: changedFiles,
+                    inspection: inspection,
+                    tag: refreshTag,
+                    messages: ChangedFileDiffLogMessages(
+                        scheduled: nil,
+                        started: isInitialChangedFilesLoad ? "Initial changed file diff load started" : "Changed file diff load started",
+                        finished: isInitialChangedFilesLoad ? "Initial changed file diff load finished" : "Changed file diff load finished",
+                        cancelled: "Changed file diff load cancelled"
+                    ),
+                    waitForCompletion: true
+                )
+                guard isCurrentRepositoryRefreshTarget(repository, selectionGeneration: selectionGeneration) else { return }
+            }
             logger.info(
                 "Repository critical refresh finished",
                 category: .repository,

@@ -16,12 +16,14 @@ final class GitBranchOperator: BranchOperating, DefaultBranchRenaming, Sendable 
         noTrack: Bool,
         in repositoryURL: URL
     ) async throws -> String {
-        var arguments = ["branch", name]
-        if let startPointArg = try await Self.startPointRevspec(startPoint, client: client, repositoryURL: repositoryURL) {
-            arguments.append(startPointArg)
-        }
+        var arguments = ["branch"]
         if noTrack {
             arguments.append("--no-track")
+        }
+        arguments.append("--")
+        arguments.append(name)
+        if let startPointArg = try await Self.startPointRevspec(startPoint, client: client, repositoryURL: repositoryURL) {
+            arguments.append(startPointArg)
         }
         _ = try await client.run(arguments, in: repositoryURL, timeout: 10)
         return name
@@ -37,12 +39,12 @@ final class GitBranchOperator: BranchOperating, DefaultBranchRenaming, Sendable 
             // For remote branches, switching creates a local tracking branch.
             targetName = branch.nameWithoutRemote
         }
-        _ = try await client.run(["switch", targetName], in: repositoryURL, timeout: 15)
+        _ = try await client.run(["switch", "--", targetName], in: repositoryURL, timeout: 15)
     }
 
     func deleteLocalBranch(_ branch: Branch, force: Bool, in repositoryURL: URL) async throws {
         let flag = force ? "-D" : "-d"
-        _ = try await client.run(["branch", flag, branch.name], in: repositoryURL, timeout: 10)
+        _ = try await client.run(["branch", flag, "--", branch.name], in: repositoryURL, timeout: 10)
     }
 
     func deleteRemoteBranch(_ branch: Branch, remote: String, in repositoryURL: URL) async throws {
@@ -73,14 +75,14 @@ final class GitBranchOperator: BranchOperating, DefaultBranchRenaming, Sendable 
         in repositoryURL: URL
     ) async throws -> String {
         let flag = force ? "-M" : "-m"
-        _ = try await client.run(["branch", flag, branch.name, newName], in: repositoryURL, timeout: 10)
+        _ = try await client.run(["branch", flag, "--", branch.name, newName], in: repositoryURL, timeout: 10)
         return newName
     }
 
     // MARK: - DefaultBranchRenaming
 
     func renameCurrentBranch(from oldName: String, to newName: String, in repositoryURL: URL) async throws {
-        _ = try await client.run(["branch", "-M", oldName, newName], in: repositoryURL, timeout: 10)
+        _ = try await client.run(["branch", "-M", "--", oldName, newName], in: repositoryURL, timeout: 10)
     }
 
     // MARK: - Start point translation

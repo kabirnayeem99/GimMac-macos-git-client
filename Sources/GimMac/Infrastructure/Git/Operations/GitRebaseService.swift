@@ -10,7 +10,7 @@ final class GitRebaseService: RebaseProviding, Sendable {
     }
 
     func rebase(base: String, target: String, in repositoryURL: URL) async throws -> RebaseOutcome {
-        try await runRebase(["rebase", base, target], in: repositoryURL)
+        try await runRebase(["rebase", "--", base, target], in: repositoryURL)
     }
 
     func continueRebase(in repositoryURL: URL) async throws -> RebaseOutcome {

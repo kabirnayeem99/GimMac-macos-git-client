@@ -108,6 +108,10 @@ final class RepositoryStoreViewModel {
     /// Discard) so two concurrent git stash operations cannot overlap.
     var isStashOperationInProgress = false
 
+    /// Serializes destructive working-tree mutations so refreshes and git
+    /// operations do not overlap when the user triggers them repeatedly.
+    var isWorkingTreeMutationInProgress = false
+
     /// Which top-level screen tab is shown: 0 = Changes, 1 = History.
     /// Bridged from SwiftUI `@State` so the menu bar (View → Show Changes/History)
     /// can drive tab selection from the responder chain.

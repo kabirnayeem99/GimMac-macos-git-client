@@ -15,6 +15,7 @@ struct BranchToolbarButton: View {
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @State private var isBranchPickerPresented = false
     @State private var branchesViewModel: BranchesViewModel?
+    @State private var branchLoadTask: Task<Void, Never>?
 
     private var branchDisplay: String {
         RepositoryBranchDisplayFormatter.displayText(for: viewModel.tip)
@@ -69,18 +70,18 @@ struct BranchToolbarButton: View {
         .onAppear {
             branchesViewModel = viewModel.makeBranchesViewModel()
             refreshBranchesViewModel()
-            if let branchesViewModel {
-                Task { await branchesViewModel.loadBranches() }
-            }
+            scheduleBranchLoad()
         }
         .onChange(of: viewModel.tip) {
             refreshBranchesViewModel()
         }
         .onChange(of: viewModel.selectedRepository?.url) {
             refreshBranchesViewModel()
-            if let branchesViewModel {
-                Task { await branchesViewModel.loadBranches() }
-            }
+            scheduleBranchLoad()
+        }
+        .onDisappear {
+            branchLoadTask?.cancel()
+            branchLoadTask = nil
         }
     }
 
@@ -128,5 +129,16 @@ struct BranchToolbarButton: View {
         )
 
         presenter.presentCreateBranch()
+    }
+
+    private func scheduleBranchLoad() {
+        branchLoadTask?.cancel()
+        guard let branchesViewModel, branchesViewModel.repositoryURL != nil else {
+            branchLoadTask = nil
+            return
+        }
+        branchLoadTask = Task {
+            await branchesViewModel.loadBranches()
+        }
     }
 }

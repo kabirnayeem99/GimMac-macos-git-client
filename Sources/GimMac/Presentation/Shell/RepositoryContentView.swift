@@ -14,6 +14,8 @@ final class RepositoryContentViewController: NSViewController {
     private let historyController: HistorySplitViewController
 
     private var currentTab: Int = 0
+    private var isTabTransitionInFlight = false
+    private var pendingTab: Int?
 
     // Active when the corresponding tab is on-screen.
     private var changesLeading: NSLayoutConstraint?
@@ -75,6 +77,10 @@ final class RepositoryContentViewController: NSViewController {
 
     func showTab(_ tab: Int, animated: Bool) {
         guard tab != currentTab else { return }
+        guard !isTabTransitionInFlight else {
+            pendingTab = tab
+            return
+        }
 
         saveFirstResponder(for: currentTab)
 
@@ -105,10 +111,11 @@ final class RepositoryContentViewController: NSViewController {
             outgoing.alphaValue = 1
             incoming.isHidden = false
             outgoing.isHidden = true
-            restoreFirstResponder(for: tab)
+            finishTabTransition(for: tab)
             return
         }
 
+        isTabTransitionInFlight = true
         incoming.isHidden = false
         incoming.alphaValue = 0.96
         outgoing.alphaValue = 1
@@ -136,7 +143,7 @@ final class RepositoryContentViewController: NSViewController {
                         historyOffset: postHistory
                     )
 
-                    self.restoreFirstResponder(for: tab)
+                    self.finishTabTransition(for: tab)
                 }
             }
 
@@ -166,7 +173,7 @@ final class RepositoryContentViewController: NSViewController {
                     historyOffset: postHistory
                 )
 
-                self.restoreFirstResponder(for: tab)
+                self.finishTabTransition(for: tab)
             }
         }
     }
@@ -209,5 +216,16 @@ final class RepositoryContentViewController: NSViewController {
         changesTrailing?.constant = changesOffset
         historyLeading?.constant = historyOffset
         historyTrailing?.constant = historyOffset
+    }
+
+    private func finishTabTransition(for tab: Int) {
+        isTabTransitionInFlight = false
+        restoreFirstResponder(for: tab)
+        guard let pendingTab, pendingTab != currentTab else {
+            self.pendingTab = nil
+            return
+        }
+        self.pendingTab = nil
+        showTab(pendingTab, animated: true)
     }
 }

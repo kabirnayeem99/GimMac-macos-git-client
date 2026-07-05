@@ -2,7 +2,7 @@ import SwiftUI
 
 struct CreateBranchFromCommitSheet: View {
     let commit: Commit
-    let onConfirm: (String) async -> Void
+    let onConfirm: (String) async -> Bool
     let onCancel: () -> Void
 
     @State private var name = ""
@@ -49,8 +49,11 @@ struct CreateBranchFromCommitSheet: View {
                 Button("Create Branch") {
                     isWorking = true
                     Task {
-                        await onConfirm(trimmedName)
+                        let didSucceed = await onConfirm(trimmedName)
                         isWorking = false
+                        if didSucceed {
+                            onCancel()
+                        }
                     }
                 }
                 .keyboardShortcut(.return, modifiers: .command)

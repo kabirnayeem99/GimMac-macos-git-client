@@ -43,10 +43,10 @@ extension RepositoryStoreViewModel {
     /// Run the full create-repository pipeline (`git init` → scaffold chosen
     /// files → "Initial commit"), then select the new repository. Native
     /// equivalent of GitHub Desktop's `createRepository` form submit.
-    func createRepository(with options: RepositoryCreationOptions, at directoryURL: URL) async {
+    func createRepository(with options: RepositoryCreationOptions, at directoryURL: URL) async -> Bool {
         guard let creator = repositoryCreator else {
             errorMessage = "Repository creation service is unavailable."
-            return
+            return false
         }
         isLoading = true
         errorMessage = nil
@@ -54,6 +54,7 @@ extension RepositoryStoreViewModel {
             try await creator.createRepository(with: options, at: directoryURL)
             isLoading = false
             await selectRepository(at: directoryURL)
+            return true
         } catch {
             isLoading = false
             logger.error(
@@ -62,6 +63,7 @@ extension RepositoryStoreViewModel {
                 metadata: ["error": error.localizedDescription]
             )
             errorMessage = error.localizedDescription
+            return false
         }
     }
 

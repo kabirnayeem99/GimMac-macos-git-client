@@ -116,7 +116,7 @@ final class GimMacLoggerTests: XCTestCase {
             configuration: .init(isEnabled: true, writesToConsole: false, maxEntries: 2_000, rotationInterval: 250)
         )
 
-        await logger.log(
+        logger.log(
             level: .debug,
             category: .git,
             message: "Phase update https://user:secret-token@example.com/repo.git",

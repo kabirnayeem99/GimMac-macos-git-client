@@ -18,7 +18,10 @@ extension RepositoryStoreViewModel {
     }
 
     private func appendIgnore(_ entries: [String]) async {
+        guard !isWorkingTreeMutationInProgress else { return }
         guard let repository = selectedRepository, let gitIgnoreProvider else { return }
+        isWorkingTreeMutationInProgress = true
+        defer { isWorkingTreeMutationInProgress = false }
         errorMessage = nil
         do {
             try await gitIgnoreProvider.appendIgnoreEntries(entries, in: repository.url)

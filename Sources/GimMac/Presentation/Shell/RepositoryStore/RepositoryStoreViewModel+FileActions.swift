@@ -10,51 +10,33 @@ import Foundation
 
 @MainActor
 extension RepositoryStoreViewModel {
+    struct ChangedFileDiffLogMessages {
+        let scheduled: String?
+        let started: String
+        let finished: String
+        let cancelled: String
+    }
+
     func selectChangedFile(path: String) {
         diffHandler.selectFile(path)
         guard let repository = selectedRepository else { return }
-        changedFileDiffTask?.cancel()
         let tag = logger.tag("changes.file-diff-load", parent: nil, metadata: [
             "repository": repository.url.lastPathComponent,
             "path": path
         ])
-        logger.info(
-            "Changed file diff load scheduled",
-            category: .diff,
-            metadata: ["repository": repository.url.lastPathComponent, "path": path],
-            tag: tag
-        )
-        changedFileDiffTask = Task { [weak self] in
-            let startedAt = Self.nowMilliseconds()
-            self?.logger.info(
-                "Changed file diff load started",
-                category: .diff,
-                metadata: ["repository": repository.url.lastPathComponent, "path": path],
-                tag: tag
-            )
-            await self?.diffHandler.loadDiff(in: repository, changedFiles: self?.changedFiles ?? [])
-            guard !Task.isCancelled else {
-                self?.logger.warning(
-                    "Changed file diff load cancelled",
-                    category: .diff,
-                    metadata: [
-                        "repository": repository.url.lastPathComponent,
-                        "path": path,
-                        "duration_ms": Self.formatMilliseconds(Self.elapsedMilliseconds(since: startedAt))
-                    ],
-                    tag: tag
+        Task {
+            await scheduleChangedFileDiffLoad(
+                for: repository,
+                path: path,
+                changedFiles: changedFiles,
+                inspection: currentInspection,
+                tag: tag,
+                messages: ChangedFileDiffLogMessages(
+                    scheduled: "Changed file diff load scheduled",
+                    started: "Changed file diff load started",
+                    finished: "Changed file diff load finished",
+                    cancelled: "Changed file diff load cancelled"
                 )
-                return
-            }
-            self?.logger.info(
-                "Changed file diff load finished",
-                category: .diff,
-                metadata: [
-                    "repository": repository.url.lastPathComponent,
-                    "path": path,
-                    "duration_ms": Self.formatMilliseconds(Self.elapsedMilliseconds(since: startedAt))
-                ],
-                tag: tag
             )
         }
     }
@@ -173,5 +155,71 @@ extension RepositoryStoreViewModel {
     func copyCommitHash(_ hash: String) {
         NSPasteboard.general.clearContents()
         NSPasteboard.general.setString(hash, forType: .string)
+    }
+
+    func scheduleChangedFileDiffLoad(
+        for repository: Repository,
+        path: String,
+        changedFiles: [ChangedFile],
+        inspection: RepositoryInspectionResult? = nil,
+        tag: LogFlowTag?,
+        messages: ChangedFileDiffLogMessages,
+        waitForCompletion: Bool = false
+    ) async {
+        changedFileDiffTask?.cancel()
+        if let scheduledMessage = messages.scheduled {
+            logger.info(
+                scheduledMessage,
+                category: .diff,
+                metadata: ["repository": repository.url.lastPathComponent, "path": path],
+                tag: tag
+            )
+        }
+
+        let task = Task { [weak self] in
+            let startedAt = Self.nowMilliseconds()
+            self?.logger.info(
+                messages.started,
+                category: .diff,
+                metadata: [
+                    "repository": repository.url.lastPathComponent,
+                    "path": path,
+                    "changed_files": String(changedFiles.count)
+                ],
+                tag: tag
+            )
+            await self?.diffHandler.loadDiff(
+                in: repository,
+                changedFiles: changedFiles,
+                inspection: inspection
+            )
+            guard !Task.isCancelled else {
+                self?.logger.warning(
+                    messages.cancelled,
+                    category: .diff,
+                    metadata: [
+                        "repository": repository.url.lastPathComponent,
+                        "path": path,
+                        "duration_ms": Self.formatMilliseconds(Self.elapsedMilliseconds(since: startedAt))
+                    ],
+                    tag: tag
+                )
+                return
+            }
+            self?.logger.info(
+                messages.finished,
+                category: .diff,
+                metadata: [
+                    "repository": repository.url.lastPathComponent,
+                    "path": path,
+                    "duration_ms": Self.formatMilliseconds(Self.elapsedMilliseconds(since: startedAt))
+                ],
+                tag: tag
+            )
+        }
+        changedFileDiffTask = task
+        if waitForCompletion {
+            await task.value
+        }
     }
 }

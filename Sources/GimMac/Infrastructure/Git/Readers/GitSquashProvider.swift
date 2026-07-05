@@ -70,6 +70,11 @@ final class GitSquashProvider: SquashProviding, Sendable {
             ? ["rebase", "-i", "--root"]
             : ["rebase", "-i", parentSHA]
 
-        _ = try await client.run(rebaseArgs, in: repositoryURL, extraEnvironment: extraEnv, timeout: 120)
+        do {
+            _ = try await client.run(rebaseArgs, in: repositoryURL, extraEnvironment: extraEnv, timeout: 120)
+        } catch {
+            _ = try? await client.run(["rebase", "--abort"], in: repositoryURL, timeout: 15)
+            throw error
+        }
     }
 }

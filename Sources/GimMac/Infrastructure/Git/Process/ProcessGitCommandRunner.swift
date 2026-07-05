@@ -3,6 +3,8 @@ import Foundation
 /// Actor that actually spawns `Process` instances to run Git commands. Tracks
 /// in-flight processes so cancellation can terminate the underlying task.
 actor ProcessGitCommandRunner: GitCommandRunning {
+    private let signalSender: @Sendable (Int32, Int32) -> Int32
+    private let killGracePeriodNanoseconds: UInt64
     private var inFlight: [UUID: Process] = [:]
     /// Concurrent so unrelated Git commands (status, history, branch reads) are
     /// not serialized behind a single long-running command (clone, merge tool,
@@ -12,6 +14,14 @@ actor ProcessGitCommandRunner: GitCommandRunning {
         qos: .userInitiated,
         attributes: .concurrent
     )
+
+    init(
+        killGracePeriodNanoseconds: UInt64 = 250_000_000,
+        signalSender: (@Sendable (Int32, Int32) -> Int32)? = nil
+    ) {
+        self.killGracePeriodNanoseconds = killGracePeriodNanoseconds
+        self.signalSender = signalSender ?? { pid, signal in kill(pid, signal) }
+    }
 
     func execute(id: UUID, arguments: [String], repositoryURL: URL, extraEnvironment: [String: String]) async throws -> GitCommandResult {
         let process = Self.makeProcess(arguments: arguments, repositoryURL: repositoryURL, extraEnvironment: extraEnvironment)
@@ -89,16 +99,34 @@ actor ProcessGitCommandRunner: GitCommandRunning {
         }
     }
 
-    func cancel(id: UUID) {
-        guard let process = inFlight[id], process.isRunning else { return }
-        process.terminate()
+    func cancel(id: UUID) async {
+        guard let process = inFlight[id] else { return }
+        await terminate(process)
     }
 
-    func cancelAll() {
+    func cancelAll() async {
         for process in inFlight.values where process.isRunning {
-            process.terminate()
+            await terminate(process)
         }
         inFlight.removeAll()
+    }
+
+    private func terminate(_ process: Process) async {
+        guard process.isRunning else { return }
+        process.terminate()
+        guard killGracePeriodNanoseconds > 0 else {
+            forceKillIfNeeded(process)
+            return
+        }
+        try? await Task.sleep(nanoseconds: killGracePeriodNanoseconds)
+        forceKillIfNeeded(process)
+    }
+
+    private func forceKillIfNeeded(_ process: Process) {
+        guard process.isRunning else { return }
+        let pid = process.processIdentifier
+        guard pid > 0 else { return }
+        _ = signalSender(pid, SIGKILL)
     }
 
     private static func makeProcess(arguments: [String], repositoryURL: URL, extraEnvironment: [String: String]) -> Process {

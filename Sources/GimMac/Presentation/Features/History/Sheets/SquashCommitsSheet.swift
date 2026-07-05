@@ -2,13 +2,13 @@ import SwiftUI
 
 struct SquashCommitsSheet: View {
     let commits: [Commit]
-    let onConfirm: (String) async -> Void
+    let onConfirm: (String) async -> Bool
     let onCancel: () -> Void
 
     @State private var message: String
     @State private var isSquashing = false
 
-    init(commits: [Commit], onConfirm: @escaping (String) async -> Void, onCancel: @escaping () -> Void) {
+    init(commits: [Commit], onConfirm: @escaping (String) async -> Bool, onCancel: @escaping () -> Void) {
         self.commits = commits
         self.onConfirm = onConfirm
         self.onCancel = onCancel
@@ -24,6 +24,14 @@ struct SquashCommitsSheet: View {
                     .font(.caption)
                     .foregroundStyle(.secondary)
             }
+
+            Label(
+                "Squashing rewrites history and replaces the selected commits with a new one.",
+                systemImage: "exclamationmark.triangle.fill"
+            )
+            .font(.caption)
+            .foregroundStyle(.orange)
+            .fixedSize(horizontal: false, vertical: true)
 
             TextEditor(text: $message)
                 .font(.system(size: 12, design: .monospaced))
@@ -47,8 +55,11 @@ struct SquashCommitsSheet: View {
                 Button("Squash Commits") {
                     isSquashing = true
                     Task {
-                        await onConfirm(message)
+                        let didSucceed = await onConfirm(message)
                         isSquashing = false
+                        if didSucceed {
+                            onCancel()
+                        }
                     }
                 }
                 .keyboardShortcut(.return, modifiers: .command)

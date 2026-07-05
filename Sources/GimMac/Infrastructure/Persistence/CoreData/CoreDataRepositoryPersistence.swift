@@ -11,6 +11,7 @@ internal enum RepositoryEntity {
 final class CoreDataRepositoryPersistence: RepositoryPersistenceProviding, @unchecked Sendable {
     private let container: NSPersistentContainer
     private let gitClient: GitClientProtocol
+    private let writeCoordinator = CoreDataWriteCoordinator()
 
     init(
         gitClient: GitClientProtocol,
@@ -72,20 +73,22 @@ final class CoreDataRepositoryPersistence: RepositoryPersistenceProviding, @unch
         let canonicalPath = canonicalize(path)
         let headHash = try await readHeadHash(path: canonicalPath)
         let now = Date()
-        let selectedObjectID: NSManagedObjectID = try await performWrite { context in
-            let record = try self.fetchOrCreateByPath(canonicalPath, in: context, now: now)
-            record.setValue(URL(fileURLWithPath: canonicalPath).lastPathComponent, forKey: "name")
-            record.setValue(canonicalPath, forKey: "path")
-            record.setValue(headHash, forKey: "gitIdentifier")
-            record.setValue(now, forKey: "lastOpenedAt")
-            record.setValue(now, forKey: "updatedAt")
-            try self.clearSelection(except: record, in: context)
-            record.setValue(true, forKey: "currentlySelected")
-            try context.save()
-            return record.objectID
+        do {
+            return try await performWrite { context in
+                let record = try self.fetchOrCreateByPath(canonicalPath, in: context, now: now)
+                record.setValue(URL(fileURLWithPath: canonicalPath).lastPathComponent, forKey: "name")
+                record.setValue(canonicalPath, forKey: "path")
+                record.setValue(headHash, forKey: "gitIdentifier")
+                record.setValue(now, forKey: "lastOpenedAt")
+                record.setValue(now, forKey: "updatedAt")
+                try self.clearSelection(except: record, in: context)
+                record.setValue(true, forKey: "currentlySelected")
+                try context.save()
+                return Self.toStoredRepository(record)
+            }
+        } catch {
+            throw mapPersistenceError(error, path: canonicalPath)
         }
-
-        return try await fetchStoredRepository(objectID: selectedObjectID)
     }
 
     func getAllRepositoriesSortedByLastOpened() async throws -> [StoredRepository] {
@@ -204,6 +207,7 @@ final class CoreDataRepositoryPersistence: RepositoryPersistenceProviding, @unch
     ) async throws -> T {
         try await withCheckedThrowingContinuation { continuation in
             container.performBackgroundTask { context in
+                Self.configureBackgroundContext(context)
                 do {
                     continuation.resume(returning: try block(context))
                 } catch {
@@ -213,18 +217,51 @@ final class CoreDataRepositoryPersistence: RepositoryPersistenceProviding, @unch
         }
     }
 
-    private func performWrite<T>(
+    private func performWrite<T: Sendable>(
         _ block: @Sendable @escaping (NSManagedObjectContext) throws -> T
     ) async throws -> T {
-        try await withCheckedThrowingContinuation { continuation in
-            container.performBackgroundTask { context in
-                do {
-                    let value = try block(context)
-                    continuation.resume(returning: value)
-                } catch {
-                    continuation.resume(throwing: error)
+        try await writeCoordinator.run {
+            try await withCheckedThrowingContinuation { continuation in
+                self.container.performBackgroundTask { context in
+                    Self.configureBackgroundContext(context)
+                    do {
+                        let value = try block(context)
+                        continuation.resume(returning: value)
+                    } catch {
+                        continuation.resume(throwing: error)
+                    }
                 }
             }
+        }
+    }
+
+    private static func configureBackgroundContext(_ context: NSManagedObjectContext) {
+        context.mergePolicy = NSMergePolicy(merge: .mergeByPropertyObjectTrumpMergePolicyType)
+        context.automaticallyMergesChangesFromParent = true
+    }
+
+    private func mapPersistenceError(_ error: Error, path: String) -> Error {
+        let nsError = error as NSError
+        if nsError.domain == NSCocoaErrorDomain, nsError.code == NSManagedObjectConstraintMergeError {
+            return RepositoryPersistenceError.duplicateRepository(path: path)
+        }
+        return error
+    }
+}
+
+private actor CoreDataWriteCoordinator {
+    func run<T: Sendable>(_ operation: @Sendable () async throws -> T) async throws -> T {
+        try await operation()
+    }
+}
+
+private enum RepositoryPersistenceError: LocalizedError {
+    case duplicateRepository(path: String)
+
+    var errorDescription: String? {
+        switch self {
+        case .duplicateRepository(let path):
+            return "The repository at \(path) was opened in another in-flight save. Try again."
         }
     }
 }

@@ -5,10 +5,14 @@ import Foundation
 @MainActor
 extension RepositoryStoreViewModel {
     func applyStash() async {
-        guard !isStashOperationInProgress else { return }
+        guard !isStashOperationInProgress, !isWorkingTreeMutationInProgress else { return }
         guard let repository = selectedRepository, let stashProvider else { return }
         isStashOperationInProgress = true
-        defer { isStashOperationInProgress = false }
+        isWorkingTreeMutationInProgress = true
+        defer {
+            isStashOperationInProgress = false
+            isWorkingTreeMutationInProgress = false
+        }
         errorMessage = nil
         do {
             try await stashProvider.applyStash(in: repository.url)
@@ -19,10 +23,14 @@ extension RepositoryStoreViewModel {
     }
 
     func dropStash() async {
-        guard !isStashOperationInProgress else { return }
+        guard !isStashOperationInProgress, !isWorkingTreeMutationInProgress else { return }
         guard let repository = selectedRepository, let stashProvider else { return }
         isStashOperationInProgress = true
-        defer { isStashOperationInProgress = false }
+        isWorkingTreeMutationInProgress = true
+        defer {
+            isStashOperationInProgress = false
+            isWorkingTreeMutationInProgress = false
+        }
         errorMessage = nil
         do {
             try await stashProvider.dropStash(in: repository.url)
@@ -44,7 +52,10 @@ extension RepositoryStoreViewModel {
 
     /// Stash all working-tree changes (Branch → Stash All Changes).
     func stashAllChanges() async {
+        guard !isWorkingTreeMutationInProgress else { return }
         guard let repository = selectedRepository, let stashProvider else { return }
+        isWorkingTreeMutationInProgress = true
+        defer { isWorkingTreeMutationInProgress = false }
         errorMessage = nil
         do {
             try await stashProvider.pushStash(in: repository.url, message: nil)

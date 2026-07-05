@@ -2,7 +2,7 @@ import SwiftUI
 
 struct ResetToCommitSheet: View {
     let commit: Commit
-    let onConfirm: (ResetMode) async -> Void
+    let onConfirm: (ResetMode) async -> Bool
     let onCancel: () -> Void
 
     @State private var mode: ResetMode = .mixed
@@ -48,8 +48,11 @@ struct ResetToCommitSheet: View {
                 Button(mode == .hard ? "Reset (Discard Changes)" : "Reset") {
                     isWorking = true
                     Task {
-                        await onConfirm(mode)
+                        let didSucceed = await onConfirm(mode)
                         isWorking = false
+                        if didSucceed {
+                            onCancel()
+                        }
                     }
                 }
                 .keyboardShortcut(.return, modifiers: .command)

@@ -17,6 +17,8 @@ final class GitCherryPickProvider: CherryPickProviding, Sendable {
         let shas = commits.reversed().map(\.id)
         do {
             _ = try await client.run(["cherry-pick"] + shas, in: repositoryURL, timeout: 120)
+        } catch is CancellationError {
+            throw CancellationError()
         } catch {
             // Conflict or failure leaves the repo mid-cherry-pick. Abort so the
             // working tree returns to a clean state, then surface the error.

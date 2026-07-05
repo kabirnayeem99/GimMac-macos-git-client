@@ -12,8 +12,6 @@ struct PushToolbarCard: View {
     @State private var isHovered = false
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
-    private let ticker = Timer.publish(every: 60, on: .main, in: .common).autoconnect()
-
     private var fetchedDescription: String {
         guard let date = lastFetched else { return subtitle }
         return "Last fetched " + AppFormatters.relativeDate.localizedString(for: date, relativeTo: now)
@@ -85,8 +83,13 @@ struct PushToolbarCard: View {
         .accessibilityElement(children: .ignore)
         .accessibilityHidden(true)
         .onHover { isHovered = $0 }
-        .onReceive(ticker) { date in
-            now = date
+        .task {
+            now = Date()
+            while !Task.isCancelled {
+                try? await Task.sleep(for: .seconds(60))
+                guard !Task.isCancelled else { break }
+                now = Date()
+            }
         }
     }
 }

@@ -158,19 +158,18 @@ final class RepositorySettingsViewController: NSViewController {
     }
 
     private func syncBanner() {
-        bannerDismissWorkItem?.cancel()
-        bannerDismissWorkItem = nil
-
         let newError = viewModel.errorMessage
         let newSuccess = viewModel.successMessage
 
         if let error = newError, error != lastErrorMessage {
+            cancelBannerDismiss()
             bannerLabel?.textColor = .systemRed
             bannerLabel?.stringValue = error
             bannerLabel?.fadeBanner(visible: true)
             lastErrorMessage = error
             lastSuccessMessage = nil
         } else if let success = newSuccess, success != lastSuccessMessage {
+            cancelBannerDismiss()
             bannerLabel?.textColor = .systemGreen
             bannerLabel?.stringValue = success
             bannerLabel?.fadeBanner(visible: true)
@@ -181,10 +180,16 @@ final class RepositorySettingsViewController: NSViewController {
                 bannerDismissWorkItem = AppKitMotion.scheduleAutoDismiss(for: banner)
             }
         } else if newError == nil, newSuccess == nil {
+            cancelBannerDismiss()
             bannerLabel?.fadeBanner(visible: false)
             lastErrorMessage = nil
             lastSuccessMessage = nil
         }
+    }
+
+    private func cancelBannerDismiss() {
+        bannerDismissWorkItem?.cancel()
+        bannerDismissWorkItem = nil
     }
 
     private func flashSuccessFeedback() {

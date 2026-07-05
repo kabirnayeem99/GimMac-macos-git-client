@@ -10,7 +10,7 @@ struct CreateRepositorySheet: View {
     /// Loads `( gitignore template names, licenses )` from the catalog.
     let loadTemplates: () async -> ([String], [LicenseTemplate])
     /// Final selection: scaffolding options plus the destination directory.
-    let onCreate: (RepositoryCreationOptions, URL) -> Void
+    let onCreate: (RepositoryCreationOptions, URL) async -> Bool
     let onCancel: () -> Void
 
     /// Sentinel shown in the pickers for "no template / no license".
@@ -183,11 +183,15 @@ struct CreateRepositorySheet: View {
             licenseName: licenseSelection == Self.noneTag ? nil : licenseSelection,
             makeInitialCommit: true
         )
-        isWorking = false
-        creationOutcome = .success
-        let delay = reduceMotion ? 0.05 : 0.4
-        DispatchQueue.main.asyncAfter(deadline: .now() + delay) { [options, destinationURL, onCreate] in
-            onCreate(options, destinationURL)
+        isWorking = true
+        Task {
+            let didSucceed = await onCreate(options, destinationURL)
+            isWorking = false
+            guard didSucceed else { return }
+            creationOutcome = .success
+            let delay = reduceMotion ? 0.05 : 0.4
+            try? await Task.sleep(for: .seconds(delay))
+            onCancel()
         }
     }
 }

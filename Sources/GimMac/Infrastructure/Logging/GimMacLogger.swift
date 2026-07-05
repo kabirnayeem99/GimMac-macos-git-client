@@ -209,7 +209,9 @@ private final class BackgroundLogWriter: @unchecked Sendable {
     private let fileURL: URL
     private let configuration: GimMacLogger.Configuration
     private let queue = DispatchQueue(label: "io.gimmac.logging", qos: .utility)
-    private var pendingWriteCount = 0
+    private var fileHandle: FileHandle?
+    private var recentEntryData: [Data] = []
+    private var hasLoadedExistingEntries = false
 
     init(fileURL: URL, configuration: GimMacLogger.Configuration) {
         self.fileURL = fileURL
@@ -234,43 +236,64 @@ private final class BackgroundLogWriter: @unchecked Sendable {
 
     private func append(_ entry: LogEntry) {
         do {
-            try FileManager.default.createDirectory(
-                at: fileURL.deletingLastPathComponent(),
-                withIntermediateDirectories: true
-            )
-            if !FileManager.default.fileExists(atPath: fileURL.path) {
-                FileManager.default.createFile(atPath: fileURL.path, contents: nil)
-            }
-
+            try ensureFileReady()
             let encoder = JSONEncoder()
             let data = try encoder.encode(entry) + Data("\n".utf8)
-            let handle = try FileHandle(forWritingTo: fileURL)
+            let handle = try openFileHandle()
             try handle.seekToEnd()
             try handle.write(contentsOf: data)
-            try handle.close()
-
-            pendingWriteCount += 1
-            if pendingWriteCount >= configuration.rotationInterval {
-                pendingWriteCount = 0
-                rotateIfNeeded()
-            }
+            recentEntryData.append(data)
+            trimRecentEntriesIfNeeded()
         } catch {
             // Logging must never crash or block application work.
         }
     }
 
-    private func rotateIfNeeded() {
-        guard configuration.maxEntries > 0 else { return }
-
-        do {
-            let contents = try String(contentsOf: fileURL, encoding: .utf8)
-            let lines = contents.split(whereSeparator: \.isNewline)
-            guard lines.count > configuration.maxEntries else { return }
-            let trimmed = lines.suffix(configuration.maxEntries).joined(separator: "\n") + "\n"
-            try trimmed.write(to: fileURL, atomically: true, encoding: .utf8)
-        } catch {
-            // Logging must never crash or block application work.
+    private func ensureFileReady() throws {
+        try FileManager.default.createDirectory(
+            at: fileURL.deletingLastPathComponent(),
+            withIntermediateDirectories: true
+        )
+        if !FileManager.default.fileExists(atPath: fileURL.path) {
+            FileManager.default.createFile(atPath: fileURL.path, contents: nil)
         }
+        guard !hasLoadedExistingEntries else { return }
+        hasLoadedExistingEntries = true
+        guard configuration.maxEntries > 0,
+              let existingData = try? Data(contentsOf: fileURL),
+              !existingData.isEmpty else { return }
+
+        recentEntryData = existingData
+            .split(separator: 0x0A, omittingEmptySubsequences: true)
+            .suffix(configuration.maxEntries)
+            .map { Data($0) + Data("\n".utf8) }
+        if existingData != Data(recentEntryData.joined()) {
+            try rewriteFileFromRecentEntries()
+        }
+    }
+
+    private func openFileHandle() throws -> FileHandle {
+        if let fileHandle {
+            return fileHandle
+        }
+        let handle = try FileHandle(forWritingTo: fileURL)
+        fileHandle = handle
+        return handle
+    }
+
+    private func trimRecentEntriesIfNeeded() {
+        guard configuration.maxEntries > 0, recentEntryData.count > configuration.maxEntries else { return }
+        recentEntryData.removeFirst(recentEntryData.count - configuration.maxEntries)
+        try? rewriteFileFromRecentEntries()
+    }
+
+    private func rewriteFileFromRecentEntries() throws {
+        try fileHandle?.close()
+        fileHandle = nil
+        let rewritten = Data(recentEntryData.joined())
+        try rewritten.write(to: fileURL, options: .atomic)
+        fileHandle = try FileHandle(forWritingTo: fileURL)
+        try fileHandle?.seekToEnd()
     }
 
     private static func makeEntry(from request: LogRequest, appStartUptime: TimeInterval) -> LogEntry {

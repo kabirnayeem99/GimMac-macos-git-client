@@ -11,8 +11,8 @@ final class GitTagProvider: TagProviding, Sendable {
     func createTag(named name: String, message: String?, at commit: Commit, in repositoryURL: URL) async throws {
         let trimmedMessage = message?.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
         let arguments: [String] = trimmedMessage.isEmpty
-            ? ["tag", name, commit.id]
-            : ["tag", "-a", name, "-m", trimmedMessage, commit.id]
+            ? ["tag", "--", name, commit.id]
+            : ["tag", "-a", "-m", trimmedMessage, "--", name, commit.id]
         _ = try await client.run(arguments, in: repositoryURL, timeout: 15)
     }
 }

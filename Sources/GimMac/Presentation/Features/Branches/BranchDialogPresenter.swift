@@ -41,7 +41,8 @@ final class BranchDialogPresenter {
 
     private func present(_ controller: NSViewController) {
         guard let window = windowProvider(),
-              let host = window.contentViewController else { return }
+              let host = window.contentViewController,
+              host.presentedViewControllers?.isEmpty ?? true else { return }
         host.presentAsSheet(controller)
     }
 
@@ -89,15 +90,7 @@ final class BranchDialogPresenter {
     func presentDeleteBranch(for branch: Branch) {
         let controller = DeleteBranchWindowController(branch: branch) { [weak viewModel] deleteRemote in
             guard let viewModel else { return }
-            if branch.isLocal {
-                Task { await viewModel.deleteLocalBranch(branch, force: true) }
-                if deleteRemote, let upstream = branch.upstream {
-                    let remote = upstream.split(separator: "/").first.map(String.init) ?? "origin"
-                    Task { await viewModel.deleteRemoteBranch(branch, remote: remote) }
-                }
-            } else if let remote = branch.remoteName {
-                Task { await viewModel.deleteRemoteBranch(branch, remote: remote) }
-            }
+            Task { await viewModel.deleteBranch(branch, deleteRemote: deleteRemote) }
         }
         present(controller.viewController)
     }

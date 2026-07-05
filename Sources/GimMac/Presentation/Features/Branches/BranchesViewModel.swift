@@ -51,6 +51,8 @@ final class BranchesViewModel {
     /// don't clear a newer result early.
     private var outcomeResetTask: Task<Void, Never>?
     private var repositoryGeneration: Int = 0
+    private var branchLoadTask: Task<[Branch], Error>?
+    private var branchLoadRequestID: Int = 0
 
     struct StashGuard: Equatable {
         let pendingBranch: Branch
@@ -112,6 +114,8 @@ final class BranchesViewModel {
 
     func setRepository(_ url: URL?, currentBranchName: String?) {
         repositoryGeneration += 1
+        branchLoadTask?.cancel()
+        branchLoadTask = nil
         self.repositoryURL = url
         self.currentBranchName = currentBranchName
         stashGuardNeeded = nil
@@ -121,19 +125,29 @@ final class BranchesViewModel {
     func loadBranches() async {
         guard let repositoryURL else { return }
         let generation = repositoryGeneration
+        branchLoadTask?.cancel()
+        branchLoadRequestID += 1
+        let requestID = branchLoadRequestID
+        let task = Task { try await branchProvider.fetchBranches(in: repositoryURL) }
+        branchLoadTask = task
         isLoading = true
         errorMessage = nil
         defer {
+            if branchLoadRequestID == requestID {
+                branchLoadTask = nil
+            }
             if isCurrentRepositoryTarget(repositoryURL, generation: generation) {
                 isLoading = false
             }
         }
 
         do {
-            let branches = try await branchProvider.fetchBranches(in: repositoryURL)
+            let branches = try await task.value
             guard isCurrentRepositoryTarget(repositoryURL, generation: generation) else { return }
             self.localBranches = branches.filter { $0.isLocal }
             self.remoteBranches = branches.filter { !$0.isLocal }
+        } catch is CancellationError {
+            return
         } catch {
             guard isCurrentRepositoryTarget(repositoryURL, generation: generation) else { return }
             errorMessage = (error as? GitAppError)?.localizedDescription ?? error.localizedDescription
@@ -296,25 +310,31 @@ final class BranchesViewModel {
             setOutcome(.failure)
         }
     }
+}
 
-    // MARK: - Outcome feedback
-
-    private func setOutcome(_ outcome: OpOutcome) {
-        outcomeResetTask?.cancel()
-        lastOutcome = outcome
-        guard outcome != .none else { return }
-        outcomeResetTask = Task { [weak self] in
-            try? await Task.sleep(for: .seconds(1.2))
-            guard let self, !Task.isCancelled else { return }
-            self.lastOutcome = .none
+@MainActor
+extension BranchesViewModel {
+    func deleteBranch(_ branch: Branch, deleteRemote: Bool) async {
+        guard let repositoryURL else { return }
+        errorMessage = nil
+        do {
+            if branch.isLocal {
+                try await branchOperator.deleteLocalBranch(branch, force: true, in: repositoryURL)
+                if deleteRemote {
+                    let remote = branch.upstream?.split(separator: "/").first.map(String.init) ?? "origin"
+                    try await branchOperator.deleteRemoteBranch(branch, remote: remote, in: repositoryURL)
+                }
+            } else if let remote = branch.remoteName {
+                try await branchOperator.deleteRemoteBranch(branch, remote: remote, in: repositoryURL)
+            }
+            await loadBranches()
+            setOutcome(.success)
+        } catch {
+            errorMessage = (error as? GitAppError)?.localizedDescription ?? error.localizedDescription
+            setOutcome(.failure)
         }
     }
 
-    // MARK: - Validation helpers
-
-    /// Live validation for the create / rename name fields.
-    /// Mirrors `git check-ref-format --branch` rules (a subset, evaluated locally
-    /// so the user gets instant feedback without invoking git on every keystroke).
     static func validateBranchName(_ rawName: String, existing: [String] = []) -> BranchNameValidation {
         let name = rawName.trimmingCharacters(in: .whitespaces)
         if name.isEmpty { return .invalid(reason: "Name is required") }
@@ -331,6 +351,17 @@ final class BranchesViewModel {
             return .invalid(reason: "A branch with this name already exists")
         }
         return .valid
+    }
+
+    private func setOutcome(_ outcome: OpOutcome) {
+        outcomeResetTask?.cancel()
+        lastOutcome = outcome
+        guard outcome != .none else { return }
+        outcomeResetTask = Task { [weak self] in
+            try? await Task.sleep(for: .seconds(1.2))
+            guard let self, !Task.isCancelled else { return }
+            self.lastOutcome = .none
+        }
     }
 }
 

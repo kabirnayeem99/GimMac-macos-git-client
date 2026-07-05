@@ -256,10 +256,10 @@ extension RepositoryStoreViewModel {
         }
     }
 
-    func squashSelectedCommits(message: String) async {
+    func squashSelectedCommits(message: String) async -> Bool {
         guard let repository = selectedRepository,
               let squashProvider,
-              selectedHistoryCommits.count >= 2 else { return }
+              selectedHistoryCommits.count >= 2 else { return false }
 
         let commitsToSquash = selectedHistoryCommits
         isSquashing = true
@@ -270,8 +270,10 @@ extension RepositoryStoreViewModel {
             try await squashProvider.squash(commits: commitsToSquash, message: message, in: repository.url)
             historyHandler.clearSelection()
             await refreshRepositoryScreenData()
+            return true
         } catch {
             errorMessage = error.localizedDescription
+            return false
         }
     }
 
@@ -312,13 +314,13 @@ extension RepositoryStoreViewModel {
         }
     }
 
-    func createTagOnSelectedCommit(named name: String, message: String?) async {
+    func createTagOnSelectedCommit(named name: String, message: String?) async -> Bool {
         guard let repository = selectedRepository,
               let tagProvider,
-              let commit = selectedCommit else { return }
+              let commit = selectedCommit else { return false }
 
         let trimmedName = name.trimmingCharacters(in: .whitespacesAndNewlines)
-        guard !trimmedName.isEmpty else { return }
+        guard !trimmedName.isEmpty else { return false }
 
         isTagging = true
         errorMessage = nil
@@ -327,18 +329,20 @@ extension RepositoryStoreViewModel {
         do {
             try await tagProvider.createTag(named: trimmedName, message: message, at: commit, in: repository.url)
             await refreshRepositoryScreenData()
+            return true
         } catch {
             errorMessage = error.localizedDescription
+            return false
         }
     }
 
-    func createBranchFromSelectedCommit(named name: String) async {
+    func createBranchFromSelectedCommit(named name: String) async -> Bool {
         guard let repository = selectedRepository,
               let branchOperator,
-              let commit = selectedCommit else { return }
+              let commit = selectedCommit else { return false }
 
         let trimmedName = name.trimmingCharacters(in: .whitespacesAndNewlines)
-        guard !trimmedName.isEmpty else { return }
+        guard !trimmedName.isEmpty else { return false }
 
         isCreatingBranchFromCommit = true
         errorMessage = nil
@@ -352,15 +356,17 @@ extension RepositoryStoreViewModel {
                 in: repository.url
             )
             await refreshRepositoryScreenData()
+            return true
         } catch {
             errorMessage = error.localizedDescription
+            return false
         }
     }
 
-    func resetToSelectedCommit(mode: ResetMode) async {
+    func resetToSelectedCommit(mode: ResetMode) async -> Bool {
         guard let repository = selectedRepository,
               let resetProvider,
-              let commit = selectedCommit else { return }
+              let commit = selectedCommit else { return false }
 
         isResetting = true
         errorMessage = nil
@@ -370,15 +376,17 @@ extension RepositoryStoreViewModel {
             try await resetProvider.reset(to: commit, mode: mode, in: repository.url)
             historyHandler.clearSelection()
             await refreshRepositoryScreenData()
+            return true
         } catch {
             errorMessage = error.localizedDescription
+            return false
         }
     }
 
-    func reorderCommits(_ orderedCommits: [Commit]) async {
+    func reorderCommits(_ orderedCommits: [Commit]) async -> Bool {
         guard let repository = selectedRepository,
               let reorderProvider,
-              orderedCommits.count >= 2 else { return }
+              orderedCommits.count >= 2 else { return false }
 
         isReordering = true
         errorMessage = nil
@@ -388,8 +396,10 @@ extension RepositoryStoreViewModel {
             try await reorderProvider.reorder(orderedCommits: orderedCommits, in: repository.url)
             historyHandler.clearSelection()
             await refreshRepositoryScreenData()
+            return true
         } catch {
             errorMessage = error.localizedDescription
+            return false
         }
     }
 }

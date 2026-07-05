@@ -2,7 +2,7 @@ import SwiftUI
 
 struct CreateTagSheet: View {
     let commit: Commit
-    let onConfirm: (String, String?) async -> Void
+    let onConfirm: (String, String?) async -> Bool
     let onCancel: () -> Void
 
     @State private var name = ""
@@ -53,8 +53,11 @@ struct CreateTagSheet: View {
                     isWorking = true
                     let messageToSend = message.trimmingCharacters(in: .whitespacesAndNewlines)
                     Task {
-                        await onConfirm(trimmedName, messageToSend.isEmpty ? nil : messageToSend)
+                        let didSucceed = await onConfirm(trimmedName, messageToSend.isEmpty ? nil : messageToSend)
                         isWorking = false
+                        if didSucceed {
+                            onCancel()
+                        }
                     }
                 }
                 .keyboardShortcut(.return, modifiers: .command)
