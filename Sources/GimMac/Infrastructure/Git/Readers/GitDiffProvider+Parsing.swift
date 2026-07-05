@@ -30,7 +30,7 @@ extension GitDiffProvider {
         let stdout: String
         do {
             stdout = try await client.run(
-                ["diff", "--no-index", "--", "/dev/null", path],
+                ["diff", "--no-ext-diff", "--no-index", "--", "/dev/null", path],
                 in: repositoryURL,
                 timeout: 10
             ).stdout

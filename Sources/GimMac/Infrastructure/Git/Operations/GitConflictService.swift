@@ -72,7 +72,7 @@ final class GitConflictService: ConflictResolutionProviding, Sendable {
     private func conflictMarkerCounts(in repositoryURL: URL) async -> [String: Int] {
         let output: String
         do {
-            let result = try await client.run(["diff", "--check"], in: repositoryURL, timeout: 30)
+            let result = try await client.run(["diff", "--no-ext-diff", "--check"], in: repositoryURL, timeout: 30)
             output = result.stdout
         } catch let error as GitAppError {
             // Exit code 2 (markers found) surfaces as commandFailed; the listing

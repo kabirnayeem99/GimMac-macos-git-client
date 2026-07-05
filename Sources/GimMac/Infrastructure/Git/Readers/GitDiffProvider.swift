@@ -45,13 +45,13 @@ final class GitDiffProvider: DiffProviding, Sendable {
             paths = [path]
         }
         async let unstagedTask = client.run(
-            ["diff", "-M", "--"] + paths,
+            ["diff", "--no-ext-diff", "-M", "--"] + paths,
             in: repositoryURL,
             priority: .visible,
             timeout: 10
         ).stdout
         async let stagedTask = client.run(
-            ["diff", "--cached", "-M", "--"] + paths,
+            ["diff", "--no-ext-diff", "--cached", "-M", "--"] + paths,
             in: repositoryURL,
             priority: .visible,
             timeout: 10
@@ -88,7 +88,7 @@ final class GitDiffProvider: DiffProviding, Sendable {
     ) async throws -> DiffDocument {
         // Try parent..commit first; fall back to `git show` for the root commit.
         let primary = try? await client.run(
-            ["diff", "\(commitSHA)^..\(commitSHA)", "--", path],
+            ["diff", "--no-ext-diff", "\(commitSHA)^..\(commitSHA)", "--", path],
             in: repositoryURL,
             timeout: 15
         )
@@ -100,7 +100,7 @@ final class GitDiffProvider: DiffProviding, Sendable {
         } else {
             // Initial commit (no parent) — use `git show` which prints a diff against /dev/null.
             let show = try await client.run(
-                ["show", "--format=", commitSHA, "--", path],
+                ["show", "--no-ext-diff", "--format=", commitSHA, "--", path],
                 in: repositoryURL,
                 timeout: 15
             )
@@ -119,7 +119,7 @@ final class GitDiffProvider: DiffProviding, Sendable {
         if commitChanged {
             // Gitlink SHAs are only meaningful when the recorded commit moved.
             let raw = try await client.run(
-                ["diff", "--submodule=short", "--", changedFile.path],
+                ["diff", "--no-ext-diff", "--submodule=short", "--", changedFile.path],
                 in: repositoryURL,
                 timeout: 10
             ).stdout

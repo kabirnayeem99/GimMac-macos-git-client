@@ -379,6 +379,34 @@ final class GitDiffIntegrationTests: XCTestCase {
         XCTAssertEqual(content.first?.text, "one")
     }
 
+    // MARK: - external diff driver safety (AGENTS.md section 9: repo-controlled
+    // diff drivers must never execute without explicit consent)
+
+    /// A `.gitattributes`-declared `diff=hostile` driver must never run: the
+    /// repository is untrusted, so `fetchDiff` must always pass `--no-ext-diff`.
+    /// Regression test for the gap where `git diff`/`git show` ran without that
+    /// flag, letting a malicious repo's custom diff driver execute silently.
+    func testExternalDiffDriverNeverExecutes() async throws {
+        let root = try makeCommittedRepository(fileName: "a.txt", contents: "base\n")
+        defer { try? FileManager.default.removeItem(at: root) }
+
+        let sentinel = root.appendingPathComponent("pwned").path
+        let scriptURL = root.appendingPathComponent("hostile-driver.sh")
+        try "#!/bin/sh\ntouch \"\(sentinel)\"\nexit 0\n".write(to: scriptURL, atomically: true, encoding: .utf8)
+        try FileManager.default.setAttributes([.posixPermissions: 0o755], ofItemAtPath: scriptURL.path)
+
+        try write(".gitattributes", "a.txt diff=hostile\n", in: root)
+        try runGit(["config", "diff.hostile.command", scriptURL.path], in: root)
+        try write("a.txt", "base\nmodified\n", in: root)
+
+        _ = try await sut.fetchDiff(in: root, for: "a.txt")
+
+        XCTAssertFalse(
+            FileManager.default.fileExists(atPath: sentinel),
+            "external diff driver executed without consent"
+        )
+    }
+
 }
 
 // MARK: - Helpers
