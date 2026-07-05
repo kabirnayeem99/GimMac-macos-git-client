@@ -1,6 +1,8 @@
 # Plan: Full Git Workflow Integration Test
 
-**Status:** Planned, not yet implemented.
+**Status:** Implemented and passing (`Tests/GimMacIntegrationTests/GitFullWorkflowIntegrationTests.swift`).
+Fixed one bug found during implementation: steps 4/5 (renames) must pass only the new path to
+`commitProvider.commit(paths:)`, not `[oldPath, newPath]` — see the note in the step table below.
 
 **Original ask:** "Do a integration test for full git process, clone, save, modified files, git move,
 git move, git push, git squash 2-3 commits, git tag, delete files. all" — one continuous flow, not
@@ -57,7 +59,7 @@ needed for a new file in an existing target directory).
 | 1 | Clone | `GitRepositoryCloneService.clone(from: originURL.path, to: workDir)` | Runs `git clone --recursive --progress -- <path> <dest>` from `workDir`'s parent. `workDir` must not exist yet — clone creates it. Cloning an empty bare repo yields unborn HEAD, same as cloning a brand-new empty GitHub repo. |
 | 2 | Save | write `notes.txt` → `GitCommitProvider.commit(paths: ["notes.txt"], summary: "Add notes", ...)` | First real commit; creates the default branch (e.g. `main`) from unborn HEAD |
 | 3 | Modify | overwrite `notes.txt` → commit "Update notes" | Second commit on the same file |
-| 4 | Move #1 | `client.run(["mv", "--", "notes.txt", "journal.txt"])` → commit "Rename notes.txt to journal.txt" | `git mv` stages the rename in the index immediately; the follow-up `commitProvider.commit(paths:)` call runs its internal `add -A -- <path>` on both old and new paths (no-ops since already staged) — same call path the real UI uses for a rename |
+| 4 | Move #1 | `client.run(["mv", "--", "notes.txt", "journal.txt"])` → commit "Rename notes.txt to journal.txt" | `git mv` stages the whole rename in the index immediately (old path removed, new path added). `commitProvider.commit(paths:)` is called with **only the new path** — matching real UI usage, where `ChangedFilesHandler.checkedPaths` keys off `ChangedFile.path` (new name) and never `oldPath`. Passing the old path too makes its internal `add -A -- <oldPath>` fail with `fatal: pathspec did not match any files`, since the old path no longer exists in the working tree or the index. |
 | 5 | Move #2 | `client.run(["mv", "--", "journal.txt", "diary.txt"])` → commit "Rename journal.txt to diary.txt" | Same as above, second rename |
 | 6 | Push | `GitRemoteSyncService.publishBranch(named: branch, remote: "origin", in: workDir)` | First push needs `-u`/upstream since none is set after a clone of an empty repo — `publishBranch` runs `push --set-upstream origin <branch>`, not plain `push` |
 | 7 | Squash | fetch last 3 commit SHAs (`log --format=%H -n 3`, newest-first) → wrap as `Commit` structs → `GitSquashProvider.squash(commits:, message:, in:)` | Runs a *real* `git rebase -i` against a controlled `GIT_SEQUENCE_EDITOR`/`GIT_EDITOR` script pair — squashes "Update notes" + both renames into one commit, keeping "Add notes" as the untouched base |
@@ -65,6 +67,23 @@ needed for a new file in an existing target directory).
 | 9 | Tag | `GitTagProvider.createTag(named: "v1.0.0", message: "Release 1.0.0", at: headCommit, in: workDir)` | `git tag -a -m "Release 1.0.0" -- v1.0.0 <sha>` (annotated tag) at the post-squash HEAD |
 | 10 | Delete | `FileManager.removeItem(diary.txt)` → `GitCommitProvider.commit(paths: ["diary.txt"], summary: "Delete diary.txt", ...)` | Internal `add -A -- diary.txt` correctly stages a deletion |
 | 11 | Final push | `GitRemoteSyncService.push(remote: "origin", in: workDir)` | Plain fast-forward push; proves the whole chain (clone → save → modify → 2 renames → push → squash → force-push → tag → delete → push) round-trips cleanly to the remote |
+
+---
+
+## Phases
+
+Still one test method, one continuous flow (per design principles above) — phases below are
+implementation/checkpoint groupings, not separate tests. Build and verify in order; each phase's
+assertions must pass before starting the next.
+
+| Phase | Steps | Goal | Exit check |
+|---|---|---|---|
+| 1. Setup + clone | 0, 1 | Bare remote exists, identity configured, empty repo cloned | `.git` dir exists in `workDir`; unborn HEAD |
+| 2. Local history | 2–5 | Build commit history: add, modify, rename x2 | `commitCount == 4`; `diary.txt` present, `notes.txt`/`journal.txt` gone |
+| 3. First sync | 6 | Publish branch to remote | local HEAD SHA == remote branch SHA |
+| 4. History rewrite | 7, 8 | Squash last 3 commits, force-sync remote | `commitCount == 2`; squashed SHAs not ancestors of HEAD; remote HEAD == local HEAD |
+| 5. Tag | 9 | Annotated tag at post-squash HEAD | `rev-list -n 1 v1.0.0` == local HEAD |
+| 6. Delete + final sync | 10, 11 | Delete file, commit, fast-forward push, verify full round-trip | working tree clean; `commitCount == 3`; local log == remote log; tag absent on remote |
 
 ---
 
@@ -116,10 +135,11 @@ final class GitFullWorkflowIntegrationTests: XCTestCase {
         )
         XCTAssertEqual(try commitCount(in: workDir), 2)
 
-        // Step 4 — move #1
+        // Step 4 — move #1. Only the new path is passed — `git mv` already staged
+        // the whole rename, and this matches how the real UI calls commit.
         _ = try await client.run(["mv", "--", "notes.txt", "journal.txt"], in: workDir, timeout: 15)
         try await commitProvider.commit(
-            in: workDir, paths: ["notes.txt", "journal.txt"], summary: "Rename notes.txt to journal.txt",
+            in: workDir, paths: ["journal.txt"], summary: "Rename notes.txt to journal.txt",
             description: nil, options: CommitOptions()
         )
         XCTAssertFalse(FileManager.default.fileExists(atPath: notesURL.path))
@@ -128,7 +148,7 @@ final class GitFullWorkflowIntegrationTests: XCTestCase {
         // Step 5 — move #2
         _ = try await client.run(["mv", "--", "journal.txt", "diary.txt"], in: workDir, timeout: 15)
         try await commitProvider.commit(
-            in: workDir, paths: ["journal.txt", "diary.txt"], summary: "Rename journal.txt to diary.txt",
+            in: workDir, paths: ["diary.txt"], summary: "Rename journal.txt to diary.txt",
             description: nil, options: CommitOptions()
         )
         let diaryURL = workDir.appendingPathComponent("diary.txt")

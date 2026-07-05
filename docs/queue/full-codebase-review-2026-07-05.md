@@ -29,9 +29,9 @@ explicitly requested.
 ### Git layer
 
 - **Missing `--` separator before ref/branch/tag arguments** — `GitBranchOperator.swift:19,40,45,52,76,83`,
-  `GitMergeService.swift`, `GitUpdateFromDefaultService.swift`, `GitRebaseService.swift:13`,
-  `GitTagProvider.swift:14-15`. A branch or tag literally named `-D`, `-f`, or `--force` is parsed by git
-  as a flag instead of a ref. Fix: insert `--` before all user-controlled ref/name arguments.
+  `GitMergeService.swift`, `GitUpdateFromDefaultService.swift`, `GitRebaseService.swift:13`.
+  A branch or tag literally named `-D`, `-f`, or `--force` is parsed by git as a flag instead of a ref.
+  Fix: insert `--` before all user-controlled ref/name arguments.
 - **Cherry-pick aborts on mere task cancellation** — `GitCherryPickProvider.swift:18-25` catches
   `CancellationError` alongside real errors and unconditionally runs `cherry-pick --abort`, destroying
   legitimate in-progress state if the user simply navigates away.

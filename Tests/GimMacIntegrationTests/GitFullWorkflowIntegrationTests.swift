@@ -46,19 +46,23 @@ final class GitFullWorkflowIntegrationTests: XCTestCase {
         )
         XCTAssertEqual(try commitCount(in: workDir), 2)
 
-        // Step 4 — move #1
+        // Step 4 — move #1. `git mv` already stages the whole rename (removes the
+        // old path from the index too), so only the new path is passed to commit —
+        // matching real UI usage (ChangedFilesHandler.checkedPaths keys off the new
+        // `path`, never `oldPath`). Passing the old path as well makes
+        // `git add -A -- notes.txt` fail with "pathspec did not match any files".
         _ = try await client.run(["mv", "--", "notes.txt", "journal.txt"], in: workDir, timeout: 15)
         try await commitProvider.commit(
-            in: workDir, paths: ["notes.txt", "journal.txt"], summary: "Rename notes.txt to journal.txt",
+            in: workDir, paths: ["journal.txt"], summary: "Rename notes.txt to journal.txt",
             description: nil, options: CommitOptions()
         )
         XCTAssertFalse(FileManager.default.fileExists(atPath: notesURL.path))
         XCTAssertTrue(FileManager.default.fileExists(atPath: workDir.appendingPathComponent("journal.txt").path))
 
-        // Step 5 — move #2
+        // Step 5 — move #2, same reasoning as step 4.
         _ = try await client.run(["mv", "--", "journal.txt", "diary.txt"], in: workDir, timeout: 15)
         try await commitProvider.commit(
-            in: workDir, paths: ["journal.txt", "diary.txt"], summary: "Rename journal.txt to diary.txt",
+            in: workDir, paths: ["diary.txt"], summary: "Rename journal.txt to diary.txt",
             description: nil, options: CommitOptions()
         )
         let diaryURL = workDir.appendingPathComponent("diary.txt")
