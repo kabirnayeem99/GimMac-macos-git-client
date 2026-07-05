@@ -235,10 +235,6 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         controller.onClose = { [weak self] in
             self?.repositorySettingsWindowController = nil
         }
-        viewModel.onDismiss = { [weak self, weak controller] in
-            controller?.close()
-            self?.repositorySettingsWindowController = nil
-        }
         repositorySettingsWindowController = controller
         controller.showWindow(nil)
         controller.window?.center()

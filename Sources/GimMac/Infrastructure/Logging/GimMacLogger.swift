@@ -212,6 +212,7 @@ private final class BackgroundLogWriter: @unchecked Sendable {
     private var fileHandle: FileHandle?
     private var recentEntryData: [Data] = []
     private var hasLoadedExistingEntries = false
+    private var appendsSinceRewrite = 0
 
     init(fileURL: URL, configuration: GimMacLogger.Configuration) {
         self.fileURL = fileURL
@@ -284,6 +285,9 @@ private final class BackgroundLogWriter: @unchecked Sendable {
     private func trimRecentEntriesIfNeeded() {
         guard configuration.maxEntries > 0, recentEntryData.count > configuration.maxEntries else { return }
         recentEntryData.removeFirst(recentEntryData.count - configuration.maxEntries)
+        appendsSinceRewrite += 1
+        guard configuration.rotationInterval > 0, appendsSinceRewrite >= configuration.rotationInterval else { return }
+        appendsSinceRewrite = 0
         try? rewriteFileFromRecentEntries()
     }
 

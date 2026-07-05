@@ -10,7 +10,7 @@ direct file reads (not guessed). One agent flagged a credential-logging issue as
 auto-spawned a separate fix session (`task_2896b170`) — review before acting on it, it was not
 explicitly requested.
 
-**Status:** Blocker and resolved major/minor items removed. Remaining issues below need individual fix tickets.
+**Status:** Blocker and resolved major/minor items removed. Remaining minor issues below need individual fix tickets.
 
 ---
 
@@ -19,30 +19,8 @@ explicitly requested.
 | Severity | Count |
 |---|---|
 | Blocker | 0 |
-| Major | 3 |
+| Major | 0 |
 | Minor | 17 |
-
----
-
-## Major
-
-### Persistence
-
-- **Log rotation does a full read+rewrite** — `GimMacLogger.swift:260-272`, synchronously, every 250
-  appended entries.
-
-### RepositoryStore / Changes / Diff
-
-- **`filteredFiles` recomputed twice per render** — `Sidebar.swift:44-52,177,183`, an uncached O(n) scan
-  evaluated once for the count and again for the list on every re-render.
-
-### Shell / windows
-
-- **`RepositorySettingsWindowController.onDismiss` is never invoked** — wired in
-  `AppDelegate.swift:236-239` but no call site exists in `RepositorySettingsViewModel.swift`/
-  `RepositorySettingsViewController.swift`. Closing the window via the titlebar (not an in-view action)
-  leaks the window/controller/view-model indefinitely. Partially addressed: `onClose` now nils the
-  window controller reference, but `onDismiss` itself is still not triggered.
 
 ---
 

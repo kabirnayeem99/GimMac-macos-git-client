@@ -97,6 +97,8 @@ struct Sidebar: View {
     }
 
     var body: some View {
+        let filteredFiles = filteredFiles
+
         VStack(spacing: 0) {
             HStack(spacing: 8) {
                 Menu {

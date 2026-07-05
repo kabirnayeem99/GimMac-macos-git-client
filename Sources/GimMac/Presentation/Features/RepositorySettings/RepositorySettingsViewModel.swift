@@ -28,8 +28,6 @@ final class RepositorySettingsViewModel {
     private let branchRenamer: any DefaultBranchRenaming
     private let editorService: any ExternalEditorServiceProtocol
 
-    var onDismiss: (() -> Void)?
-
     // MARK: - Init
 
     init(
