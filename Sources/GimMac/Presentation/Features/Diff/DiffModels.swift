@@ -12,6 +12,14 @@ struct DiffLineHighlight: Equatable {
     let length: Int
 }
 
+/// Precomputed split of a line's text around its intraline highlight range,
+/// so `DiffLineRow` never re-derives `Array(text)` on every render.
+struct DiffLineHighlightedParts: Equatable {
+    let prefix: String
+    let changed: String
+    let suffix: String
+}
+
 struct DiffLine: Identifiable {
     let id = UUID()
     let kind: DiffKind
@@ -19,6 +27,31 @@ struct DiffLine: Identifiable {
     let newNumber: Int?
     let text: String
     let highlight: DiffLineHighlight?
+    let highlightedParts: DiffLineHighlightedParts?
+
+    init(kind: DiffKind, oldNumber: Int?, newNumber: Int?, text: String, highlight: DiffLineHighlight?) {
+        self.kind = kind
+        self.oldNumber = oldNumber
+        self.newNumber = newNumber
+        self.text = text
+        self.highlight = highlight
+        self.highlightedParts = Self.makeHighlightedParts(text: text, highlight: highlight)
+    }
+
+    private static func makeHighlightedParts(
+        text: String,
+        highlight: DiffLineHighlight?
+    ) -> DiffLineHighlightedParts? {
+        guard let highlight else { return nil }
+        let characters = Array(text)
+        let start = min(highlight.location, characters.count)
+        let end = min(start + highlight.length, characters.count)
+        return DiffLineHighlightedParts(
+            prefix: String(characters[..<start]),
+            changed: String(characters[start..<end]),
+            suffix: String(characters[end...])
+        )
+    }
 
     static func context(_ number: Int, _ text: String) -> DiffLine {
         DiffLine(kind: .context, oldNumber: number, newNumber: number, text: text, highlight: nil)

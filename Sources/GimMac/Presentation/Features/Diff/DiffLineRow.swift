@@ -89,8 +89,7 @@ struct DiffLineRow: View {
 
     @ViewBuilder
     private var lineText: some View {
-        if let highlight = line.highlight {
-            let parts = highlightedTextParts(highlight)
+        if let parts = line.highlightedParts {
             HStack(spacing: 0) {
                 Text(parts.prefix)
                 Text(parts.changed)
@@ -100,23 +99,5 @@ struct DiffLineRow: View {
         } else {
             Text(line.text)
         }
-    }
-
-    private struct HighlightedTextParts {
-        let prefix: String
-        let changed: String
-        let suffix: String
-    }
-
-    private func highlightedTextParts(_ highlight: DiffLineHighlight) -> HighlightedTextParts {
-        let characters = Array(line.text)
-        let start = min(highlight.location, characters.count)
-        let end = min(start + highlight.length, characters.count)
-
-        return HighlightedTextParts(
-            prefix: String(characters[..<start]),
-            changed: String(characters[start..<end]),
-            suffix: String(characters[end...])
-        )
     }
 }

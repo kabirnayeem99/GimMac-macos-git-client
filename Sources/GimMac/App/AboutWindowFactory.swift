@@ -12,7 +12,7 @@ enum AboutWindowFactory {
         panel.title = "About GimMac"
         panel.isReleasedWhenClosed = false
         panel.center()
-        panel.backgroundColor = NSColor(calibratedWhite: 0.09, alpha: 1)
+        panel.backgroundColor = .windowBackgroundColor
 
         let content = NSView()
         panel.contentView = content
@@ -38,21 +38,21 @@ enum AboutWindowFactory {
 
         let appNameLabel = NSTextField(labelWithString: "GimMac")
         appNameLabel.font = .systemFont(ofSize: 32, weight: .bold)
-        appNameLabel.textColor = .white
+        appNameLabel.textColor = .labelColor
 
         let taglineLabel = NSTextField(labelWithString: "The Native macOS Git Experience")
         taglineLabel.font = .systemFont(ofSize: 14, weight: .medium)
-        taglineLabel.textColor = NSColor(calibratedWhite: 0.85, alpha: 1)
+        taglineLabel.textColor = .secondaryLabelColor
 
-        let versionLabel = NSTextField(labelWithString: "GimMac version 0.1")
+        let versionLabel = NSTextField(labelWithString: versionString())
         versionLabel.font = .systemFont(ofSize: 12, weight: .semibold)
-        versionLabel.textColor = NSColor(calibratedWhite: 0.85, alpha: 1)
+        versionLabel.textColor = .secondaryLabelColor
 
         let copyrightLabel = NSTextField(
             labelWithString: "© 2026 GimMac Contributors.\nAll Rights Reserved."
         )
         copyrightLabel.font = .systemFont(ofSize: 10, weight: .medium)
-        copyrightLabel.textColor = NSColor(calibratedWhite: 0.75, alpha: 1)
+        copyrightLabel.textColor = .tertiaryLabelColor
         copyrightLabel.alignment = .center
         copyrightLabel.lineBreakMode = .byWordWrapping
         copyrightLabel.maximumNumberOfLines = 2
@@ -70,5 +70,14 @@ enum AboutWindowFactory {
         ])
 
         return panel
+    }
+
+    private static func versionString() -> String {
+        let info = Bundle.main.infoDictionary
+        let shortVersion = info?["CFBundleShortVersionString"] as? String ?? "0.0"
+        guard let build = info?["CFBundleVersion"] as? String, build != shortVersion else {
+            return "GimMac version \(shortVersion)"
+        }
+        return "GimMac version \(shortVersion) (\(build))"
     }
 }

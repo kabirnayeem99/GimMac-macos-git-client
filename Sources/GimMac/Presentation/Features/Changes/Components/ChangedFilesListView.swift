@@ -12,21 +12,25 @@ struct ChangedFilesListView: View {
     // Maps the view model's path-based selection onto the List's id-based
     // selection (ChangedFile.id is a composite of status + path, stable across
     // renames). Native List selection gives keyboard arrow navigation, the
-    // focus ring, and the system selection highlight for free.
-    private var selection: Binding<ChangedFile.ID?> {
+    // focus ring, and the system selection highlight for free. Built once per
+    // body evaluation into lookup dictionaries so the Binding's get/set
+    // (which List can invoke more than once per render) are O(1) instead of
+    // re-scanning `files` linearly on every access.
+    private func selectionBinding(pathToID: [String: ChangedFile.ID], idToFile: [ChangedFile.ID: ChangedFile]) -> Binding<ChangedFile.ID?> {
         Binding(
-            get: { files.first { $0.path == viewModel.selectedChangedFilePath }?.id },
+            get: { viewModel.selectedChangedFilePath.flatMap { pathToID[$0] } },
             set: { newValue in
-                guard let id = newValue,
-                      let file = files.first(where: { $0.id == id }) else { return }
+                guard let id = newValue, let file = idToFile[id] else { return }
                 viewModel.selectChangedFile(path: file.path)
             }
         )
     }
 
     var body: some View {
+        let pathToID = Dictionary(uniqueKeysWithValues: files.map { ($0.path, $0.id) })
+        let idToFile = Dictionary(uniqueKeysWithValues: files.map { ($0.id, $0) })
         ZStack {
-            List(selection: selection) {
+            List(selection: selectionBinding(pathToID: pathToID, idToFile: idToFile)) {
                 ForEach(files) { file in
                     ChangedFileRow(
                         file: file,
