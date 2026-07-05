@@ -70,6 +70,50 @@ final class GitHistoryEditIntegrationTests: XCTestCase {
         XCTAssertEqual(status.stdout, "")
     }
 
+    // MARK: - amend + co-author (CommitOptions integration coverage)
+
+    /// `CommitOptions.isAmend` is unit-tested in `GitCommitProviderCoAuthorTests`
+    /// but never against a real repo. Amending must replace HEAD's message
+    /// without adding a new commit.
+    func testAmendReplacesHeadMessageWithoutNewCommit() async throws {
+        let root = try makeCommittedRepository(fileName: "a.txt", contents: "base\n")
+        defer { try? FileManager.default.removeItem(at: root) }
+        try writeAndCommit("a.txt", "changed\n", in: root)
+        let countBefore = try commitCount(in: root)
+        let shaBefore = try headCommitSHA(in: root)
+
+        let commitProvider = GitCommitProvider(client: client, logger: GimMacLogger())
+        try await commitProvider.commit(
+            in: root, paths: [], summary: "amended message",
+            description: nil, options: CommitOptions(isAmend: true)
+        )
+
+        XCTAssertEqual(try commitCount(in: root), countBefore, "amend must not add a commit")
+        XCTAssertNotEqual(try headCommitSHA(in: root), shaBefore, "amend must produce a new SHA")
+        let message = try runGitCapturing(["log", "-1", "--format=%s"], in: root)
+            .trimmingCharacters(in: .whitespacesAndNewlines)
+        XCTAssertEqual(message, "amended message")
+    }
+
+    /// `CommitOptions.coAuthors` appends a `Co-authored-by:` trailer — unit
+    /// tested against a mocked client; this exercises the real `git commit`
+    /// path end to end.
+    func testCommitWithCoAuthorAppendsTrailer() async throws {
+        let root = try makeCommittedRepository(fileName: "a.txt", contents: "base\n")
+        defer { try? FileManager.default.removeItem(at: root) }
+        try "changed\n".write(to: root.appendingPathComponent("a.txt"), atomically: true, encoding: .utf8)
+
+        let coAuthor = CommitAuthor(name: "Pair Programmer", email: "pair@example.com")
+        let commitProvider = GitCommitProvider(client: client, logger: GimMacLogger())
+        try await commitProvider.commit(
+            in: root, paths: ["a.txt"], summary: "paired change",
+            description: nil, options: CommitOptions(coAuthors: [coAuthor])
+        )
+
+        let body = try runGitCapturing(["log", "-1", "--format=%B"], in: root)
+        XCTAssertTrue(body.contains(coAuthor.trailerLine), "expected trailer in: \(body)")
+    }
+
     // MARK: - Helpers
 
     /// Minimal `Commit` carrying only the SHA the providers consume.
